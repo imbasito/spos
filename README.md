@@ -1,6 +1,6 @@
 # Mithai POS - Professional Sweet Shop Management System
 
-![Mithai POS Logo](public/sinyx-logo-full.png)
+![Mithai POS Logo](public\assets\images\branding\sinyx-slogan.png)
 
 A robust, high-performance desktop Point of Sale (POS) system designed specifically for sweet shops. Built with **Laravel 10**, **React**, and **Electron**, it combines the power of modern web technologies with the reliability of a native desktop application.
 
@@ -62,6 +62,6 @@ npm run start  # Launch Electron
 - **Original Application**: Developed by [Original Developer qtecsolutions](https://github.com/qtecsolution/qpos.git) - *This project is a refined and enhanced version of the original QPOS system.*
 - **Refinement & Enhancements**: Maintained by Abdul Basit Khan (SINYX).
 - **License**: UNLICENSED (All Rights Reserved).
-
+- **Technologies Used**: Laravel 10, React, Electron, MySQL 8.0, NSIS (via electron-builder).
 ---
 *Built with ❤️ for professional retail environments.*
