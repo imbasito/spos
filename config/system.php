@@ -43,7 +43,7 @@
   'auto_fractional_discount' => '1',
   'backup_path' => 'C:\\Users\\bestb\\Documents\\Mithai POS Backups',
   'auto_backup' => 'daily',
-  'last_backup_date' => '2026-01-17 16:22:43',
+  'last_backup_date' => '2026-01-18 16:45:06',
   'license_key' => 'MPOS-eyJzaG9wIjoiTWUiLCJleHBpcnkiOiIyMDI3LTAxLTE2IiwibWFjaGluZSI6IkFOWSIsImNyZWF0ZWQiOiIyMDI2LTAxLTE3In0=-2AEA444C',
   'licensed_to' => 'Me',
 );

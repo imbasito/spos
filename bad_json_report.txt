@@ -1,0 +1,31 @@
+Scanning for corrupted JSON files...
+INVALID: node_modules\@babel\code-frame\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\compat-data\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\core\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-compilation-targets\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-module-imports\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-module-transforms\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-plugin-utils\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-simple-access\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-string-parser\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-validator-identifier\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helper-validator-option\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\helpers\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\highlight\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\plugin-transform-react-jsx-self\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\plugin-transform-react-jsx-source\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\template\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\traverse\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\@babel\types\tsconfig.json - Unexpected token '/', "/* This fi"... is not valid JSON
+INVALID: node_modules\define-data-property\tsconfig.json - Expected property name or '}' in JSON at position 29
+INVALID: node_modules\es-define-property\tsconfig.json - Expected double-quoted property name in JSON at position 79
+INVALID: node_modules\es-errors\tsconfig.json - Expected property name or '}' in JSON at position 26
+INVALID: node_modules\gopd\tsconfig.json - Expected double-quoted property name in JSON at position 79
+INVALID: node_modules\hasown\tsconfig.json - Unexpected token ']', ..."erage",
+  ],
+}
+" is not valid JSON
+INVALID: node_modules\xmlbuilder\.vscode\launch.json - Expected property name or '}' in JSON at position 5
+INVALID: npm_check.json - Unexpected token ''', "'npm' is n"... is not valid JSON
+EMPTY: public\.vscode\settings.json
+Scan complete.
