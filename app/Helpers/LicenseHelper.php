@@ -46,6 +46,13 @@ class LicenseHelper
             $expectedChecksum = strtoupper(substr(self::simpleHash($dataString), 0, 8));
 
             if ($providedChecksum !== $expectedChecksum) {
+                \Log::error('License Checksum Mismatch', [
+                    'encoded_data' => $encodedData,
+                    'json_data' => $jsonData,
+                    'data_string' => $dataString,
+                    'provided_checksum' => $providedChecksum,
+                    'expected_checksum' => $expectedChecksum,
+                ]);
                 return [
                     'valid' => false,
                     'error' => 'Invalid license key'
@@ -104,7 +111,7 @@ class LicenseHelper
                 $hash -= 0x100000000;
             }
         }
-        return strtoupper(dechex(abs($hash)));
+        return strtoupper(str_pad(dechex(abs($hash)), 8, '0', STR_PAD_LEFT));
     }
 
     /**

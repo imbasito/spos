@@ -43,7 +43,7 @@
   'auto_fractional_discount' => '1',
   'backup_path' => '',
   'auto_backup' => 'disabled',
-  'last_backup_date' => '2026-01-19 15:25:32',
+  'last_backup_date' => '',
   'license_key' => '',
   'licensed_to' => '',
 );

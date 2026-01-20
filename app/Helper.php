@@ -68,6 +68,11 @@ if (!function_exists('writeConfig')) {
         fwrite($fp, '<?php return ' . var_export(config('system'), true) . ';');
         fclose($fp);
 
+        // Clear config cache in production so changes take effect
+        if (file_exists(base_path('bootstrap/cache/config.php'))) {
+            @unlink(base_path('bootstrap/cache/config.php'));
+        }
+
         return @$value;
     }
 }
