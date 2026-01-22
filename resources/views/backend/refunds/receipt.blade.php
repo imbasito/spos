@@ -48,12 +48,13 @@
     @media print {
       @page {
         margin: 0;
-        size: auto;
+        size: 80mm auto; /* Creates a 'Strip' PDF instead of A4 */
       }
       body {
         margin: 0;
         padding: 0;
         background: #fff;
+        width: 72mm;
       }
       .receipt-container {
         border: none;
@@ -61,7 +62,7 @@
         margin: 0;
         box-shadow: none;
         width: 100%;
-        max-width: 100%; /* Allow full width of paper */
+        max-width: 72mm;
       }
       .no-print {
         display: none !important;
@@ -240,6 +241,17 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // SHORTCUTS: Enter=Print, Esc=Close
+      document.addEventListener('keydown', function(e) {
+           if (e.key === 'Enter') {
+               e.preventDefault();
+               printReceipt();
+           } else if (e.key === 'Escape') {
+               e.preventDefault();
+               window.close();
+           }
+      });
+
       try {
         JsBarcode("#barcode", "{{ $return->return_number }}", {
           format: "CODE128",

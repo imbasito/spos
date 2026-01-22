@@ -50,8 +50,12 @@
         { data: 'processed_by', name: 'processed_by' },
         { data: 'created_at', name: 'created_at' },
         { data: 'action', name: 'action' },
-      ]
+      ],
+      drawCallback: function() {
+          // Re-bind events if needed (delegation handles it usually)
+      }
     });
+
   });
 </script>
 @endpush

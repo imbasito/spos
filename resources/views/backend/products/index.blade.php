@@ -73,8 +73,13 @@
                 <input type="checkbox" class="form-check-input" id="showPrice">
                 <label class="form-check-label" for="showPrice">Show Price</label>
             </div>
+            
+            <div class="form-group" id="priceInputGroup" style="display: none;">
+                <label>Price</label>
+                <input type="number" class="form-control" id="visiblePrice">
+            </div>
         </form>
-      </div>
+    </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
         <button type="button" class="btn btn-primary" id="printConfirmBtn">Print</button>
@@ -139,27 +144,36 @@
         
         $('#modalBarcode').val(sku);
         $('#modalLabel').val(name);
-        $('#modalPrice').val(price); 
-
-        // Ensure price field exists (it's hidden by default, relying on the loop to populate it from data attribute)
-        if($('#modalPrice').length === 0) {
-             $('#barcodeForm').append('<input type="hidden" id="modalPrice">');
-        }
-        $('#modalPrice').val(price);
+        
+        // Populate modal
+        $('#visiblePrice').val(price);
+        $('#showPrice').prop('checked', false);
+        $('#priceInputGroup').hide();
         
         $('#barcodeModal').modal('show');
+    });
+
+    // Toggle Price Input
+    $('#showPrice').change(function() {
+        if($(this).is(':checked')) {
+            $('#priceInputGroup').slideDown();
+        } else {
+            $('#priceInputGroup').slideUp();
+        }
     });
 
     // Handle Confirm Print
     $('#printConfirmBtn').click(function() {
         let barcode = $('#modalBarcode').val();
         let label = $('#modalLabel').val();
-        let priceVal = $('#modalPrice').val();
+        let priceVal = $('#visiblePrice').val();
         
         let mfg = $('#mfgDate').val();
         let exp = $('#expDate').val();
         let size = $('#labelSize').val();
         let showPrice = $('#showPrice').is(':checked');
+        
+        // Only trigger print if validation passes
         
         let url = "{{ route('backend.admin.barcode.print') }}" + 
                   "?barcode=" + encodeURIComponent(barcode) + 
@@ -171,12 +185,14 @@
         if(showPrice) url += "&price=" + encodeURIComponent(priceVal);
         
         // Professional Silent Print via Electron
+        const btn = $(this);
+        const originalText = btn.html();
+        
         if (window.electron && window.electron.printSilent) {
             const printerName = window.posSettings && window.posSettings.tagPrinter ? window.posSettings.tagPrinter : '';
             
             // Show feedback
-            const originalText = $(this).text();
-            $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Printing...');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Printing...');
             
             window.electron.printSilent(url, printerName)
                 .then(res => {
@@ -191,11 +207,11 @@
                     toastr.error('Print error: ' + err);
                 })
                 .finally(() => {
-                    $(this).prop('disabled', false).text(originalText);
+                    btn.prop('disabled', false).html(originalText);
                 });
         } else {
             // Fallback for browser
-            window.open(url, '_blank');
+            window.open(url, '_blank', 'width=500,height=400,toolbar=no,scrollbars=yes');
             $('#barcodeModal').modal('hide');
         }
     });

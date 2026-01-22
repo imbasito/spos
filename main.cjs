@@ -290,12 +290,15 @@ function setupAutoUpdater() {
         printWindow.loadURL(url);
         
         return new Promise((resolve) => {
+            let timeoutId;
+
             printWindow.webContents.on('did-finish-load', () => {
                 // Wait a bit for JS scripts (like barcode) to render
                 setTimeout(() => {
                     const printOptions = { 
                         silent: true,
-                        printBackground: true 
+                        printBackground: true,
+                        margins: { marginType: 'none' }
                     };
                     
                     if (printerName) {
@@ -304,19 +307,20 @@ function setupAutoUpdater() {
 
                     printWindow.webContents.print(printOptions, (success, failureReason) => {
                         console.log(`Silent print result: ${success}${failureReason ? ` - ${failureReason}` : ''}`);
+                        if (timeoutId) clearTimeout(timeoutId); // Cancel the timeout
                         printWindow.close();
-                        resolve(success);
+                        resolve({ success, error: failureReason });
                     });
                 }, 1000); 
             });
             
-            // Timeout if loading takes too long
-            setTimeout(() => {
+            // Timeout if loading/printing takes too long (increased to 60s for PDF saving)
+            timeoutId = setTimeout(() => {
                 if (!printWindow.isDestroyed()) {
                     printWindow.close();
-                    resolve(false);
+                    resolve({ success: false, error: 'Print timeout (60s)' });
                 }
-            }, 10000);
+            }, 60000);
         });
     });
 

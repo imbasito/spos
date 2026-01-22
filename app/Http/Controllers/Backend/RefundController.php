@@ -32,7 +32,7 @@ class RefundController extends Controller
                 ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y h:i A'))
                 ->addColumn('action', function ($data) {
                     $url = route('backend.admin.refunds.receipt', $data->id);
-                    return '<a href="#" onclick="window.open(\'' . $url . '\', \'RefundReceipt\', \'width=450,height=600,scrollbars=yes\'); return false;" class="btn btn-sm btn-info">
+                    return '<a href="#" onclick="window.open(\'' . $url . '\', \'RefundReceipt\', \'width=450,height=600,toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,status=no\'); return false;" class="btn btn-sm btn-info">
                         <i class="fas fa-receipt"></i> Receipt
                     </a>';
                 })

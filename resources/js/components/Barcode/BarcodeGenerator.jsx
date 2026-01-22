@@ -60,24 +60,41 @@ export default function BarcodeGenerator() {
         if (!iframe) {
             iframe = document.createElement('iframe');
             iframe.id = 'print-frame';
-            iframe.style.display = 'none';
             document.body.appendChild(iframe);
         }
         if (window.electron && window.electron.printSilent) {
             const tagPrinter = window.posSettings?.tagPrinter || '';
+            
+            // Professional Feedback
+            const btn = document.querySelector('.btn-maroon');
+            const originalContent = btn ? btn.innerHTML : 'Print';
+            if(btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Printing...';
+            }
+
             window.electron.printSilent(url, tagPrinter)
-                .then(success => {
+                .then(res => {
+                    const success = typeof res === 'object' ? res.success : res;
+                    const error = typeof res === 'object' ? res.error : 'Unknown error';
+
                     if (success) {
                         Swal.fire({
                             toast: true, position: 'top-end', icon: 'success', title: 'Label sent to printer', showConfirmButton: false, timer: 1500
                         });
                     } else {
-                        Swal.fire({ icon: 'error', title: 'Printing failed', text: 'Please check your printer settings.', timer: 2000 });
+                        Swal.fire({ icon: 'error', title: 'Printing failed', text: error, timer: 3000 });
                     }
                 })
                 .catch(err => {
                     console.error('Print error:', err);
-                    iframe.src = url; // Fallback to iframe manual print if silent fails
+                    iframe.src = url; 
+                })
+                .finally(() => {
+                    if(btn) {
+                         btn.disabled = false;
+                         btn.innerHTML = originalContent;
+                    }
                 });
         } else {
             iframe.src = url;

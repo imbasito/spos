@@ -370,12 +370,13 @@ export default function Pos() {
                         setProductUpdated(!productUpdated);
                         toast.success(res?.data?.message);
                         // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
+                        // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
                         const width = 450;
                         const height = 600;
                         const left = (window.screen.width / 2) - (width / 2);
                         const top = (window.screen.height / 2) - (height / 2);
                         const url = window.location.origin + `/admin/orders/pos-invoice/${res?.data?.order?.id}`;
-                        window.open(url, 'Receipt', `width=${width},height=${height},top=${top},left=${left},scrollbars=yes`);
+                        window.open(url, 'Receipt', `width=${width},height=${height},top=${top},left=${left},toolbar=no,menubar=no,scrollbars=yes,resizable=yes,location=no,status=no`);
                     })
                     .catch((err) => {
                         toast.error(err.response.data.message);

@@ -29,12 +29,13 @@
     @media print {
       @page {
         margin: 0;
-        size: auto;
+        size: 80mm auto; /* Creates a 'Strip' PDF instead of A4 */
       }
       body {
         margin: 0;
         padding: 0;
         background: #fff;
+        width: 72mm; /* Content fits safely within 80mm */
       }
       .receipt-container {
         border: none;
@@ -42,7 +43,7 @@
         margin: 0;
         box-shadow: none;
         width: 100%;
-        max-width: 100%; /* Allow full width of paper */
+        max-width: 72mm; /* Ensure it fits */
       }
       .no-print {
         display: none !important;
@@ -83,9 +84,9 @@
     /* Loading Spinner */
     .spinner {
       display: inline-block;
-      width: 12px;
-      height: 12px;
-      border: 2px solid rgba(255,255,255,0.3);
+      width: 14px;
+      height: 14px;
+      border: 3px solid rgba(255,255,255,0.3);
       border-radius: 50%;
       border-top-color: #fff;
       animation: spin 1s ease-in-out infinite;
@@ -281,11 +282,13 @@
              electronApp.printSilent(window.location.href, printerName)
                 .then(res => {
                     if (!res.success) {
-                        alert('Print Error: ' + res.error);
+                        console.error('Print Error: ' + res.error);
+                        // Optional: Update button text to show error temp
+                        if(btn) btn.innerHTML = '<span style="color:red">Failed</span>';
                     }
                 })
                 .catch(err => {
-                    alert('System Error: ' + err);
+                    console.error('System Error: ' + err);
                 })
                 .finally(() => {
                     if(btn) {
@@ -300,7 +303,18 @@
     }
 
      document.addEventListener('DOMContentLoaded', function() {
-      try {
+       // SHORTCUTS: Enter=Print, Esc=Close
+       document.addEventListener('keydown', function(e) {
+           if (e.key === 'Enter') {
+               e.preventDefault();
+               printReceipt();
+           } else if (e.key === 'Escape') {
+               e.preventDefault();
+               window.close();
+           }
+       });
+
+       try {
         JsBarcode("#barcode", "ORD{{ str_pad($order->id, 8, '0', STR_PAD_LEFT) }}", {
           format: "CODE128",
           width: 1.5,

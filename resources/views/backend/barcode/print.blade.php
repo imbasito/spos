@@ -83,9 +83,23 @@
                 margin: 0;
                 width: 100%;
                 height: 100%;
-                page-break-after: always;
             }
         }
+    </style>
+    <style>
+        /* Spinner for Print Button */
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 </head>
@@ -146,7 +160,7 @@
         
         function printBarcode() {
             const btn = document.getElementById('btnPrint');
-            const originalText = btn.innerText;
+            const originalText = btn.innerHTML; // Changed to innerHTML to support spinner
             
             // Context Bridge Fallback
             const electronApp = window.electron || (window.opener && window.opener.electron);
@@ -154,19 +168,19 @@
             
             if (electronApp && electronApp.printSilent) {
                 btn.disabled = true;
-                btn.innerText = 'Printing...';
+                btn.innerHTML = '<span class="spinner"></span> Printing...';
                 
                 // Use 'printer_tag' setting if available
                 const printerName = settings.tagPrinter ? settings.tagPrinter : '';
                 
                 electronApp.printSilent(window.location.href, printerName)
                     .then(res => {
-                        if(!res.success) alert('Print Error: ' + res.error);
+                        if(!res.success) console.error('Print Error: ' + res.error);
                     })
-                    .catch(e => alert(e))
+                    .catch(e => console.error(e))
                     .finally(() => {
                         btn.disabled = false;
-                        btn.innerText = originalText;
+                        btn.innerHTML = originalText;
                     });
             } else {
                 window.print();
@@ -178,6 +192,17 @@
                 printBarcode();
             }, 500);
         }
+        
+        // SHORTCUTS
+        document.addEventListener('keydown', function(e) {
+           if (e.key === 'Enter') {
+               e.preventDefault();
+               printBarcode();
+           } else if (e.key === 'Escape') {
+               e.preventDefault();
+               window.close();
+           }
+        });
     </script>
 </body>
 </html>

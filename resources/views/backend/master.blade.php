@@ -143,6 +143,28 @@
         .btn:active {
             transform: scale(0.97);
         }
+
+        /* ========= PROFESSIONAL APP MODAL ========== */
+        .professional-blur.modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .professional-modal-content {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            background-color: #f8f9fa;
+        }
+
+        .receipt-iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            display: block;
+        }
     </style>
     @stack('style')
     @viteReactRefresh
