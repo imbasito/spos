@@ -58,6 +58,8 @@ export default function Pos() {
     const [searchBarcode, setSearchBarcode] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [debouncedBarcode, setDebouncedBarcode] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("cash");
+    const [transactionId, setTransactionId] = useState("");
     const { protocol, hostname, port } = window.location;
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
@@ -360,13 +362,20 @@ export default function Pos() {
                         customer_id: customerId,
                         order_discount: parseFloat(orderDiscount) || 0,
                         paid: parseFloat(paid) || 0,
+                        payment_method: paymentMethod,
+                        transaction_id: transactionId,
                     })
                     .then((res) => {
                         setCartUpdated(!cartUpdated);
                         setProductUpdated(!productUpdated);
                         toast.success(res?.data?.message);
                         // window.location.href = `orders/invoice/${res?.data?.order?.id}`;
-                        window.location.href = `orders/pos-invoice/${res?.data?.order?.id}`;
+                        const width = 450;
+                        const height = 600;
+                        const left = (window.screen.width / 2) - (width / 2);
+                        const top = (window.screen.height / 2) - (height / 2);
+                        const url = window.location.origin + `/admin/orders/pos-invoice/${res?.data?.order?.id}`;
+                        window.open(url, 'Receipt', `width=${width},height=${height},top=${top},left=${left},scrollbars=yes`);
                     })
                     .catch((err) => {
                         toast.error(err.response.data.message);
@@ -538,6 +547,43 @@ export default function Pos() {
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Payment Method Selection - Moved Below Due */}
+                                    <div className="row text-bold mb-1 mt-3 pt-2" style={{ borderTop: '1px dashed #eee' }}>
+                                        <div className="col-12 mb-1">Payment Method:</div>
+                                        <div className="col-12">
+                                            <div className="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                                                <label className={`btn btn-maroon btn-sm ${paymentMethod === 'cash' ? 'active' : ''}`} onClick={() => setPaymentMethod('cash')}>
+                                                    <input type="radio" name="payment_method" autoComplete="off" checked={paymentMethod === 'cash'} readOnly /> 
+                                                    <i className="fas fa-money-bill-wave"></i> Cash
+                                                </label>
+                                                <label className={`btn btn-maroon btn-sm ${paymentMethod === 'card' ? 'active' : ''}`} onClick={() => setPaymentMethod('card')}>
+                                                    <input type="radio" name="payment_method" autoComplete="off" checked={paymentMethod === 'card'} readOnly /> 
+                                                    <i className="fas fa-credit-card"></i> Card
+                                                </label>
+                                                <label className={`btn btn-maroon btn-sm ${paymentMethod === 'online' ? 'active' : ''}`} onClick={() => setPaymentMethod('online')}>
+                                                    <input type="radio" name="payment_method" autoComplete="off" checked={paymentMethod === 'online'} readOnly /> 
+                                                    <i className="fas fa-mobile-alt"></i> Online (Easypaisa etc.)
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Transaction ID Input (Only for Card/Online) */}
+                                    {paymentMethod !== 'cash' && (
+                                        <div className="row text-bold mb-1 mt-2">
+                                            <div className="col">Trx ID:</div>
+                                            <div className="col text-right mr-2">
+                                                <input
+                                                    type="text"
+                                                    className="form-control form-control-sm"
+                                                    placeholder="Transaction ID (Optional)"
+                                                    value={transactionId}
+                                                    onChange={(e) => setTransactionId(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="row">
@@ -558,7 +604,7 @@ export default function Pos() {
                                         }}
                                         type="button"
                                         data-checkout-btn
-                                        className="btn bg-gradient-primary btn-block text-white text-bold"
+                                        className="btn bg-gradient-maroon btn-block text-white text-bold"
                                     >
                                         Checkout
                                     </button>

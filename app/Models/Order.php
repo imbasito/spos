@@ -24,6 +24,10 @@ class Order extends Model
     public function customer(){
         return $this->belongsTo(Customer::class);
     }
+    public function returns()
+    {
+        return $this->hasMany(ProductReturn::class);
+    }
     public function getTotalItemAttribute()
     {
         return $this->products()->sum('quantity');

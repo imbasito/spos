@@ -62,7 +62,7 @@ class ProductController extends Controller
                       <a class="dropdown-item" href="'.route('backend.admin.products.edit', $data->id). '">
                     <i class="fas fa-edit"></i> Edit
                 </a>
-                <a class="dropdown-item" href="' . $printUrl . '" target="_blank">
+                <a class="dropdown-item print-barcode-btn" href="javascript:void(0)" data-name="' . $data->name . '" data-sku="' . $data->sku . '" data-price="' . $data->discounted_price . '">
                     <i class="fas fa-barcode"></i> Print Tag
                 </a>
                 <div class="dropdown-divider"></div>

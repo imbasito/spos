@@ -99,7 +99,15 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('/sale/summery', [ReportController::class, 'saleSummery'])->name('sale.summery');
     Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report');
     Route::get('/inventory/report', [ReportController::class, 'inventoryReport'])->name('inventory.report');
+    Route::get('/refund/report', [ReportController::class, 'refundReport'])->name('refund.report');
     //end report
+    
+    // Refunds
+    Route::get('/refunds', [\App\Http\Controllers\Backend\RefundController::class, 'index'])->name('refunds.index');
+    Route::get('/refunds/create/{order}', [\App\Http\Controllers\Backend\RefundController::class, 'create'])->name('refunds.create');
+    Route::post('/refunds', [\App\Http\Controllers\Backend\RefundController::class, 'store'])->name('refunds.store');
+    Route::get('/refunds/{return}/receipt', [\App\Http\Controllers\Backend\RefundController::class, 'receipt'])->name('refunds.receipt');
+    
     // start pos
     Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');
     Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
@@ -141,6 +149,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::post('update-website-status', 'websiteStatusUpdate')->name('settings.website.status.update');
 
                 Route::post('update-invoice-settings', 'websiteInvoiceUpdate')->name('settings.website.invoice.update');
+                Route::post('update-printer-settings', 'websitePrinterUpdate')->name('settings.website.printer.update');
             });
 
             // Backup & Restore routes

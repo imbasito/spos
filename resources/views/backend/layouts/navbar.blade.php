@@ -17,7 +17,7 @@
 
         @can('sale_create')
         <li class="nav-item dropdown">
-            <a class="nav-link btn bg-gradient-primary text-white" href="{{route('backend.admin.cart.index')}}">
+            <a class="nav-link btn bg-gradient-maroon text-white" href="{{route('backend.admin.cart.index')}}">
                 <i class="fas fa-cart-plus"> POS</i>
             </a>
         </li>
@@ -50,7 +50,7 @@
             </div>
         </li> -->
         <li class="nav-item">
-            <a class="nav-link" data-widget="fullscreen" href="#" role="button">
+            <a class="nav-link" data-widget="fullscreen" href="#" role="button" title="Toggle Fullscreen">
                 <i class="fas fa-expand-arrows-alt"></i>
             </a>
         </li>

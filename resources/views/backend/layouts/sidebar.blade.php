@@ -263,6 +263,13 @@ $route = request()->route()->getName();
                         </a>
                     </li>
                     @endcan
+                    <li class="nav-item">
+                        <a href="{{route('backend.admin.refunds.index')}}"
+                            class="nav-link {{ request()->routeIs(['backend.admin.refunds.index', 'backend.admin.refund.report']) ? 'active' : '' }}">
+                            <i class="fas fa-circle nav-icon"></i>
+                            <p>Refunds</p>
+                        </a>
+                    </li>
                 </ul>
             </li>
             @endif
@@ -302,7 +309,7 @@ $route = request()->route()->getName();
                 <a href="#" class="nav-link">
                     <i class="fas fa-cog nav-icon"></i>
                     <p>
-                        Website Settings
+                        Settings
                         <i class="fas fa-angle-left right"></i>
                     </p>
                 </a>

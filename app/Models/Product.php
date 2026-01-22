@@ -25,6 +25,7 @@ class Product extends Model
         'discount_type',
         'purchase_price',
         'quantity',
+        'total_returned',
         'expire_date',
         'status',
     ];

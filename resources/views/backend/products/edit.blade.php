@@ -22,10 +22,15 @@
           <div class="mb-3 col-md-6">
             <label for="sku" class="form-label">
               SKU / Barcode
-              <span class="badge bg-info ml-1">Auto-Generated</span>
             </label>
-            <input type="text" class="form-control" value="{{ $product->sku }}" readonly disabled style="background-color: #f5f5f5; font-family: monospace;">
-            <input type="hidden" name="sku" value="{{ $product->sku }}">
+            <div class="input-group">
+                <input type="text" class="form-control" name="sku" id="skuInput" value="{{ $product->sku }}" placeholder="Scan barcode or click Generate">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" id="generateSkuBtn" title="Generate Random SKU">
+                        <i class="fas fa-random"></i> Generate
+                    </button>
+                </div>
+            </div>
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">
@@ -183,6 +188,12 @@
     //Date picker
     $('#reservationdate').datetimepicker({
       format: 'YYYY-MM-DD'
+    });
+
+    // Generate SKU
+    $('#generateSkuBtn').on('click', function() {
+        const randomSku = Math.floor(100000000000 + Math.random() * 900000000000);
+        $('#skuInput').val(randomSku);
     });
   })
 </script>

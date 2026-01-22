@@ -147,6 +147,15 @@
     @stack('style')
     @viteReactRefresh
     @vite('resources/js/app.jsx')
+
+    <script>
+        window.posSettings = {
+            receiptPrinter: @json(readConfig('receipt_printer')),
+            tagPrinter: @json(readConfig('tag_printer')),
+            siteName: @json(readConfig('site_name')),
+            siteLogo: @json(assetImage(readConfig('site_logo')))
+        };
+    </script>
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed">
@@ -203,11 +212,10 @@
         <!-- Main Sidebar Container -->
         <aside class="main-sidebar elevation-4 sidebar-light-lightblue">
             <!-- Brand Logo -->
-            <a href="{{ route('backend.admin.dashboard') }}" class="brand-link">
+            <a href="{{ route('backend.admin.dashboard') }}" class="brand-link text-center" style="display: flex; flex-direction: column; align-items: center; padding: 15px 5px; padding-top: 50px; height: auto !important; border-bottom: 1px solid #dee2e6;">
                 <img src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo"
-                    class="brand-image img-circle elevation-3" 
-                    style="opacity: .9; mix-blend-mode: multiply; border-radius: 50% !important; object-fit: cover;">
-                <span class="brand-text font-weight-light">{{ readConfig('site_name') }}</span>
+                    style="border-radius: 4px; object-fit: cover; width: 120px; height: auto; margin-bottom: 10px;">
+                <span class="brand-text font-weight-bold" style="font-size: 15px; word-wrap: break-word; text-align: center; line-height: 1.2; color: #D4AF37 !important; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">{{ readConfig('site_name') }}</span>
             </a>
 
             <!-- Sidebar -->

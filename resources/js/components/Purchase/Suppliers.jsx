@@ -89,7 +89,7 @@ const Suppliers = ({ setSupplierId,oldSupplier }) => {
             
             {/* <button
                 type="button"
-                className="btn btn-primary mt-3"
+                className="btn btn-maroon mt-3"
                 onClick={handleShow}
             >
                 Add New Supplier
@@ -192,7 +192,7 @@ const Suppliers = ({ setSupplierId,oldSupplier }) => {
                             </button>
                             <button
                                 type="button"
-                                className="btn btn-primary"
+                                className="btn btn-maroon"
                                 onClick={handleCreateSupplier}
                             >
                                 Create Supplier

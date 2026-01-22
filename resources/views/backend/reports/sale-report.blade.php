@@ -27,6 +27,7 @@
               <div class="col-sm-4">
                 <address>
                   <strong>Sale Report ({{$start_date}} - {{$end_date}})</strong><br>
+                  <small>Net Revenue: {{currency()->symbol??''}} {{number_format($net_revenue,2)}}</small>
                 </address>
               </div>
               <!-- /.col -->
@@ -35,6 +36,34 @@
               <!-- /.col -->
             </div>
             <!-- /.row -->
+
+            <!-- Summary Row -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="callout callout-info">
+                        <small class="text-muted">Gross Sales</small><br>
+                        <strong class="h5">{{number_format($total, 2)}}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="callout callout-danger">
+                        <small class="text-muted">Refunds</small><br>
+                        <strong class="h5 text-danger">- {{number_format($total_refunds, 2)}}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="callout callout-success">
+                        <small class="text-muted">Net Revenue</small><br>
+                        <strong class="h5 text-success">{{number_format($net_revenue, 2)}}</strong>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="callout callout-warning">
+                        <small class="text-muted">Due Amount</small><br>
+                        <strong class="h5">{{number_format($due, 2)}}</strong>
+                    </div>
+                </div>
+            </div>
 
             <!-- Table row -->
             <div class="row justify-content-center">

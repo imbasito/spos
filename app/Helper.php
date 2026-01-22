@@ -63,17 +63,30 @@ if (!function_exists('terms')) {
 if (!function_exists('writeConfig')) {
     function writeConfig($key, $value)
     {
+        // 1. Update Runtime Config immediately so current request sees it
         config(['system.' . $key => $value]);
-        $fp = fopen(base_path() . '/config/system.php', 'w');
-        fwrite($fp, '<?php return ' . var_export(config('system'), true) . ';');
-        fclose($fp);
 
-        // Clear config cache in production so changes take effect
+        // 2. Persist to file
+        $path = base_path('config/system.php');
+        $data = config('system');
+        // Ensure we are saving the *updated* array. config() helper works at runtime.
+        // Merging $value again just to be absolutely safe against race conditions.
+        $data[$key] = $value; 
+        
+        $content = '<?php return ' . var_export($data, true) . ';';
+        file_put_contents($path, $content);
+
+        // 3. Clear Framework Cache
         if (file_exists(base_path('bootstrap/cache/config.php'))) {
             @unlink(base_path('bootstrap/cache/config.php'));
         }
+        
+        // 4. Invalidate OPcache (Crucial for file-based config changes without restart)
+        if (function_exists('opcache_invalidate')) {
+            @opcache_invalidate($path, true);
+        }
 
-        return @$value;
+        return $value;
     }
 }
 

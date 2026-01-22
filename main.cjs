@@ -176,9 +176,9 @@ function createMainWindow() {
         show: false,
         backgroundColor: '#FFFDF9',
         webPreferences: {
-            nodeIntegration: false,
             contextIsolation: true,
-            preload: path.join(__dirname, 'preload.cjs')
+            preload: path.join(__dirname, 'preload.cjs'),
+            zoomFactor: 0.85
         }
     });
 
@@ -273,6 +273,55 @@ function setupAutoUpdater() {
     autoUpdater.on('error', (err) => {
         console.error('Auto-updater error event:', err);
         mainWindow.webContents.send('updater:status', 'error', err.message);
+    });
+
+    // Silent Printing IPC
+    ipcMain.handle('print:silent', async (event, options) => {
+        const { url, printerName } = options;
+        console.log(`Silent print requested for: ${url} (Printer: ${printerName || 'Default'})`);
+        
+        let printWindow = new BrowserWindow({
+            show: false,
+            webPreferences: {
+                contextIsolation: true
+            }
+        });
+        
+        printWindow.loadURL(url);
+        
+        return new Promise((resolve) => {
+            printWindow.webContents.on('did-finish-load', () => {
+                // Wait a bit for JS scripts (like barcode) to render
+                setTimeout(() => {
+                    const printOptions = { 
+                        silent: true,
+                        printBackground: true 
+                    };
+                    
+                    if (printerName) {
+                        printOptions.deviceName = printerName;
+                    }
+
+                    printWindow.webContents.print(printOptions, (success, failureReason) => {
+                        console.log(`Silent print result: ${success}${failureReason ? ` - ${failureReason}` : ''}`);
+                        printWindow.close();
+                        resolve(success);
+                    });
+                }, 1000); 
+            });
+            
+            // Timeout if loading takes too long
+            setTimeout(() => {
+                if (!printWindow.isDestroyed()) {
+                    printWindow.close();
+                    resolve(false);
+                }
+            }, 10000);
+        });
+    });
+
+    ipcMain.handle('print:get-printers', async () => {
+        return await mainWindow.webContents.getPrintersAsync();
     });
 }
 

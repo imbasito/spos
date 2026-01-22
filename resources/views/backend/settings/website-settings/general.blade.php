@@ -63,6 +63,13 @@
                 &nbsp;Invoice Settings
             </a>
             @endcan
+            @can('website_settings')
+            <a class="nav-link {{ @$_GET['active-tab'] == 'printer-settings' ? 'active' : '' }}" id="vert-tabs-9"
+                data-toggle="pill" href="#tabs-9" role="tab" aria-controls="tabs-9" aria-selected="false">
+                <i class="fas fa-print"></i>
+                &nbsp;Printer Settings
+            </a>
+            @endcan
         </div>
     </div>
     <div class="col-8 col-sm-10">
@@ -100,8 +107,8 @@
                         </div>
                         <div class="form-group">
                             <label>Website URL</label>
-                            <input class="form-control" name="site_url" type="url"
-                                value="{{ readConfig('site_url') }}" placeholder="Enter Site URL">
+                            <input class="form-control" name="site_url" type="text"
+                                value="{{ readConfig('site_url') }}" placeholder="Enter Site URL (Optional)">
                         </div>
                     </div>
                 </form>
@@ -575,9 +582,89 @@
                         <small class="text-muted">(Auto-check fractional discount in POS checkout)</small>
                     </div>
 
+                </form>
             </div>
             @endcan
-            </form>
+            @can('website_settings')
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'printer-settings' ? 'active show' : '' }}" id="tabs-9"
+                role="tabpanel" aria-labelledby="vert-tabs-9">
+
+                <form action="{{ route('backend.admin.settings.website.printer.update') }}" method="post">
+                    @csrf
+                    <div class="col-md-12 d-flex justify-content-between align-items-center">
+                        <h5>
+                            <i class="fas fa-print"></i>
+                            &nbsp;&nbsp;Printer Configuration
+                        </h5>
+                        <div>
+                            <button type="button" class="btn btn-secondary mr-2" onclick="loadPrinters()">
+                                <i class="fas fa-sync-alt"></i> Refresh List
+                            </button>
+                            <button type="submit" class="btn bg-gradient-primary">
+                                <i class="fas fa-save"></i> Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-12 mt-4">
+                        <div class="alert alert-light border shadow-sm">
+                            <h6 class="text-primary"><i class="fas fa-info-circle mr-1"></i> How it works</h6>
+                            <p class="mb-0 text-muted small">
+                                Select the specific thermal printers for your Receipts and Barcode Tags. 
+                                <br>If you leave these as <strong>System Default</strong>, the system will use your computer's default printer.
+                                <br><strong>Ensure your printers are connected and turned on before refreshing the list.</strong>
+                            </p>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card shadow-none border">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-receipt mr-2"></i>Sales Receipt Printer</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-group">
+                                            <label class="text-muted small text-uppercase font-weight-bold">Select Printer</label>
+                                            <select name="receipt_printer" id="receipt_printer_select" class="form-control custom-select">
+                                                <option value="">System Default</option>
+                                                @if(readConfig('receipt_printer'))
+                                                    <option value="{{ readConfig('receipt_printer') }}" selected>{{ readConfig('receipt_printer') }} (Saved)</option>
+                                                @endif
+                                            </select>
+                                            <small class="form-text text-muted">Used for printing sale invoices and refund receipts.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="card shadow-none border">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="fas fa-tags mr-2"></i>Barcode Label Printer</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="form-group">
+                                            <label class="text-muted small text-uppercase font-weight-bold">Select Printer</label>
+                                            <select name="tag_printer" id="tag_printer_select" class="form-control custom-select">
+                                                <option value="">System Default</option>
+                                                @if(readConfig('tag_printer'))
+                                                    <option value="{{ readConfig('tag_printer') }}" selected>{{ readConfig('tag_printer') }} (Saved)</option>
+                                                @endif
+                                            </select>
+                                            <small class="form-text text-muted">Used for printing adhesive product labels and barcodes.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                            <span id="printer_status_msg" class="text-muted font-italic small">Checking for printers...</span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            @endcan
         </div>
     </div>
 </div>
@@ -594,8 +681,101 @@
         }
     });
 
-    function updateCheckboxValue(checkbox) {
-        checkbox.value = checkbox.checked ? '1' : '0';
+    // Printer Discovery Logic
+    function loadPrinters() {
+        const statusMsg = document.getElementById('printer_status_msg');
+        const receiptSelect = document.getElementById('receipt_printer_select');
+        const tagSelect = document.getElementById('tag_printer_select');
+        
+        // Safer way to get config values using blade json directive
+        // We use 'String' constructor to ensure we don't have nulls breaking things
+        const currentReceipt = String(@json(readConfig('receipt_printer')) || "");
+        const currentTag = String(@json(readConfig('tag_printer')) || "");
+
+        console.log("Server Saved Config -> Receipt:", currentReceipt, "Tag:", currentTag);
+
+        if (!statusMsg || !receiptSelect || !tagSelect) return;
+
+        statusMsg.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning for connected printers...';
+        statusMsg.className = 'text-primary font-italic small';
+
+        // Check if Electron API is available
+        if (window.electron && window.electron.getPrinters) {
+            window.electron.getPrinters().then(prList => {
+                
+                if (prList.length === 0) {
+                     statusMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> No printers found. Please check connections.';
+                     statusMsg.className = 'text-warning font-weight-bold small';
+                     return;
+                }
+
+                // Helper to populate select
+                const populateSelect = (selectEl, currentVal, type) => {
+                    selectEl.innerHTML = '<option value="">System Default</option>';
+                    let foundCurrent = false;
+
+                    prList.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.name;
+                        // Show (Default) if it's the OS default
+                        let label = p.name;
+                        if (p.isDefault) label += ' (OS Default)';
+                        
+                        opt.textContent = label;
+                        
+                        // Loose comparison and trimming to catch subtle mismatches
+                        if (p.name.trim() === currentVal.trim()) {
+                            opt.selected = true;
+                            foundCurrent = true;
+                        }
+                        selectEl.appendChild(opt);
+                    });
+
+                    // Critical: If the saved printer IS NOT in the list, add it back
+                    if (currentVal && !foundCurrent) {
+                        const opt = document.createElement('option');
+                        opt.value = currentVal;
+                        opt.textContent = currentVal + ' (Saved - Not Found)';
+                        opt.selected = true;
+                        opt.style.color = 'red';
+                        selectEl.appendChild(opt);
+                    }
+                    
+                    // Final safety check to ensure UI reflects value
+                    selectEl.value = currentVal;
+                };
+
+                populateSelect(receiptSelect, currentReceipt, 'receipt');
+                populateSelect(tagSelect, currentTag, 'tag');
+
+                statusMsg.innerHTML = `<i class="fas fa-check-circle"></i> Successfully loaded ${prList.length} printers.`;
+                statusMsg.className = 'text-success font-weight-bold small';
+
+            }).catch(err => {
+                console.error('Failed to load printers:', err);
+                statusMsg.innerHTML = '<i class="fas fa-times-circle"></i> Failed to access printer service.';
+                statusMsg.className = 'text-danger font-weight-bold small';
+            });
+        } else {
+            statusMsg.innerHTML = '<i class="fas fa-desktop"></i> Desktop App required for printer scanning. Viewing saved settings only.';
+            statusMsg.className = 'text-muted small';
+        }
     }
+
+    // Warning for PDF Printers
+    function checkPrinterSelection(select) {
+        const val = select.value.toLowerCase();
+        if (val.includes('pdf') || val.includes('xps') || val.includes('one note')) {
+             alert("⚠️ WARNING: You selected a PDF/Virtual Printer.\n\nIn POS Silent Mode, this may NOT open a 'Save As' dialog and printing might fail or hang.\n\nPlease select a physical Thermal Printer for best results.");
+        }
+    }
+    
+    document.getElementById('receipt_printer_select').addEventListener('change', function() { checkPrinterSelection(this); });
+    document.getElementById('tag_printer_select').addEventListener('change', function() { checkPrinterSelection(this); });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial load
+        loadPrinters();
+    });
 </script>
 @endpush

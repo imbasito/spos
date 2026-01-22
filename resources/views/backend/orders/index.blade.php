@@ -155,5 +155,24 @@
       searchOrderByBarcode();
     }
   });
+  
+  // Refund Modal Functions
+  function openRefundModal(orderId) {
+    $.get('/admin/refunds/create/' + orderId, function(html) {
+      $('#refundModalContent').html(html);
+      $('#refundModal').modal('show');
+    }).fail(function(xhr) {
+      alert('Error: ' + (xhr.responseJSON?.error || 'Failed to load refund form'));
+    });
+  }
 </script>
+
+<!-- Refund Modal -->
+<div class="modal fade" id="refundModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content" id="refundModalContent">
+      <!-- Content loaded via AJAX -->
+    </div>
+  </div>
+</div>
 @endpush

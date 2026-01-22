@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             // CustomerSeeder::class,
             // SupplierSeeder::class,
             // PurchaseSeeder::class,
+            // RefundPermissionSeeder::class,
         ]);
     }
 }

@@ -26,7 +26,7 @@ class WebsiteSettingController extends Controller
     {
         $request->validate([
             'site_name' => 'required',
-            'site_url' => 'url'
+            'site_url' => 'nullable|url'
         ]);
 
         foreach ($request->except('_token') as $key => $value) {
@@ -121,5 +121,28 @@ class WebsiteSettingController extends Controller
         Artisan::call('config:clear');
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
             ->with('success', 'Updated successfully');
+    }
+
+    public function websitePrinterUpdate(Request $request)
+    {
+        // Explicitly handle fields to ensure they are captured even if null/empty
+        $data = [
+            'receipt_printer' => $request->input('receipt_printer'),
+            'tag_printer' => $request->input('tag_printer'),
+        ];
+
+        foreach ($data as $key => $value) {
+            writeConfig($key, $value);
+        }
+        
+        Artisan::call('config:clear');
+        
+        // Detailed feedback for the user
+        $msg = 'Printer settings updated.';
+        if($data['receipt_printer']) $msg .= ' Receipt: ' . $data['receipt_printer'] . '.';
+        if($data['tag_printer']) $msg .= ' Tag: ' . $data['tag_printer'] . '.';
+        
+        return to_route('backend.admin.settings.website.general', ['active-tab' => 'printer-settings'])
+            ->with('success', $msg);
     }
 }

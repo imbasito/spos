@@ -8,3 +8,8 @@ contextBridge.exposeInMainWorld('updater', {
     onProgress: (callback) => ipcRenderer.on('updater:progress', (event, ...args) => callback(...args)),
     onReady: (callback) => ipcRenderer.on('updater:ready', (event, ...args) => callback(...args)),
 });
+
+contextBridge.exposeInMainWorld('electron', {
+    printSilent: (url, printerName = null) => ipcRenderer.invoke('print:silent', { url, printerName }),
+    getPrinters: () => ipcRenderer.invoke('print:get-printers'),
+});

@@ -1,9 +1,9 @@
 @extends('backend.layouts.receipt-master')
-@section('title', 'Receipt #'.$order->id)
+@section('title', 'Return Receipt #'.$return->return_number)
 @section('content')
 
   <style>
-    /* General Receipt Styling */
+    /* General Receipt Styling - Matching POS Invoice */
     .receipt-container {
       width: 100%;
       max-width: 78mm; /* Standard 80mm thermal paper safe width */
@@ -23,6 +23,25 @@
         margin-top: 10px;
         box-shadow: 0 0 5px rgba(0,0,0,0.1);
       }
+      .action-buttons {
+          max-width: 78mm;
+          margin: 10px auto;
+          display: flex;
+          gap: 10px;
+      }
+      .btn-action {
+          flex: 1;
+          padding: 8px;
+          border: none;
+          cursor: pointer;
+          font-weight: bold;
+          color: #fff;
+          font-family: sans-serif;
+          font-size: 14px;
+          text-align: center;
+      }
+      .btn-print { background: #007bff; }
+      .btn-close { background: #6c757d; }
     }
 
     /* Print Styling */
@@ -94,34 +113,14 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    
-    .action-buttons {
-          max-width: 78mm;
-          margin: 10px auto;
-          display: flex;
-          gap: 10px;
-      }
-      .btn-action {
-          flex: 1;
-          padding: 8px;
-          border: none;
-          cursor: pointer;
-          font-weight: bold;
-          color: #fff;
-          font-family: sans-serif;
-          font-size: 14px;
-          text-align: center;
-      }
-      .btn-print { background: #007bff; }
-      .btn-close { background: #6c757d; }
   </style>
 
   <div class="receipt-container" id="printable-section">
     <!-- Header -->
     <div class="text-center">
-      @if(readConfig('is_show_logo_invoice'))
+      @if(readConfig('is_show_logo_invoice') && readConfig('site_logo'))
       <div class="logo-area">
-        <img src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo">
+        <img src="{{ assetImage(readConfig('site_logo')) }}" alt="Logo">
       </div>
       @endif
       
@@ -137,54 +136,52 @@
     </div>
 
     <div class="dashed-line"></div>
+    
+    <div class="text-center" style="margin: 10px 0;">
+        <span style="border: 1px dashed #000; padding: 6px 12px; font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">REFUND RECEIPT</span>
+    </div>
+    <div class="dashed-line"></div>
 
-    <!-- Order Info -->
-    <div class="row" style="display: flex; justify-content: space-between; font-size: 12px;">
+    <!-- Return Info -->
+    <div class="row" style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 5px;">
       <div class="text-left">
-        <strong>Order: #{{ $order->id }}</strong><br>
-        Date: {{ date('d-M-Y h:i A') }}<br>
-        Cashier: {{ auth()->user()->name }}
+        <strong>Return: #{{ $return->return_number }}</strong><br>
+        Ref Order: #{{ $return->order_id }}<br>
+        User: {{ optional($return->processedBy)->name ?? 'User' }}
       </div>
       <div class="text-right">
-        @php
-            $transaction = $order->transactions->sortByDesc('id')->first();
-        @endphp
-        Type: <strong>{{ ucfirst($transaction->paid_by ?? 'Cash') }}</strong>
-        @if(!empty($transaction->transaction_id))
-        <br>Ref: {{ $transaction->transaction_id }}
-        @endif
+        Date: {{ $return->created_at->format('d-M-Y') }}<br>
+        Time: {{ $return->created_at->format('h:i A') }}
       </div>
     </div>
 
     <!-- Customer Info -->
-    @if(readConfig('is_show_customer_invoice') && $order->customer)
+    @if(readConfig('is_show_customer_invoice') && optional(optional($return->order)->customer)->name)
     <div class="dashed-line"></div>
-    <div class="text-left" style="font-size: 12px;">
-      Client: {{ $order->customer->name }}<br>
-      @if($order->customer->address) Addr: {{ $order->customer->address }}<br> @endif
-      @if($order->customer->phone) Phone: {{ $order->customer->phone }} @endif
+    <div class="text-left" style="font-size: 11px;">
+      Client: {{ optional($return->order)->customer->name }}<br>
+      @if(optional($return->order->customer)->phone) Phone: {{ $return->order->customer->phone }} @endif
     </div>
     @endif
 
     <div class="dashed-line"></div>
 
     <!-- Items Table -->
-    <table>
+    <table style="margin-bottom: 5px;">
       <thead>
         <tr>
-          <th class="text-left" style="width: 45%;">Item</th>
+          <th class="text-left" style="width: 45%;">Item (Returned)</th>
           <th class="text-center" style="width: 15%;">Qty</th>
-          <th class="text-right" style="width: 20%;">Price</th>
-          <th class="text-right" style="width: 20%;">Total</th>
+          <th class="text-right" style="width: 40%;">Refund</th>
         </tr>
       </thead>
       <tbody>
-        @foreach ($order->products as $item)
+        @foreach ($return->items as $item)
         <tr>
-          <td class="text-left">{{ $item->product->name }}</td>
-          <td class="text-center">{{ $item->quantity }}</td>
-          <td class="text-right">{{ number_format($item->discounted_price, 0) }}</td>
-          <td class="text-right">{{ number_format($item->total, 2) }}</td>
+          <!-- Strikethrough requested by user -->
+          <td class="text-left" style="text-decoration: line-through;">{{ optional($item->product)->name ?? 'Item' }}</td>
+          <td class="text-center">{{ (float)$item->quantity }}</td>
+          <td class="text-right" style="text-decoration: line-through;">{{ number_format($item->refund_amount, 2) }}</td>
         </tr>
         @endforeach
       </tbody>
@@ -194,79 +191,75 @@
 
     <!-- Totals -->
     <table style="font-weight: bold;">
+      @if(optional($return->order)->total)
       <tr>
-        <td class="text-left">Subtotal:</td>
-        <td class="text-right">{{ number_format($order->sub_total, 2) }}</td>
-      </tr>
-      @if($order->discount > 0)
-      <tr>
-        <td class="text-left">Discount:</td>
-        <td class="text-right">-{{ number_format($order->discount, 2) }}</td>
+        <td class="text-left">Original Total:</td>
+        <td class="text-right" style="text-decoration: line-through;">{{ number_format($return->order->total, 2) }}</td>
       </tr>
       @endif
-      <tr style="font-size: 15px;">
-        <td class="text-left">TOTAL:</td>
-        <td class="text-right">{{ number_format($order->total, 2) }}</td>
+      
+      <tr>
+        <td class="text-left">Refund Amount:</td>
+        <td class="text-right">-{{ number_format($return->total_refund, 2) }}</td>
       </tr>
       
-      <!-- Payments -->
-      <tr>
-        <td colspan="2"><div class="dashed-line" style="margin: 3px 0;"></div></td>
-      </tr>
-      <tr>
-        <td class="text-left">Paid:</td>
-        <td class="text-right">{{ number_format($order->paid, 2) }}</td>
-      </tr>
-      @if($order->paid > $order->total)
-      <tr>
-        <td class="text-left">Change:</td>
-        <td class="text-right">{{ number_format($order->paid - $order->total, 2) }}</td>
-      </tr>
-      @endif
-      @if($order->due > 0)
-      <tr>
-        <td class="text-left">Due Balance:</td>
-        <td class="text-right">{{ number_format($order->due, 2) }}</td>
+      @if(optional($return->order)->total)
+      <tr style="font-size: 14px; border-top: 1px dashed #000;">
+        <td class="text-left" style="padding-top: 5px;">NEW TOTAL:</td>
+        <td class="text-right" style="padding-top: 5px;">{{ number_format($return->order->total - $return->total_refund, 2) }}</td>
       </tr>
       @endif
     </table>
+    
+    <!-- Reason -->
+    @if($return->reason)
+    <div class="dashed-line"></div>
+    <div class="text-left" style="font-size: 11px;">
+        <strong>Reason:</strong> {{ $return->reason }}
+    </div>
+    @endif
 
     <div class="dashed-line"></div>
 
-    <!-- Barcode -->
-    <div class="text-center barcode-area">
-      <svg id="barcode" style="width: 100%; max-width: 200px; height: 40px;"></svg>
-      <div style="font-size: 10px; letter-spacing: 2px;">ORD-{{ str_pad($order->id, 8, '0', STR_PAD_LEFT) }}</div>
-    </div>
-
     <!-- Footer -->
     <div class="text-center">
-      @if(readConfig('is_show_note_invoice'))
-      <p class="footer-note">{{ readConfig('note_to_customer_invoice') }}</p>
-      @endif
-      
       <div class="software-credit">
         <strong>Software by SINYX</strong><br>
-         Contact: +92 342 9031328
-       </div>
-     </div>
-   </div>
- 
-   <!-- Action Buttons -->
-   <div class="action-buttons no-print">
-       <button onclick="printReceipt()" class="btn-action btn-print">Print Receipt</button>
-       <button onclick="window.close()" class="btn-action btn-close">Close</button>
-   </div>
- 
-   @push('script')
-   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-   <script>
-     function printReceipt() {
+        Contact: +92 342 9031328
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons no-print">
+      <button onclick="printReceipt()" class="btn-action btn-print">Print Refund</button>
+      <button onclick="window.close()" class="btn-action btn-close">Close</button>
+  </div>
+
+  @push('script')
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      try {
+        JsBarcode("#barcode", "{{ $return->return_number }}", {
+          format: "CODE128",
+          width: 1.5,
+          height: 35,
+          displayValue: false,
+          margin: 0
+        });
+      } catch (e) {
+        console.error('Barcode error:', e);
+      }
+    });
+
+    function printReceipt() {
         // Safe selection of the print button
         const btn = document.querySelector('.btn-print');
-        const originalText = btn ? btn.innerHTML : 'Print Receipt';
+        // Store original text
+        const originalText = btn ? btn.innerHTML : 'Print Refund';
         
-        // Context Bridge Fallback
+        // Context Bridge Fallback: Check local window first, then opener (parent)
         const electronApp = window.electron || (window.opener && window.opener.electron);
         const settings = window.posSettings || (window.opener && window.opener.posSettings) || {};
         
@@ -294,24 +287,10 @@
                     }
                 });
         } else {
-             console.warn('Electron API fallbacks failed. Using browser print.');
+            console.warn('Electron API not found in popup or opener. Falling back to browser print.');
             window.print();
         }
     }
-
-     document.addEventListener('DOMContentLoaded', function() {
-      try {
-        JsBarcode("#barcode", "ORD{{ str_pad($order->id, 8, '0', STR_PAD_LEFT) }}", {
-          format: "CODE128",
-          width: 1.5,
-          height: 35,
-          displayValue: false,
-          margin: 0
-        });
-      } catch (e) {
-        console.error('Barcode error:', e);
-      }
-    });
   </script>
   @endpush
 @endsection

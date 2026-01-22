@@ -1,0 +1,47 @@
+/* Custom Button Styles for POS */
+.btn-maroon {
+    color: #800000 !important;
+    border-color: #800000 !important;
+    background-color: white !important;
+}
+
+.btn-maroon:hover,
+.btn-maroon.active,
+.btn-maroon:active,
+.btn-maroon:focus {
+    color: white !important;
+    background-color: #800000 !important;
+    border-color: #800000 !important;
+    box-shadow: none !important;
+}
+
+/* Solid Maroon Button (like btn-primary) */
+.btn-maroon-solid {
+    color: white !important;
+    background-color: #800000 !important;
+    border-color: #800000 !important;
+}
+
+.btn-maroon-solid:hover,
+.btn-maroon-solid:active,
+.btn-maroon-solid:focus {
+    color: white !important;
+    background-color: #660000 !important;
+    border-color: #660000 !important;
+    box-shadow: 0 0 0 0.2rem rgba(128, 0, 0, 0.5) !important;
+}
+
+/* Gradient Maroon Button (like bg-gradient-primary) */
+.bg-gradient-maroon {
+    background: linear-gradient(180deg, #800000 0%, #660000 100%) !important;
+    border-color: #800000 !important;
+    color: white !important;
+}
+
+.bg-gradient-maroon:hover,
+.bg-gradient-maroon:active,
+.bg-gradient-maroon:focus {
+    background: linear-gradient(180deg, #660000 0%, #4d0000 100%) !important;
+    border-color: #660000 !important;
+    color: white !important;
+}

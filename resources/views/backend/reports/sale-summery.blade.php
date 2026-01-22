@@ -50,8 +50,16 @@
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($discount,2)}}</td>
                     </tr>
                     <tr>
-                      <th>Total Sold:</th>
+                      <th>Gross Sales:</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($total,2)}}</td>
+                    </tr>
+                    <tr>
+                      <th>Total Refunds:</th>
+                      <td class="text-right text-danger">- {{currency()->symbol??''}} {{number_format($total_refunds,2)}}</td>
+                    </tr>
+                    <tr class="bg-light">
+                      <th>Net Revenue:</th>
+                      <td class="text-right text-success font-weight-bold">{{currency()->symbol??''}} {{number_format($net_revenue,2)}}</td>
                     </tr>
                     <tr>
                       <th>Customer Paid:</th>
@@ -60,6 +68,22 @@
                     <tr>
                       <th>Customer Due:</th>
                       <td class="text-right">{{currency()->symbol??''}} {{number_format($due,2)}}</td>
+                    </tr>
+                    <!-- Payment Breakdown -->
+                    <tr class="bg-light">
+                        <th colspan="2" class="text-center"><em>Payment Breakdown</em></th>
+                    </tr>
+                    <tr>
+                        <th>Cash Collected:</th>
+                        <td class="text-right text-success">{{currency()->symbol??''}} {{number_format($total_cash, 2)}}</td>
+                    </tr>
+                    <tr>
+                        <th>Card Payments:</th>
+                        <td class="text-right text-info">{{currency()->symbol??''}} {{number_format($total_card, 2)}}</td>
+                    </tr>
+                    <tr>
+                        <th>Online Payments:</th>
+                        <td class="text-right text-primary">{{currency()->symbol??''}} {{number_format($total_online, 2)}}</td>
                     </tr>
                   </table>
                 </div>

@@ -43,6 +43,14 @@ class OrderController extends Controller
                         $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
                     }
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
+                    
+                    // Refund button - only show if not already fully refunded
+                    if (!$data->is_returned) {
+                        $buttons .= '<a class="btn btn-danger btn-sm" href="#" onclick="openRefundModal(' . $data->id . ')"><i class="fas fa-undo"></i> Refund</a>';
+                    } else {
+                        $buttons .= '<span class="btn btn-outline-danger btn-sm disabled"><i class="fas fa-check"></i> Refunded</span>';
+                    }
+                    
                     return $buttons;
                 })
                 ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'status', 'action'])
@@ -80,6 +88,8 @@ class OrderController extends Controller
                 'numeric',
                 'min:0',
             ],
+            'payment_method' => 'nullable|string|in:cash,card,online',
+            'transaction_id' => 'nullable|string|max:255',
         ], [
             'customer_id.required' => 'Please select a customer.',
             'customer_id.exists' => 'The selected customer does not exist.',
@@ -142,7 +152,8 @@ class OrderController extends Controller
                 'amount' => $request->paid,
                 'customer_id' => $order->customer_id,
                 'user_id' => auth()->id(),
-                'paid_by' => 'cash',
+                'paid_by' => $request->payment_method ?? 'cash',
+                'transaction_id' => $request->transaction_id,
             ]);
         }
 
@@ -233,7 +244,7 @@ class OrderController extends Controller
 
     public function posInvoice($id)
     {
-        $order = Order::with(['customer', 'products.product'])->findOrFail($id);
+        $order = Order::with(['customer', 'products.product', 'transactions'])->findOrFail($id);
         $maxWidth = readConfig('receiptMaxwidth')??'300px';
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
     }

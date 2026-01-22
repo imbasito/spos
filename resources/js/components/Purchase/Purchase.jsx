@@ -381,7 +381,7 @@ export default function Purchase() {
                                     placeholder="Enter product barcode/name"
                                 />
                                 <button
-                                    className="btn bg-gradient-primary ml-2"
+                                    className="btn bg-gradient-maroon ml-2"
                                     onClick={handleSearchAdd}
                                 >
                                     Add Product
@@ -603,7 +603,7 @@ export default function Purchase() {
                 </div>
                 <button
                     type="submit"
-                    className="btn btn-md bg-gradient-primary"
+                    className="btn btn-md bg-gradient-maroon"
                     onClick={handleSubmit}
                 >
                     Create

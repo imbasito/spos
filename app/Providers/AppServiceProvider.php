@@ -23,5 +23,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrap();
+
+        // Load version from package.json
+        try {
+            $json = json_decode(file_get_contents(base_path('package.json')), true);
+            $version = $json['version'] ?? '1.0.0';
+            config(['app.version' => $version]);
+        } catch (\Exception $e) {
+            config(['app.version' => '1.0.0']);
+        }
     }
 }

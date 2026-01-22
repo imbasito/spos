@@ -84,7 +84,10 @@ class DashboardController extends Controller
     {
         $label = $request->query('label');
         $barcode = $request->query('barcode');
-        return view('backend.barcode.print', compact('label', 'barcode'));
+        $mfg = $request->query('mfg');
+        $exp = $request->query('exp');
+        $size = $request->query('size', 'large');
+        return view('backend.barcode.print', compact('label', 'barcode', 'mfg', 'exp', 'size'));
     }
 
     public function storeBarcode(Request $request)
