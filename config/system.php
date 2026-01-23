@@ -40,7 +40,7 @@
   'is_show_customer_invoice' => '1',
   'is_show_note_invoice' => '1',
   'receiptMaxwidth' => '300px',
-  'auto_fractional_discount' => '1',
+  'auto_fractional_discount' => '0',
   'backup_path' => '',
   'auto_backup' => 'disabled',
   'last_backup_date' => '2026-01-20 21:26:38',

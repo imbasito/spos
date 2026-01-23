@@ -12,7 +12,7 @@
       font-family: 'Roboto Mono', monospace;
       font-size: 12px;
       color: #000;
-      overflow: hidden; /* Hide scrollbars as requested */
+      overflow-y: auto; /* Enable scroll while keeping it hidden via CSS below */
     }
     
     /* Scrollbar Hiding for Webkit */
@@ -153,13 +153,13 @@
     <!-- Totals -->
     <table class="totals-table">
       <tr>
-        <td class="text-right" width="60%">Subtotal:</td>
+        <td class="text-right" width="60%">Gross Total:</td>
         <td class="text-right font-bold" width="40%">{{ number_format($order->sub_total, 2) }}</td>
       </tr>
       @if($order->discount > 0)
       <tr>
         <td class="text-right">Discount:</td>
-        <td class="text-right">({{ number_format($order->discount, 2) }})</td>
+        <td class="text-right">(-{{ number_format($order->discount, 2) }})</td>
       </tr>
       @endif
 
@@ -167,28 +167,28 @@
       <tr><td colspan="2" style="height: 5px;"></td></tr>
 
       <tr class="grand-total">
-        <td class="text-left" style="font-size: 14px;">TOTAL</td>
+        <td class="text-left" style="font-size: 14px;">NET PAYABLE</td>
         <td class="text-right" style="font-size: 18px;">{{ number_format($order->total, 2) }}</td>
       </tr>
       
       <tr><td colspan="2" style="height: 5px;"></td></tr>
 
       <tr>
-        <td class="text-right">Paid Amount:</td>
-        <td class="text-right">{{ number_format($order->paid, 2) }}</td>
+        <td class="text-right">Cash Tendered:</td>
+        <td class="text-right font-bold">{{ number_format($order->paid, 2) }}</td>
       </tr>
       
       @if($order->due > 0)
       <tr>
-        <td class="text-right text-uppercase" style="color: #000;">Balance Due:</td>
-        <td class="text-right font-bold">{{ number_format($order->due, 2) }}</td>
+        <td class="text-right text-uppercase" style="color: #000; font-size: 13px;">DUE BALANCE:</td>
+        <td class="text-right font-bold" style="font-size: 14px;">{{ number_format($order->due, 2) }}</td>
       </tr>
       @endif
 
       @if($order->paid > $order->total)
       <tr>
-        <td class="text-right text-uppercase">Change:</td>
-        <td class="text-right font-bold">{{ number_format($order->paid - $order->total, 2) }}</td>
+        <td class="text-right text-uppercase" style="font-size: 13px;">CHANGE:</td>
+        <td class="text-right font-bold" style="font-size: 14px;">{{ number_format($order->paid - $order->total, 2) }}</td>
       </tr>
       @endif
     </table>

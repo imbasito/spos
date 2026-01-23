@@ -49,6 +49,9 @@
     <link rel="stylesheet" href="{{ asset('assets/css/datatable/buttons.dataTables.min.css') }}">
     {{-- custom style --}}
     <link rel="stylesheet" href="{{ asset('css/custom-style.css') }}">
+    <!-- SweetAlert2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         .image-upload-container {
@@ -183,6 +186,17 @@
             scrollbar-width: thin;
             scrollbar-color: #adb5bd #f1f1f1;
         }
+
+        /* Hidden Scrollbar while keeping scroll enabled */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+            overflow-y: auto;
+        }
+
         .custom-scroll::-webkit-scrollbar {
             width: 8px; /* Slightly thicker for ease of use */
         }

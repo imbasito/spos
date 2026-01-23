@@ -165,7 +165,85 @@
       alert('Error: ' + (xhr.responseJSON?.error || 'Failed to load refund form'));
     });
   }
+  // POS Invoice Modal Function
+  function openPosInvoice(orderId) {
+      const url = "{{ url('admin/orders/pos-invoice') }}/" + orderId;
+      openReceiptModal(url);
+  }
+
+  function openReceiptModal(url) {
+      const frame = document.getElementById('receiptFrame');
+      const loader = document.getElementById('receiptLoader');
+      
+      loader.style.display = 'flex';
+      frame.style.visibility = 'hidden';
+      frame.src = 'about:blank';
+      
+      $('#receiptModal').modal('show');
+      
+      frame.onload = function() {
+          if (frame.contentWindow.location.href !== "about:blank") {
+              setTimeout(finalizeReceiptLoad, 100);
+          }
+      };
+
+      const cacheBuster = url.indexOf('?') !== -1 ? '&_v=' : '?_v=';
+      frame.src = url + cacheBuster + Date.now();
+      setTimeout(finalizeReceiptLoad, 2500);
+  }
+
+  function finalizeReceiptLoad() {
+      const loader = document.getElementById('receiptLoader');
+      const frame = document.getElementById('receiptFrame');
+      if (loader) loader.style.setProperty('display', 'none', 'important');
+      if (frame) {
+          frame.style.visibility = 'visible';
+          frame.style.display = 'block';
+      }
+  }
+
+  function printReceiptFrame() {
+      const frame = document.getElementById('receiptFrame');
+      if (frame && frame.contentWindow) {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+      }
+  }
+
+  window.addEventListener('message', function(e) {
+      if(e.data === 'receipt-loaded') finalizeReceiptLoad();
+      if(e.data === 'close-modal') $('#receiptModal').modal('hide');
+  });
 </script>
+
+<!-- POS Receipt Modal: Premium Maroon Theme -->
+<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content shadow-lg" style="border-radius: 12px; overflow: hidden; border: none;">
+            <div class="modal-header text-white p-2 d-flex justify-content-between align-items-center" style="background: #800000;">
+                <h5 class="modal-title m-0 ml-2" style="font-size: 1.1rem; font-weight: 600;"><i class="fas fa-receipt mr-2"></i> Invoice Preview</h5>
+                <div class="d-flex align-items-center">
+                    <button type="button" class="btn btn-sm btn-light mr-2 font-weight-bold shadow-sm px-3" onclick="printReceiptFrame()">
+                        <i class="fas fa-print mr-1"></i> Print
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger font-weight-bold shadow-sm px-3" style="background: #dc3545;" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i> Close
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body p-0 position-relative" style="height: 650px; background: #fff;">
+                 <div id="receiptLoader" class="d-flex flex-column justify-content-center align-items-center w-100 h-100 position-absolute" 
+                      style="top:0; left:0; z-index:999; background:#fff;">
+                      <div class="spinner-border text-maroon" role="status" style="color: #800000; width: 3rem; height: 3rem; border-width: 0.25em;"></div>
+                      <span class="mt-3 font-weight-bold text-dark" style="font-size: 1.1rem;">Generating Receipt...</span>
+                 </div>
+                 <iframe id="receiptFrame" name="receiptFrame" src="about:blank" 
+                         style="width:100%; height:100%; border:none; display:block; visibility: hidden;" 
+                         scrolling="yes"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Refund Modal -->
 <div class="modal fade" id="refundModal" tabindex="-1" role="dialog">

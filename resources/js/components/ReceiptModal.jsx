@@ -73,8 +73,8 @@ const ReceiptModal = ({ show, url, onClose }) => {
                         ref={iframeRef}
                         src={url} 
                         className="receipt-iframe w-100 h-100 border-0" 
-                        scrolling="no"
-                        style={{ overflow: 'hidden' }}                        onLoad={() => {
+                        scrolling="yes"
+                        style={{ overflow: 'auto' }}                        onLoad={() => {
                             setLoading(false);
                             // Auto-focus the iframe so its internal keyboard shortcuts (Enter=Print) work immediately
                             if(iframeRef.current) {

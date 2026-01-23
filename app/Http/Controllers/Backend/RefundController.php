@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderProduct;
+use App\Models\OrderTransaction;
 use App\Models\Product;
 use App\Models\ProductReturn;
 use App\Models\ReturnItem;
@@ -25,18 +26,18 @@ class RefundController extends Controller
             $returns = ProductReturn::with(['order', 'processedBy'])->latest()->get();
             return DataTables::of($returns)
                 ->addIndexColumn()
-                ->addColumn('return_number', fn($data) => '<strong>' . $data->return_number . '</strong>')
-                ->addColumn('order_id', fn($data) => '#' . $data->order_id)
-                ->addColumn('total_refund', fn($data) => number_format($data->total_refund, 2))
-                ->addColumn('processed_by', fn($data) => optional($data->processedBy)->name ?? 'N/A')
-                ->addColumn('created_at', fn($data) => $data->created_at->format('d M, Y h:i A'))
+                ->addColumn('return_number', fn($data) => '<span class="text-maroon font-weight-bold">' . $data->return_number . '</span>')
+                ->addColumn('order_id', fn($data) => '<strong>#' . $data->order_id . '</strong>')
+                ->addColumn('total_refund', fn($data) => '<span class="text-danger font-weight-bold">' . number_format($data->total_refund, 2) . '</span>')
+                ->addColumn('processed_by', fn($data) => '<span class="badge badge-light shadow-sm px-2">' . (optional($data->processedBy)->name ?? 'N/A') . '</span>')
+                ->addColumn('created_at', fn($data) => '<span class="text-muted">' . $data->created_at->format('d M, Y') . '</span><br><small>' . $data->created_at->format('h:i A') . '</small>')
                 ->addColumn('action', function ($data) {
                     $url = route('backend.admin.refunds.receipt', $data->id);
-                    return '<button type="button" onclick="openRefundReceipt(\'' . $url . '\')" class="btn btn-sm btn-info">
-                        <i class="fas fa-receipt"></i> Receipt
+                    return '<button type="button" onclick="openRefundReceipt(\'' . $url . '\')" class="btn btn-sm btn-info px-3 font-weight-bold shadow-sm">
+                        <i class="fas fa-receipt mr-1"></i> View Receipt
                     </button>';
                 })
-                ->rawColumns(['return_number', 'action'])
+                ->rawColumns(['return_number', 'order_id', 'total_refund', 'processed_by', 'created_at', 'action'])
                 ->toJson();
         }
 
@@ -77,8 +78,7 @@ class RefundController extends Controller
             'order_id' => 'required|exists:orders,id',
             'items' => 'required|array|min:1',
             'items.*.order_product_id' => 'required|exists:order_products,id',
-            'items.*.quantity' => 'required|numeric|min:0.001',
-            'reason' => 'nullable|string|max:500',
+            'items.*.quantity' => 'required|integer|min:1',
         ]);
 
         try {
@@ -91,7 +91,6 @@ class RefundController extends Controller
             $return = ProductReturn::create([
                 'order_id' => $order->id,
                 'return_number' => ProductReturn::generateReturnNumber(),
-                'reason' => $request->reason,
                 'processed_by' => auth()->id(),
             ]);
 
@@ -129,22 +128,49 @@ class RefundController extends Controller
                 }
             }
 
+            // 1. Update Order Total
+            $oldTotal = $order->total;
+            $newTotal = max(0, $oldTotal - $totalRefund);
+            $order->total = $newTotal;
+
+            // 2. Adjust Balance (The "Professional" Due Logic)
+            // If the customer has a Due balance, we should clear the debt FIRST 
+            // before giving them any actual cash back.
+            $cashBack = 0;
+            if ($order->due > 0) {
+                if ($totalRefund <= $order->due) {
+                    // Refund is less than or equal to debt: Just reduce the debt
+                    $order->due -= $totalRefund;
+                    $cashBack = 0; // No cash leaves the drawer
+                } else {
+                    // Refund is more than debt: Clear debt and return remaining as cash
+                    $cashBack = $totalRefund - $order->due;
+                    $order->due = 0;
+                }
+            } else {
+                // No debt: Full refund amount is cash back
+                $cashBack = $totalRefund;
+            }
+            
+            // 3. Update Order Paid (Reflection of actual money kept)
+            $order->paid = max(0, $newTotal - $order->due);
+            $order->status = $order->due <= 0;
+            $order->save();
+
+            // Note: We are no longer creating a negative OrderTransaction to avoid SQL errors 
+            // and keep the system simple as per user request. The Sales List will show the adjusted totals.
+
             // Update return total
             $return->update(['total_refund' => $totalRefund]);
 
-            // Create a negative transaction recorded against the order
-            OrderTransaction::create([
-                'order_id' => $order->id,
-                'customer_id' => $order->customer_id,
-                'user_id' => auth()->id(),
-                'amount' => -$totalRefund,
-                'paid_by' => 'cash', // Refunds are usually cash-out
-                'transaction_id' => 'REFUND-' . $return->return_number
-            ]);
-
             // Mark order as returned if cumulative returns cover the full order total
-            $cumulativeRefund = ProductReturn::where('order_id', $order->id)->sum('total_refund');
-            if ($cumulativeRefund >= $order->total) {
+            $cumulativeItemsReturned = ReturnItem::whereHas('productReturn', function($q) use ($order) {
+                $q->where('order_id', $order->id);
+            })->sum('quantity');
+            
+            $originalTotalItems = $order->products()->sum('quantity');
+            
+            if ($cumulativeItemsReturned >= $originalTotalItems) {
                 $order->update(['is_returned' => true]);
             }
 
@@ -180,6 +206,9 @@ class RefundController extends Controller
         // Calculate total refunded for this order across all return instances
         $orderTotalRefunded = $return->order->returns->sum('total_refund');
         $return->order_total_refunded = $orderTotalRefunded;
+        
+        // Calculate absolute original total (before any refunds)
+        $return->original_order_total = $return->order->sub_total - $return->order->discount;
 
         $maxWidth = readConfig('receiptMaxwidth') ?? '300px';
         return view('backend.refunds.receipt', compact('return', 'maxWidth'));

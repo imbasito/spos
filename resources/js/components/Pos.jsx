@@ -355,7 +355,7 @@ export default function Pos() {
                 </div>
 
                 {/* Cart Items (Scrollable) */}
-                <div className="flex-grow-1 custom-scroll p-0" style={{ backgroundColor: '#fff' }}>
+                <div className="flex-grow-1 custom-scroll no-scrollbar p-0" style={{ backgroundColor: '#fff' }}>
                     <div className="p-2">
                         <Cart 
                             carts={carts} 
@@ -367,41 +367,60 @@ export default function Pos() {
 
                 {/* Footer: Totals & Actions */}
                 <div className="border-top bg-light p-3" style={{ fontSize: '1.rem' }}>
-                     {/* Discount / Auto-Round Component */}
-                     <div className="bg-white p-2 rounded border mb-2">
-                        <div className="d-flex justify-content-between align-items-center mb-1">
-                            <span className="font-weight-bold text-dark"><i className="fas fa-tags mr-1 text-primary"></i> Discount</span>
-                            <div className="input-group input-group-sm" style={{ width: '180px' }}>
-                                <input 
-                                    type="number" 
-                                    className="form-control font-weight-bold text-right" 
-                                    placeholder="0"
-                                    min="0"
-                                    max={total}
-                                    value={orderDiscount}
-                                    onChange={e => {
-                                        const val = parseFloat(e.target.value);
-                                        if(!isNaN(val) && val >= 0 && val <= total) setOrderDiscount(val);
-                                        else if (e.target.value === '') setOrderDiscount('');
-                                    }}
-                                />
-                                <div className="input-group-append">
-                                    <span className="input-group-text">PKR</span>
-                                </div>
+                     {/* Professional Discount Section */}
+                     <div className="bg-white p-3 rounded shadow-sm border mb-3">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="font-weight-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                                <i className="fas fa-percent mr-2 text-maroon"></i> DISCOUNT / ADJUSTMENT
+                            </span>
+                        </div>
+                        
+                        <div className="input-group input-group-lg shadow-sm border rounded overflow-hidden">
+                            <div className="input-group-prepend">
+                                <span className="input-group-text bg-white border-0 text-muted">Rs.</span>
+                            </div>
+                            <input 
+                                type="number" 
+                                className="form-control border-0 font-weight-bold text-right pr-3" 
+                                style={{ fontSize: '1.2rem', color: '#800000' }}
+                                placeholder="0.00"
+                                min="0"
+                                max={total}
+                                step="any"
+                                value={orderDiscount}
+                                onChange={e => {
+                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                                    if(val === '' || (!isNaN(val) && val >= 0 && val <= total)) {
+                                        setOrderDiscount(e.target.value);
+                                    }
+                                }}
+                            />
+                            <div className="input-group-append">
+                                <button 
+                                    className={`btn ${orderDiscount > 0 ? 'btn-maroon' : 'btn-outline-secondary'} px-3`}
+                                    onClick={() => setOrderDiscount(0)}
+                                    title="Reset Discount"
+                                    style={{ border: 'none' }}
+                                >
+                                    <i className="fas fa-times"></i>
+                                </button>
                             </div>
                         </div>
-                        <div className="d-flex justify-content-between align-items-center">
-                            <span className="text-muted text-sm" style={{ fontSize: '0.85rem' }}>Auto-Round Off <small>(0.99 → 1.00)</small></span>
-                            <div className="custom-control custom-switch">
+
+                        <div className="mt-2 d-flex justify-content-between align-items-center p-2 bg-light rounded border-dashed">
+                            <div>
+                                <span className="text-xs text-muted font-weight-bold text-uppercase">Auto-Rounding</span>
+                                <div className="text-xs text-dark opacity-75">Automatically clear fractional amounts</div>
+                            </div>
+                            <div className="custom-control custom-switch custom-switch-maroon">
                                 <input 
                                     type="checkbox" 
                                     className="custom-control-input" 
                                     id="autoFrac" 
-                                    checked={autoFractionalDiscount && total > 0 && (total % 1) > 0} 
-                                    readOnly 
-                                    style={{ cursor: 'pointer' }}
+                                    checked={autoFractionalDiscount} 
+                                    readOnly
                                 />
-                                <label className="custom-control-label" htmlFor="autoFrac" style={{ cursor: 'pointer' }}></label>
+                                <label className="custom-control-label" htmlFor="autoFrac"></label>
                             </div>
                         </div>
                      </div>

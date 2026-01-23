@@ -2,7 +2,7 @@
 @section('title', 'Return Receipt #'.$return->return_number)
 @section('content')
 
-  <!-- IMMEDIATE OVERRIDE: Kill the parent spinner the millisecond this script executes -->
+  <!-- IMMEDIATE OVERRIDE: Kill the parent spinner -->
   <script>
       (function() {
           try {
@@ -59,9 +59,9 @@
     .text-left { text-align: left; }
     .font-bold { font-weight: 700; }
     .text-uppercase { text-transform: uppercase; }
-    .text-xs { font-size: 10px; }
+    .text-xs { font-size: 11px; }
 
-    /* Layout Elements (Exactly like POS) */
+    /* Layout Elements */
     .logo-area img { max-width: 150px; height: auto; margin-bottom: 8px; }
     .header-info { margin-bottom: 12px; }
     
@@ -69,22 +69,30 @@
     .double-divider { border-top: 2px dashed #000; margin: 8px 0; }
 
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; font-size: 11px; text-transform: uppercase; padding-bottom: 4px; border-bottom: 1px solid #000; }
-    td { padding: 4px 0; vertical-align: top; }
+    th { text-align: left; font-size: 11px; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1.5px solid #000; }
+    td { padding: 6px 0; vertical-align: top; }
     
-    .totals-table td { padding: 2px 0; }
+    .qty-cell { text-align: center; line-height: 1.2; padding-right: 5px; }
+    .original-qty { text-decoration: line-through; color: #777; font-size: 10px; display: block; }
+    .new-qty { font-weight: bold; font-size: 13px; display: block; }
+
+    /* Column Gaps - Professional Spacing */
+    .price-col { padding-right: 20px; padding-left: 10px; }
+    .amt-col { padding-left: 15px; }
+
+    .totals-table td { padding: 3px 0; }
     .grand-total { 
         font-size: 16px; 
         font-weight: 700; 
         border-top: 1.5px solid #000; 
         border-bottom: 1.5px solid #000; 
-        padding: 6px 0; 
-        margin-top: 5px; 
+        padding: 8px 0; 
+        margin-top: 6px; 
     }
   </style>
 
   <div class="receipt-container" id="printable-section">
-    <!-- Header / Logo (Exactly like POS) -->
+    <!-- Header / Logo -->
     <div class="text-center header-info">
       @if(readConfig('is_show_logo_invoice'))
       <div class="logo-area">
@@ -93,7 +101,7 @@
       @endif
       
       @if(readConfig('is_show_site_invoice'))
-      <div class="font-bold text-uppercase" style="font-size: 16px; margin-bottom: 3px;">{{ readConfig('site_name') }}</div>
+      <div class="font-bold text-uppercase" style="font-size: 17px; margin-bottom: 3px;">{{ readConfig('site_name') }}</div>
       @endif
       
       <div class="text-xs">
@@ -106,12 +114,12 @@
     <div class="divider"></div>
 
     <!-- Refund Badge -->
-    <div class="text-center" style="margin: 10px 0;">
-      <span style="border: 2px solid #000; padding: 5px 12px; font-weight: bold; font-size: 13px; text-transform: uppercase;">Revised Refund Receipt</span>
+    <div class="text-center" style="margin: 12px 0;">
+      <span style="border: 2px solid #000; padding: 6px 15px; font-weight: bold; font-size: 14px; text-transform: uppercase;">Revised Refund Receipt</span>
     </div>
 
     <!-- Metadata -->
-    <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px;">
       <div class="text-left">
         Return: <strong>#{{ $return->return_number }}</strong><br>
         Date: {{ $return->created_at->format('d/m/Y h:i A') }}
@@ -125,21 +133,21 @@
     <!-- Customer -->
     @if($return->order->customer)
     <div class="divider"></div>
-    <div class="text-left text-sm">
+    <div class="text-left text-sm" style="margin-bottom: 5px;">
       <strong>Customer:</strong> {{ $return->order->customer->name }}
     </div>
     @endif
 
     <div class="double-divider"></div>
 
-    <!-- Items with Strikethrough Logic -->
+    <!-- Items Table -->
     <table>
       <thead>
         <tr>
-          <th width="45%">Item</th>
-          <th width="15%" class="text-center">Qty</th>
-          <th width="20%" class="text-right">Price</th>
-          <th width="20%" class="text-right">Amt</th>
+          <th width="40%">Item</th>
+          <th width="20%" class="text-center">Qty</th>
+          <th width="20%" class="text-right price-col">Price</th>
+          <th width="20%" class="text-right amt-col">Amt</th>
         </tr>
       </thead>
       <tbody>
@@ -153,29 +161,40 @@
         @endphp
         @foreach ($return->order->products as $item)
         @php
-            $thisReturnQty = \App\Models\ReturnItem::where('return_id', $return->id)->where('order_product_id', $item->id)->sum('quantity');
             $totalReturnedQty = isset($allReturnedQuantities[$item->id]) ? $allReturnedQuantities[$item->id] : 0;
             $unitPrice = $item->quantity > 0 ? ($item->total / $item->quantity) : 0;
             
-            // FULL STRIKE: Only if the entire sold quantity is now returned
-            $isFullyReturned = ($totalReturnedQty >= $item->quantity);
-            // HIGHLIGHT: If this specific item is part of the CURRENT return
-            $isBeingReturnedNow = ($thisReturnQty > 0);
+            $newQuantity = $item->quantity - $totalReturnedQty;
+            $hasReturn = ($totalReturnedQty > 0);
+            $isFullyReturned = ($newQuantity <= 0);
         @endphp
-        <tr style="{{ $isFullyReturned ? 'text-decoration: line-through; color: #888;' : '' }}">
+        <tr>
           <td>
-            <div style="line-height: 1.1; {{ $isBeingReturnedNow && !$isFullyReturned ? 'font-weight: bold; color: #d9534f;' : '' }}">
+            <div style="line-height: 1.2; {{ $isFullyReturned ? 'text-decoration: line-through; color: #777;' : '' }}">
                 {{ optional($item->product)->name ?? 'Item' }}
-                @if($isBeingReturnedNow && !$isFullyReturned) 
-                    <div style="font-size: 9px; font-weight: normal; color: #888; text-decoration: none !important; display: block;">(-{{ number_format($thisReturnQty, 0) }} Returned Now)</div>
-                @elseif($isFullyReturned)
-                    <div style="font-size: 9px; font-weight: normal; color: #888; text-decoration: none !important; display: block;">(Fully Returned)</div>
-                @endif
             </div>
           </td>
-          <td class="text-center">x{{ number_format($item->quantity, 0) }}</td>
-          <td class="text-right">{{ number_format($unitPrice, 0) }}</td>
-          <td class="text-right {{ !$isFullyReturned ? 'font-bold' : '' }}">{{ number_format($item->total, 2) }}</td>
+          <td class="qty-cell">
+            @if($hasReturn)
+                <span class="original-qty">{{ number_format($item->quantity, 0) }}</span>
+                @if(!$isFullyReturned)
+                    <span class="new-qty">{{ number_format($newQuantity, 0) }}</span>
+                @endif
+            @else
+                <span class="new-qty">{{ number_format($item->quantity, 0) }}</span>
+            @endif
+          </td>
+          <td class="text-right price-col">{{ number_format($unitPrice, 0) }}</td>
+          <td class="text-right amt-col">
+            @if($hasReturn)
+                <span class="original-qty">{{ number_format($item->total, 2) }}</span>
+                @if(!$isFullyReturned)
+                    <span class="new-qty font-bold">{{ number_format($unitPrice * $newQuantity, 2) }}</span>
+                @endif
+            @else
+                <span class="new-qty font-bold">{{ number_format($item->total, 2) }}</span>
+            @endif
+          </td>
         </tr>
         @endforeach
       </tbody>
@@ -186,34 +205,31 @@
     <!-- Totals Area -->
     <table class="totals-table">
       <tr>
-        <td class="text-right" width="60%">Original Total:</td>
-        <td class="text-right font-bold" width="40%">{{ number_format($return->order->total, 2) }}</td>
+        <td class="text-right" width="60%">Gross Sale Value:</td>
+        <td class="text-right font-bold" width="40%">{{ number_format($return->original_order_total + $return->order->discount, 2) }}</td>
       </tr>
+      @if($return->order->discount > 0)
+      <tr>
+        <td class="text-right">Original Discount:</td>
+        <td class="text-right">(-{{ number_format($return->order->discount, 2) }})</td>
+      </tr>
+      @endif
       
       <tr style="color: #d9534f;">
-        <td class="text-right">Total Refunded:</td>
+        <td class="text-right">Cumulative Returns:</td>
         <td class="text-right font-bold">-{{ number_format($return->order_total_refunded, 2) }}</td>
       </tr>
 
       <tr class="grand-total">
-        <td class="text-left" style="font-size: 14px;">ADJUSTED TOTAL</td>
-        <td class="text-right" style="font-size: 16px;">{{ number_format($return->order->total - $return->order_total_refunded, 2) }}</td>
+        <td class="text-left" style="font-size: 14px;">ADJUSTED SALE TOTAL</td>
+        <td class="text-right" style="font-size: 18px;">{{ number_format($return->order->total, 2) }}</td>
       </tr>
-      
-      @if($return->reason)
-      <tr><td colspan="2" style="height: 10px;"></td></tr>
-      <tr>
-          <td colspan="2" class="text-left text-xs" style="padding: 4px; border: 1px dashed #000;">
-              <strong>Return Reason:</strong> {{ $return->reason }}
-          </td>
-      </tr>
-      @endif
     </table>
 
     <div class="divider"></div>
 
-    <!-- Software Credit (Exactly like POS) -->
-    <div class="text-center text-xs" style="margin-top: 10px; color: #666;">
+    <!-- Software Credit -->
+    <div class="text-center text-xs" style="margin-top: 15px; color: #666;">
       Software by <strong>SINYX</strong><br>
       Contact: +92 342 9031328
     </div>
@@ -221,7 +237,6 @@
 
   @push('script')
   <script>
-    // Signals parent
     function notifyParent() {
         try {
             if (window.parent && window.parent.finalizeReceiptLoad) { window.parent.finalizeReceiptLoad(); }
@@ -241,7 +256,6 @@
        window.print();
     }
 
-    // Keyboard Shortcuts
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
