@@ -86,30 +86,29 @@ export default function Pos() {
         const subTotal = parseFloat(total) || 0;
         const manDisc = parseFloat(manualDiscount) || 0;
         
-        let tempTotal = subTotal - manDisc;
+        let subTotalAfterManual = Math.max(0, subTotal - manDisc);
         let roundDisc = 0;
 
-        if (textRound(autoRound) && tempTotal > 0) {
-           // Calculate decimal part to remove
-           const decimalPart = tempTotal % 1;
-           if(decimalPart > 0) {
-               // We discount the decimal part to round DOWN to nearest integer
-               // Example: 10.75 -> Discount 0.75 -> Pay 10.00
-               roundDisc = decimalPart;
+        if (autoRound && subTotalAfterManual > 0) {
+           // Round down to nearest integer (Math.floor)
+           // Example: 100.75 -> 100.00 (Discount 0.75)
+           const floorTotal = Math.floor(subTotalAfterManual);
+           const rawDiff = subTotalAfterManual - floorTotal;
+           
+           // Fix float precision issues (e.g. 0.750000001 -> 0.75)
+           if(rawDiff > 0) {
+               roundDisc = parseFloat(rawDiff.toFixed(2));
            }
         }
         
         // Final Payable
-        let pay = subTotal - manDisc - roundDisc;
+        let pay = subTotalAfterManual - roundDisc;
         
         // Safety check
         if(pay < 0) pay = 0;
         
         setUpdateTotal(pay.toFixed(2));
     }, [total, manualDiscount, autoRound]);
-
-    // Helper to safely check boolean
-    const textRound = (val) => val === true;
 
     // Fetch Products
     const getProducts = useCallback(async (search = "", page = 1) => {
@@ -252,14 +251,17 @@ export default function Pos() {
         // Calculate Final Discount for Backend
         const subTotal = parseFloat(total) || 0;
         const manDisc = parseFloat(manualDiscount) || 0;
+        
+        // Calculate subtotal after manual discount first
+        let subTotalAfterManual = Math.max(0, subTotal - manDisc);
         let roundDisc = 0;
 
-        // Re-run rounding logic
-        if (autoRound === true) {
-           let tempTotal = subTotal - manDisc;
-           if(tempTotal > 0) {
-               const decimalPart = tempTotal % 1;
-               if(decimalPart > 0) roundDisc = decimalPart;
+        // Re-run rounding logic (MUST match useEffect logic exactly)
+        if (autoRound === true && subTotalAfterManual > 0) {
+           const floorTotal = Math.floor(subTotalAfterManual);
+           const rawDiff = subTotalAfterManual - floorTotal;
+           if(rawDiff > 0) {
+               roundDisc = parseFloat(rawDiff.toFixed(2));
            }
         }
         

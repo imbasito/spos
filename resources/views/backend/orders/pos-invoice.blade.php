@@ -141,7 +141,7 @@
             <div style="line-height: 1.2;">{{ $item->product->name }}</div>
           </td>
           <td class="text-center">x{{ $item->quantity }}</td>
-          <td class="text-right">{{ number_format($item->discounted_price, 0) }}</td>
+          <td class="text-right">{{ number_format($item->price, 2) }}</td>
           <td class="text-right font-bold">{{ number_format($item->total, 2) }}</td>
         </tr>
         @endforeach
@@ -156,12 +156,10 @@
         <td class="text-right" width="60%">Gross Total:</td>
         <td class="text-right font-bold" width="40%">{{ number_format($order->sub_total, 2) }}</td>
       </tr>
-      @if($order->discount > 0)
       <tr>
-        <td class="text-right">Discount:</td>
+        <td class="text-right">Total Discount:</td>
         <td class="text-right">(-{{ number_format($order->discount, 2) }})</td>
       </tr>
-      @endif
 
       <!-- Empty Row for visual spacing -->
       <tr><td colspan="2" style="height: 5px;"></td></tr>
@@ -172,11 +170,6 @@
       </tr>
       
       <tr><td colspan="2" style="height: 5px;"></td></tr>
-
-      <tr>
-        <td class="text-right">Cash Tendered:</td>
-        <td class="text-right font-bold">{{ number_format($order->paid, 2) }}</td>
-      </tr>
       
       @if($order->due > 0)
       <tr>
