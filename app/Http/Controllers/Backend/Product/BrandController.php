@@ -24,7 +24,7 @@ class BrandController extends Controller
     {
         abort_if(!auth()->user()->can('brand_view'), 403);
         if ($request->ajax()) {
-            $brands = Brand::latest()->get();
+            $brands = Brand::query();
             return DataTables::of($brands)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')

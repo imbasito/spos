@@ -23,7 +23,7 @@ class CategoryController extends Controller
     {
         abort_if(!auth()->user()->can('category_view'), 403);
         if ($request->ajax()) {
-            $categories = Category::latest()->get();
+            $categories = Category::query();
             return DataTables::of($categories)
                 ->addIndexColumn()
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')

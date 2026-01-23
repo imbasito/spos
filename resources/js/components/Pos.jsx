@@ -267,6 +267,11 @@ export default function Pos() {
                 .then((res) => {
                     const realItem = res.data.cart; // Assuming backend returns the new cart item
                     if (realItem) {
+                        // Ensure row_total is set correctly from backend, or fallback to calculation
+                        if (!realItem.row_total) {
+                            realItem.row_total = (parseFloat(realItem.quantity) * parseFloat(realItem.product.discounted_price)).toFixed(2);
+                        }
+                        
                         setCarts(currentCarts => 
                             currentCarts.map(item => item.id === tempId ? realItem : item)
                         );

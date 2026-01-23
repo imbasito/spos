@@ -6,13 +6,13 @@
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
-      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h3 class="card-title font-weight-bold text-dark mb-0">
-          <i class="fas fa-user-shield mr-2 text-primary"></i> System Users
+      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <h3 class="card-title font-weight-bold text-white mb-0">
+          <i class="fas fa-user-shield mr-2"></i> System Users
         </h3>
         @can('user_create')
-        <a href="{{ route('backend.admin.user.create') }}" class="btn bg-gradient-primary btn-md px-4 shadow-sm hover-lift font-weight-bold text-white">
-          <i class="fas fa-plus-circle mr-1 text-white"></i> Add New User
+        <a href="{{ route('backend.admin.user.create') }}" class="btn btn-light btn-md px-4 shadow-sm hover-lift font-weight-bold text-maroon">
+          <i class="fas fa-plus-circle mr-1"></i> Add New User
         </a>
         @endcan
       </div>
@@ -95,7 +95,7 @@
       }
     });
 
-    $('.dataTables_filter input').addClass('form-control form-control-sm border-0 bg-light px-3').css('border-radius', '20px');
+    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
     $('.dataTables_length select').addClass('form-control form-control-sm border-0 bg-light').css('border-radius', '10px');
   });
 </script>

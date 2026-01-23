@@ -31,7 +31,7 @@
   'contact_email' => 'bestboy717@gmail.com',
   'working_hour' => 'Saturday - Thursday ( 9:00 AM - 10:00 PM)',
   'custom_css' => '',
-  'note_to_customer_invoice' => 'Thank You For Shopping With Us. Please Come Again.',
+  'note_to_customer_invoice' => 'Thank You For Shopping With Us. Hope to see you again.',
   'is_show_logo_invoice' => '1',
   'is_show_site_invoice' => '1',
   'is_show_phone_invoice' => '1',
