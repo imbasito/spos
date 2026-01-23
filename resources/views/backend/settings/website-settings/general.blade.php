@@ -571,17 +571,6 @@
                             <option value="500px" {{ readConfig('receiptMaxwidth') == '500px' ? 'selected' : '' }}>Large</option>
                         </select>
                     </div>
-                    <hr>
-                    <h6 class="mb-3"><i class="fas fa-cash-register"></i>&nbsp; POS Settings</h6>
-                    <div class="form-group d-flex align-items-center">
-                        <label class="switch"><input type="hidden" name="auto_fractional_discount" value="0">
-                            <input onclick="updateCheckboxValue(this)" type="checkbox" {{ readConfig('auto_fractional_discount') == 1 ? 'checked' : '' }} name="auto_fractional_discount" id="auto_fractional_discount" value="{{ readConfig('auto_fractional_discount') == 1 ? 1 : '0' }}">
-                            <span class="slider round"></span>
-                        </label>
-                        <label for="auto_fractional_discount" class="mx-2">Auto Apply Fractional Discount</label>
-                        <small class="text-muted">(Auto-check fractional discount in POS checkout)</small>
-                    </div>
-
                 </form>
             </div>
             @endcan

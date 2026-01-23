@@ -51,7 +51,8 @@ const ProductCard = memo(({ product, onClick, baseUrl }) => (
 export default function Pos() {
     const [products, setProducts] = useState([]);
     const [carts, setCarts] = useState([]);
-    const [orderDiscount, setOrderDiscount] = useState(0);
+    const [manualDiscount, setManualDiscount] = useState('');
+    const [autoRound, setAutoRound] = useState(false);
     const [customerId, setCustomerId] = useState();
     
     // Totals
@@ -74,31 +75,41 @@ export default function Pos() {
     const [totalPages, setTotalPages] = useState(0);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-    // Read settings
-    const autoFractionalDiscount = window.posSettings?.autoFractionalDiscount || false;
-
     // Derived values
     const fullDomainWithPort = useMemo(() =>
         `${protocol}//${hostname}${port ? `:${port}` : ""}`,
         [protocol, hostname, port]
     );
 
-    // Auto-apply fractional discount
+    // Recalculate Final Total & Rounding
     useEffect(() => {
-        if (autoFractionalDiscount && total > 0) {
-            const fractionalPart = total % 1;
-            if (fractionalPart > 0) {
-                setOrderDiscount(fractionalPart.toFixed(2));
-            }
-        }
-    }, [total, autoFractionalDiscount]);
-
-    // Recalculate Final Total
-    useEffect(() => {
-        let disc = parseFloat(orderDiscount) || 0;
         const subTotal = parseFloat(total) || 0;
-        setUpdateTotal((subTotal - disc).toFixed(2));
-    }, [total, orderDiscount]);
+        const manDisc = parseFloat(manualDiscount) || 0;
+        
+        let tempTotal = subTotal - manDisc;
+        let roundDisc = 0;
+
+        if (textRound(autoRound) && tempTotal > 0) {
+           // Calculate decimal part to remove
+           const decimalPart = tempTotal % 1;
+           if(decimalPart > 0) {
+               // We discount the decimal part to round DOWN to nearest integer
+               // Example: 10.75 -> Discount 0.75 -> Pay 10.00
+               roundDisc = decimalPart;
+           }
+        }
+        
+        // Final Payable
+        let pay = subTotal - manDisc - roundDisc;
+        
+        // Safety check
+        if(pay < 0) pay = 0;
+        
+        setUpdateTotal(pay.toFixed(2));
+    }, [total, manualDiscount, autoRound]);
+
+    // Helper to safely check boolean
+    const textRound = (val) => val === true;
 
     // Fetch Products
     const getProducts = useCallback(async (search = "", page = 1) => {
@@ -213,7 +224,8 @@ export default function Pos() {
                 axios.put("/admin/cart/empty")
                     .then(() => {
                         setCartUpdated(!cartUpdated);
-                        setOrderDiscount(0);
+                        setManualDiscount('');
+                        setAutoRound(false);
                         playSound(SuccessSound);
                     })
                     .catch(() => playSound(WarningSound));
@@ -237,10 +249,26 @@ export default function Pos() {
     const handlePaymentConfirm = (paymentData) => {
         const { paid, method, trxId } = paymentData;
         
+        // Calculate Final Discount for Backend
+        const subTotal = parseFloat(total) || 0;
+        const manDisc = parseFloat(manualDiscount) || 0;
+        let roundDisc = 0;
+
+        // Re-run rounding logic
+        if (autoRound === true) {
+           let tempTotal = subTotal - manDisc;
+           if(tempTotal > 0) {
+               const decimalPart = tempTotal % 1;
+               if(decimalPart > 0) roundDisc = decimalPart;
+           }
+        }
+        
+        const finalDiscount = manDisc + roundDisc;
+
         // Finalize Order
         axios.put("/admin/order/create", {
             customer_id: customerId,
-            order_discount: parseFloat(orderDiscount) || 0,
+            order_discount: finalDiscount,
             paid: parseFloat(paid) || 0,
             payment_method: method,
             transaction_id: trxId,
@@ -252,7 +280,8 @@ export default function Pos() {
             setCarts([]);
             setTotal(0);
             setUpdateTotal(0);
-            setOrderDiscount(0);
+            setManualDiscount('');
+            setAutoRound(false);
             setCartUpdated(!cartUpdated);
 
             // Show Receipt
@@ -367,61 +396,59 @@ export default function Pos() {
 
                 {/* Footer: Totals & Actions */}
                 <div className="border-top bg-light p-3" style={{ fontSize: '1.rem' }}>
-                     {/* Professional Discount Section */}
-                     <div className="bg-white p-3 rounded shadow-sm border mb-3">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <span className="font-weight-bold text-dark" style={{ fontSize: '0.9rem' }}>
-                                <i className="fas fa-percent mr-2 text-maroon"></i> DISCOUNT / ADJUSTMENT
-                            </span>
-                        </div>
+                     {/* Professional Unified Discount Toolbar */}
+                     <div className="bg-white p-0 rounded shadow-sm border mb-3 overflow-hidden d-flex align-items-center" style={{ height: '70px' }}>
                         
-                        <div className="input-group input-group-lg shadow-sm border rounded overflow-hidden">
-                            <div className="input-group-prepend">
-                                <span className="input-group-text bg-white border-0 text-muted">Rs.</span>
+                        {/* Manual Discount Input Area */}
+                        <div className="flex-grow-1 d-flex flex-column justify-content-center px-3 border-right" style={{ height: '100%' }}>
+                            <div className="d-flex justify-content-between align-items-center">
+                                <small className="text-muted font-weight-bold text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>Manual Discount</small>
+                                {manualDiscount && (
+                                    <i className="fas fa-times-circle text-danger cursor-pointer" onClick={() => setManualDiscount('')} title="Clear"></i>
+                                )}
                             </div>
-                            <input 
-                                type="number" 
-                                className="form-control border-0 font-weight-bold text-right pr-3" 
-                                style={{ fontSize: '1.2rem', color: '#800000' }}
-                                placeholder="0.00"
-                                min="0"
-                                max={total}
-                                step="any"
-                                value={orderDiscount}
-                                onChange={e => {
-                                    const val = e.target.value === '' ? '' : parseFloat(e.target.value);
-                                    if(val === '' || (!isNaN(val) && val >= 0 && val <= total)) {
-                                        setOrderDiscount(e.target.value);
-                                    }
-                                }}
-                            />
-                            <div className="input-group-append">
-                                <button 
-                                    className={`btn ${orderDiscount > 0 ? 'btn-maroon' : 'btn-outline-secondary'} px-3`}
-                                    onClick={() => setOrderDiscount(0)}
-                                    title="Reset Discount"
-                                    style={{ border: 'none' }}
-                                >
-                                    <i className="fas fa-times"></i>
-                                </button>
+                            <div className="d-flex align-items-baseline">
+                                <span className="text-muted mr-1" style={{ fontSize: '1rem' }}>Rs.</span>
+                                <input 
+                                    type="number" 
+                                    className="form-control border-0 p-0 font-weight-bold text-dark h-auto" 
+                                    style={{ fontSize: '1.4rem', boxShadow: 'none', background: 'transparent' }}
+                                    placeholder="0"
+                                    min="0"
+                                    max={total}
+                                    step="any"
+                                    value={manualDiscount}
+                                    onFocus={(e) => e.target.select()}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if(val === '' || (!isNaN(val) && parseFloat(val) >= 0)) {
+                                            setManualDiscount(val);
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
 
-                        <div className="mt-2 d-flex justify-content-between align-items-center p-2 bg-light rounded border-dashed">
-                            <div>
-                                <span className="text-xs text-muted font-weight-bold text-uppercase">Auto-Rounding</span>
-                                <div className="text-xs text-dark opacity-75">Automatically clear fractional amounts</div>
-                            </div>
-                            <div className="custom-control custom-switch custom-switch-maroon">
+                        {/* Auto-Round Toggle Area */}
+                        <div 
+                            className="d-flex flex-column align-items-center justify-content-center px-3 cursor-pointer hover-bg-light" 
+                            style={{ height: '100%', minWidth: '100px', backgroundColor: autoRound ? '#fff5f5' : 'transparent' }}
+                            onClick={() => setAutoRound(!autoRound)}
+                        >
+                            <div className="custom-control custom-switch custom-switch-maroon mb-1">
                                 <input 
                                     type="checkbox" 
                                     className="custom-control-input" 
                                     id="autoFrac" 
-                                    checked={autoFractionalDiscount} 
-                                    readOnly
+                                    checked={autoRound} 
+                                    onChange={() => {}} 
+                                    tabIndex="-1"
                                 />
-                                <label className="custom-control-label" htmlFor="autoFrac"></label>
+                                <label className="custom-control-label" htmlFor="autoFrac" style={{cursor:'pointer'}}></label>
                             </div>
+                            <small className={`font-weight-bold ${autoRound ? 'text-maroon' : 'text-muted'}`} style={{ fontSize: '0.7rem' }}>
+                                ROUND OFF
+                            </small>
                         </div>
                      </div>
 
