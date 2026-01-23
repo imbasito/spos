@@ -15,7 +15,7 @@ class CustomerController extends Controller
     {
         abort_if(!auth()->user()->can('customer_view'), 403);
         if ($request->ajax()) {
-            $customers = Customer::latest()->get();
+            $customers = Customer::query(); // Optimized: Server-side query
             return DataTables::of($customers)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)
@@ -88,11 +88,15 @@ class CustomerController extends Controller
 
         if ($request->wantsJson()) {
             $request->validate([
-                'name' => 'required|string',
+                'name' => 'required|string|max:255',
+                'phone' => 'required|string|max:20|unique:customers,phone',
+                'address' => 'nullable|string|max:255',
             ]);
 
             $customer = Customer::create([
                 'name' => $request->name,
+                'phone' => $request->phone,
+                'address' => $request->address,
             ]);
 
             return response()->json($customer);

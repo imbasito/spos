@@ -178,10 +178,13 @@
             height: calc(100vh - 57px);
             overflow: hidden;
             display: flex;
-            /* Zoom Level as requested */
-            zoom: 0.85; 
-            /* Alternative if zoom has issues in some browsers: */
-            /* transform: scale(0.85); transform-origin: top left; width: 117.65%; height: 117.65%; */
+            zoom: 0.9; /* Fixed 90% Zoom for Desktop Experience */
+        }
+
+        /* Prevent page-level scroll when POS is active */
+        body:has(.pos-app-container) {
+            overflow: hidden !important;
+            height: 100vh !important;
         }
 
         /* Custom Scrollbar */
@@ -248,6 +251,70 @@
         }
         .pos-product-card:hover .pos-product-img {
             transform: scale(1.05); /* Subtle zoom on hover */
+        }
+
+        /* POS Premium Refinements */
+        .pos-search-group {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid #eee;
+            background: #fff;
+        }
+        .pos-search-group:focus-within {
+            border-color: #007bff;
+            box-shadow: 0 0 15px rgba(0, 123, 255, 0.25);
+            transform: translateY(-1px);
+        }
+        .pos-search-input {
+            border: none !important;
+            font-size: 1.1rem !important;
+        }
+        .pos-search-icon {
+            border: none !important;
+            background: #fff !important;
+            padding-right: 0 !important;
+        }
+
+        .btn-pay-premium {
+            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+            border: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            color: white !important;
+        }
+        .btn-pay-premium:hover:not(:disabled) {
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+        .btn-pay-premium:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+        .btn-pay-premium::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255,255,255,0.1);
+            transform: rotate(45deg);
+            transition: 0.5s;
+            pointer-events: none;
+        }
+        .btn-pay-premium:hover::after {
+            left: 120%;
+        }
+
+        .empty-state-container {
+            padding: 40px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 20px;
+            border: 2px dashed #dee2e6;
+            margin-top: 50px;
+            text-align: center;
         }
     </style>
     @stack('style')

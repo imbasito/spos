@@ -525,13 +525,13 @@ export default function Pos() {
                 {/* Header / Search */}
                 <div className="p-3 border-bottom shadow-sm bg-light">
                     <div className="d-flex align-items-center">
-                        <div className="input-group input-group-lg mr-3">
+                        <div className="input-group input-group-lg mr-3 pos-search-group shadow-sm">
                             <div className="input-group-prepend">
-                                <span className="input-group-text bg-white border-right-0"><i className="fas fa-search text-muted"></i></span>
+                                <span className="input-group-text pos-search-icon"><i className="fas fa-search text-primary"></i></span>
                             </div>
                             <input 
                                 type="text" 
-                                className="form-control border-left-0 pl-0" 
+                                className="form-control pos-search-input pl-2" 
                                 placeholder="Scan Barcode or Search Product..." 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
@@ -553,9 +553,12 @@ export default function Pos() {
                             />
                         ))}
                         {products.length === 0 && !loading && (
-                            <div className="col-12 text-center mt-5 text-muted">
-                                <i className="fas fa-box-open fa-3x mb-3"></i>
-                                <h5>No products found</h5>
+                            <div className="col-12">
+                                <div className="empty-state-container mx-auto" style={{ maxWidth: '400px' }}>
+                                    <i className="fas fa-box-open fa-4x mb-3 text-muted" style={{ opacity: 0.3 }}></i>
+                                    <h5 className="text-muted font-weight-bold">No products found</h5>
+                                    <p className="text-muted small">Try a different search term or check stock.</p>
+                                </div>
                             </div>
                         )}
                         {loading && (
@@ -673,15 +676,15 @@ export default function Pos() {
                         <div className="col-8 pl-1">
                             <button 
                                 onClick={handleCheckoutClick} 
-                                className="btn btn-success btn-block py-3 font-weight-bold shadow hover-lift"
-                                style={{ fontSize: '1.4rem', borderRadius: '8px', height: '100%' }}
+                                className="btn btn-pay-premium btn-block py-3 font-weight-bold shadow-lg"
+                                style={{ fontSize: '1.4rem', borderRadius: '12px', height: '100%' }}
                                 disabled={total <= 0}
                                 title="Shortcut: Enter or F4"
                             >
                                 <div className="d-flex justify-content-center align-items-center">
                                     <div className="text-left line-height-1 mr-3">
-                                        <small className="d-block font-weight-normal opacity-75" style={{ fontSize: '0.6em' }}>ENTER</small>
-                                        PAY
+                                        <small className="d-block font-weight-normal opacity-75" style={{ fontSize: '0.6em', textTransform: 'uppercase', letterSpacing: '1px' }}>Process Order</small>
+                                        PAY NOW
                                     </div>
                                     <i className="fas fa-chevron-circle-right fa-lg"></i>
                                 </div>

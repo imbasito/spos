@@ -16,7 +16,7 @@ class SupplierController extends Controller
     {
     abort_if(!auth()->user()->can('supplier_view'), 403);
         if ($request->ajax()) {
-            $suppliers = Supplier::latest()->get();
+            $suppliers = Supplier::query(); // Optimized: Server-side query
             return DataTables::of($suppliers)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)

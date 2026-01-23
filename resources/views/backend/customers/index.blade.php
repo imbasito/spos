@@ -3,40 +3,66 @@
 @section('title', 'Customers')
 
 @section('content')
-<div class="card">
-  @can('customer_create')
-  <div class="mt-n5 mb-3 d-flex justify-content-end">
-    <a href="{{ route('backend.admin.customers.create') }}" class="btn bg-gradient-primary">
-      <i class="fas fa-plus-circle"></i>
-      Add New
-    </a>
-  </div>
-  @endcan
-  <div class="card-body p-2 p-md-4 pt-0">
-    <div class="row g-4">
-      <div class="col-md-12">
-        <div class="card-body table-responsive p-0" id="table_data">
-          <table id="datatables" class="table table-hover">
-            <thead>
+<div class="row animate__animated animate__fadeIn">
+  <div class="col-12">
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
+      <div class="card-header bg-white py-3 d-flex align-items-center border-bottom-0">
+        <h3 class="card-title font-weight-bold text-dark mb-0">
+          <i class="fas fa-users mr-2 text-primary"></i> Customer Database
+        </h3>
+        @can('customer_create')
+        <a href="{{ route('backend.admin.customers.create') }}" class="btn bg-gradient-primary btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-white" style="color: #fff !important;">
+          <i class="fas fa-plus-circle mr-1 text-white" style="color: #fff !important;"></i> Add New Customer
+        </a>
+        @endcan
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table id="datatables" class="table table-hover mb-0 custom-premium-table">
+            <thead class="bg-dark text-white text-uppercase font-weight-bold small">
               <tr>
-                <th data-orderable="false">#</th>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Created</th>
-                <th data-orderable="false">
-                  Action
-                </th>
+                <th width="50" class="pl-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">#</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Customer Name</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Contact</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Address</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Registered On</th>
+                <th width="100" class="text-right pr-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
               </tr>
             </thead>
+            <tbody>
+              {{-- Loaded via AJAX --}}
+            </tbody>
           </table>
         </div>
       </div>
     </div>
   </div>
 </div>
-@endsection
 
+<style>
+  .custom-premium-table thead th {
+    border: none;
+    color: #ffffff !important;
+    letter-spacing: 0.05em;
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+  .custom-premium-table tbody td {
+    vertical-align: middle;
+    color: #2d3748;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #edf2f9;
+  }
+  .custom-premium-table tr:last-child td {
+    border-bottom: none;
+  }
+  .custom-premium-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+</style>
+@endsection
 
 @push('script')
 <script type="text/javascript">
@@ -44,40 +70,30 @@
     let table = $('#datatables').DataTable({
       processing: true,
       serverSide: true,
-      ordering: true,
-      order: [
-        [1, 'asc']
+      ajax: "{{ route('backend.admin.customers.index') }}",
+      order: [[1, 'asc']],
+      columns: [
+        { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'pl-4' },
+        { data: 'name', name: 'name', className: 'font-weight-bold' },
+        { data: 'phone', name: 'phone' },
+        { data: 'address', name: 'address' },
+        { data: 'created_at', name: 'created_at' },
+        { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' }
       ],
-      ajax: {
-        url: "{{ route('backend.admin.customers.index') }}"
-      },
-
-      columns: [{
-          data: 'DT_RowIndex',
-          name: 'DT_RowIndex'
-        },
-        {
-          data: 'name',
-          name: 'name'
-        },
-        {
-          data: 'phone',
-          name: 'phone'
-        },
-        {
-          data: 'address',
-          name: 'address'
-        },
-        {
-          data: 'created_at',
-          name: 'created_at'
-        },
-        {
-          data: 'action',
-          name: 'action'
-        },
-      ]
+      dom: '<"p-3 d-flex justify-content-between align-items-center"lf>t<"p-3 d-flex justify-content-between align-items-center"ip>',
+      language: {
+        search: "_INPUT_",
+        searchPlaceholder: "Search Customers...",
+        lengthMenu: "_MENU_ per page",
+        paginate: {
+          previous: '<i class="fas fa-chevron-left"></i>',
+          next: '<i class="fas fa-chevron-right"></i>'
+        }
+      }
     });
+
+    $('.dataTables_filter input').addClass('form-control form-control-sm border-0 bg-light px-3').css('border-radius', '20px');
+    $('.dataTables_length select').addClass('form-control form-control-sm border-0 bg-light').css('border-radius', '10px');
   });
 </script>
 @endpush

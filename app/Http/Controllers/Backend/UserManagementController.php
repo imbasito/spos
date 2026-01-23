@@ -24,13 +24,16 @@ class UserManagementController extends Controller
 
         abort_if(!auth()->user()->can('user_view'), 403);
         if ($request->ajax()) {
-            $users = User::with('roles')->latest()->get();
+            $users = User::with('roles')->select('users.*'); // Optimized: Server-side query
 
             return DataTables::of($users)
                 ->addIndexColumn()
                 ->addColumn(
                     'thumb',
-                    '<img class="img-fluid" src="{{ $pro_pic }}" width="50" alt="{{ $name }}">'
+                    function($data) {
+                        $url = $data->profile_image ? asset('storage/' . $data->profile_image) : asset('assets/images/no-image.png');
+                        return '<img class="img-circle shadow-sm" src="' . $url . '" width="40" height="40" style="object-fit: cover; border: 2px solid #fff;">';
+                    }
                 )
                 ->addColumn('created', function ($data) {
                     return date('d M, Y', strtotime($data->created_at));
