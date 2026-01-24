@@ -44,6 +44,7 @@ Route::get('/', function () {
 // Standalone Activation routes (Public)
 Route::get('/activate', [\App\Http\Controllers\Backend\LicenseController::class, 'showActivate'])->name('license.activate.show');
 Route::post('/activate', [\App\Http\Controllers\Backend\LicenseController::class, 'activatePublic'])->name('license.activate.public');
+Route::get('admin/orders/pos-invoice/{id}', [\App\Http\Controllers\Backend\Pos\OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
 
 //authentication
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
@@ -88,8 +89,10 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('currencies/default/{id}', [CurrencyController::class, 'setDefault'])->name('currencies.setDefault');
     Route::get('customers/orders/{id}', [CustomerController::class, 'orders'])->name('customers.orders');
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
+    Route::get('orders/pos-invoice/preview', [OrderController::class, 'previewInvoice'])->name('orders.pos-invoice.preview');
     Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
-    Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice');
+    Route::get('orders/orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
+    // Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice'); -- Moved to Public
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');
     Route::match(['get', 'post'], 'orders/due/collection/{id}', [OrderController::class, 'collection'])->name('due.collection');
     Route::get('collection/invoice/{id}', [OrderController::class, 'collectionInvoice'])->name('collectionInvoice');

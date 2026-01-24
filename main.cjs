@@ -275,53 +275,49 @@ function setupAutoUpdater() {
         mainWindow.webContents.send('updater:status', 'error', err.message);
     });
 
-    // Silent Printing IPC
+    // Silent Printing / PDF IPC
     ipcMain.handle('print:silent', async (event, options) => {
         const { url, printerName } = options;
-        console.log(`Silent print requested for: ${url} (Printer: ${printerName || 'Default'})`);
+        console.log(`Print requested: ${url}`);
         
+        // 1. Create a hidden window
         let printWindow = new BrowserWindow({
             show: false,
-            webPreferences: {
-                contextIsolation: true
-            }
+            webPreferences: { contextIsolation: true }
         });
         
-        printWindow.loadURL(url);
-        
-        return new Promise((resolve) => {
-            let timeoutId;
-
-            printWindow.webContents.on('did-finish-load', () => {
-                // Wait a bit for JS scripts (like barcode) to render
-                setTimeout(() => {
-                    const printOptions = { 
-                        silent: true,
-                        printBackground: true,
-                        margins: { marginType: 'none' }
-                    };
-                    
-                    if (printerName) {
-                        printOptions.deviceName = printerName;
-                    }
-
-                    printWindow.webContents.print(printOptions, (success, failureReason) => {
-                        console.log(`Silent print result: ${success}${failureReason ? ` - ${failureReason}` : ''}`);
-                        if (timeoutId) clearTimeout(timeoutId); // Cancel the timeout
-                        printWindow.close();
-                        resolve({ success, error: failureReason });
-                    });
-                }, 1000); 
-            });
+        try {
+            await printWindow.loadURL(url);
             
-            // Timeout if loading/printing takes too long (increased to 60s for PDF saving)
-            timeoutId = setTimeout(() => {
-                if (!printWindow.isDestroyed()) {
-                    printWindow.close();
-                    resolve({ success: false, error: 'Print timeout (60s)' });
-                }
-            }, 60000);
-        });
+            // 2. Wait for render (barcodes etc)
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 3. User requested "PDF Testing" mode (or physical print)
+            // For this specific user request: "pdf main reciept... documents main save kare"
+            
+            const pdfPath = path.join(app.getPath('documents'), `Receipt_${Date.now()}.pdf`);
+            const pdfData = await printWindow.webContents.printToPDF({
+                printBackground: true,
+                marginsType: 0,
+                pageSize: { width: 80000, height: 297000 }, // 80mm width (Microns)
+                printSelectionOnly: false,
+                landscape: false
+            });
+
+            const fs = require('fs');
+            fs.writeFileSync(pdfPath, pdfData);
+            
+            console.log(`PDF Saved to: ${pdfPath}`);
+            printWindow.close();
+            
+            // Return success with the path
+            return { success: true, message: `Saved to Documents: ${path.basename(pdfPath)}` };
+
+        } catch (error) {
+            console.error('Print/PDF Error:', error);
+            if (!printWindow.isDestroyed()) printWindow.close();
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('print:get-printers', async () => {

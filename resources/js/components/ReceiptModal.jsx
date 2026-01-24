@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
 const ReceiptModal = ({ show, url, onClose }) => {
     if (!show || !url) return null;
@@ -28,16 +29,34 @@ const ReceiptModal = ({ show, url, onClose }) => {
     }, []);
 
     // Printing Logic (via iframe content window or Electron)
-    const handlePrint = () => {
-        if (iframeRef.current && iframeRef.current.contentWindow) {
-            // Check if we are in Electron env with our custom printer
+    const handlePrint = async () => {
+        if (iframeRef.current) {
+             // 1. Electron Silent Print (PDF Save / Thermal)
             if (window.electron && window.electron.printSilent) {
-                // For silent print, we might just re-trigger the URL or let the User use the iframe's print
-                // But typically the Receipt URL page itself might have auto-print JS.
-                // Let's rely on the user clicking "Print" inside the iframe or using this button to trigger browser print
-                iframeRef.current.contentWindow.print();
+                // Determine absolute URL (url prop might be relative)
+                let targetUrl = url;
+                if (!url.startsWith('http')) {
+                    const { protocol, host } = window.location;
+                    targetUrl = `${protocol}//${host}${url}`;
+                }
+
+                // Show feedback
+                const toastId = toast.loading("Processing Receipt...");
+                try {
+                    const response = await window.electron.printSilent(targetUrl);
+                    if (response.success) {
+                        toast.success("Receipt Saved to Documents", { id: toastId });
+                    } else {
+                        toast.error("Print Failed", { id: toastId });
+                    }
+                } catch (e) {
+                    toast.error("Error: " + e.message, { id: toastId });
+                }
             } else {
-                iframeRef.current.contentWindow.print();
+                // 2. Browser Fallback
+                if (iframeRef.current.contentWindow) {
+                    iframeRef.current.contentWindow.print();
+                }
             }
         }
     };

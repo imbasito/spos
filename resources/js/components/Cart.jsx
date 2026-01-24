@@ -138,6 +138,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                 </table>
                             </div>
                         )}
+                        
                     </div>
                 </div>
             </div>

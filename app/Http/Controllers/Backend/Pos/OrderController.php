@@ -250,4 +250,5 @@ class OrderController extends Controller
         $maxWidth = readConfig('receiptMaxwidth')??'300px';
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
     }
+
 }

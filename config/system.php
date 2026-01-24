@@ -43,7 +43,7 @@
   'auto_fractional_discount' => '0',
   'backup_path' => '',
   'auto_backup' => 'disabled',
-  'last_backup_date' => '2026-01-24 14:07:45',
+  'last_backup_date' => '2026-01-24 22:23:25',
   'license_key' => 'MPOS-eyJzaG9wIjoiQmFzaXQiLCJleHBpcnkiOiIyMDI3LTAxLTE5IiwibWFjaGluZSI6IkU4MEEwNzAyRDMxNCIsImNyZWF0ZWQiOiIyMDI2LTAxLTIwIn0=-730FAEA5',
   'licensed_to' => 'Basit',
   'receipt_printer' => 'Microsoft Print to PDF',

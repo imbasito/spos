@@ -110,9 +110,9 @@ class BackupController extends Controller
             
             // Resolve Binary Path explicitly
             $basePath = base_path();
-            $mysqldump = $basePath . '/mysql/bin/mysqldump.exe';
+            $mysqldump = $basePath . '\mysql\bin\mysqldump.exe';
+            
             if (!File::exists($mysqldump)) {
-                // Try system path if local not found
                 $mysqldump = 'mysqldump'; 
             } else {
                 $mysqldump = '"' . $mysqldump . '"';
