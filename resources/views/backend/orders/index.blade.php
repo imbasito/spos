@@ -3,59 +3,105 @@
 @section('title', 'Sale')
 
 @section('content')
-<div class="card">
-  <div class="card-body p-2 p-md-4 pt-0">
-    <!-- Barcode Scanner Input -->
-    <div class="row mb-3">
-      <div class="col-md-4">
-        <div class="input-group">
-          <div class="input-group-prepend">
-            <span class="input-group-text bg-primary text-white">
-              <i class="fas fa-barcode"></i>
-            </span>
-          </div>
-          <input 
-            type="text" 
-            id="order-barcode-input" 
-            class="form-control" 
-            placeholder="Scan receipt barcode (ORD-00000123)"
-            autofocus
-          >
-          <div class="input-group-append">
-            <button class="btn btn-primary" type="button" onclick="searchOrderByBarcode()">
-              <i class="fas fa-search"></i> Find
-            </button>
+<div class="row animate__animated animate__fadeIn">
+  <div class="col-12">
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
+      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <h3 class="card-title font-weight-bold text-white mb-0">
+          <i class="fas fa-shopping-cart mr-2"></i> Sales List
+        </h3>
+      </div>
+
+      <div class="card-body p-4">
+        <!-- Barcode Scanner Input -->
+        <div class="row mb-3">
+          <div class="col-md-5">
+            <div class="input-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-right-0 pl-3" style="border-radius: 25px 0 0 25px; border-color: #b0bec5; border-width: 1px;">
+                  <i class="fas fa-barcode text-maroon"></i>
+                </span>
+              </div>
+              <input 
+                type="text" 
+                id="order-barcode-input" 
+                class="form-control border-left-0 h-auto py-2" 
+                placeholder="Scan receipt barcode (ORD-00000123)"
+                autofocus
+                style="border-radius: 0 25px 25px 0; border-color: #b0bec5; border-width: 1px; font-size: 1rem;"
+              >
+              <div class="input-group-append ml-2">
+                <button class="btn btn-white text-maroon font-weight-bold shadow-sm border px-4 hover-lift" type="button" onclick="searchOrderByBarcode()" style="border-radius: 25px; border-color: #b0bec5 !important; border-width: 1px;">
+                  <i class="fas fa-search mr-1"></i> Find
+                </button>
+              </div>
+            </div>
+            <small class="text-muted pl-3 mt-1 d-block"><i class="fas fa-info-circle mr-1"></i> Scan or type order barcode to view invoice</small>
           </div>
         </div>
-        <small class="text-muted">Scan or type order barcode to view invoice</small>
-      </div>
-    </div>
-    
-    <div class="row g-4">
-      <div class="col-md-12">
-        <div class="card-body table-responsive p-0" id="table_data">
-          <table id="datatables" class="table table-hover">
-            <thead>
-              <tr>
-                <th data-orderable="false">#</th>
-                <th>SaleId</th>
-                <th>Customer</th>
-                <th>Item</th>
-                <th>Sub Total {{currency()->symbol??''}}</th>
-                <th>Discount {{currency()->symbol??''}}</th>
-                <th>Total {{currency()->symbol??''}}</th>
-                <th>Paid {{currency()->symbol??''}}</th>
-                <th>Due {{currency()->symbol??''}}</th>
-                <th>Status</th>
-                <th data-orderable="false">Action</th>
-              </tr>
-            </thead>
-          </table>
+        
+        <div class="row g-4">
+          <div class="col-md-12">
+            <div class="table-responsive">
+              <table id="datatables" class="table table-hover mb-0 custom-premium-table">
+                <thead class="bg-dark text-white text-uppercase font-weight-bold small">
+                  <tr>
+                    <th data-orderable="false" style="color: #ffffff !important; background-color: #4E342E !important;">#</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">SaleId</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Customer</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Item</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Sub Total {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Discount {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Total {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Paid {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Due {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Status</th>
+                    <th data-orderable="false" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .custom-premium-table thead th {
+    border: none;
+    color: #ffffff !important;
+    letter-spacing: 0.05em;
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+  .custom-premium-table tbody td {
+    vertical-align: middle;
+    color: #2d3748;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #edf2f9;
+  }
+  .custom-premium-table tr:last-child td {
+    border-bottom: none;
+  }
+  .custom-premium-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010) !important;
+  }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010);
+  }
+</style>
 @endsection
 
 @push('script')
@@ -75,11 +121,13 @@
 
       columns: [{
           data: 'DT_RowIndex',
-          name: 'DT_RowIndex'
+          name: 'DT_RowIndex',
+          className: 'pl-4'
         },
         {
           data: 'saleId',
-          name: 'saleId'
+          name: 'saleId',
+          className: 'font-weight-bold'
         },
         {
           data: 'customer',
@@ -99,7 +147,8 @@
         },
         {
           data: 'total',
-          name: 'total'
+          name: 'total',
+          className: 'font-weight-bold text-maroon'
         }, 
          {
           data: 'paid',
@@ -115,10 +164,23 @@
         },
         {
           data: 'action',
-          name: 'action'
+          name: 'action',
+          className: 'text-right pr-4'
         },
-      ]
+      ],
+      language: {
+        search: "_INPUT_",
+        searchPlaceholder: "Search sales...",
+        lengthMenu: "_MENU_ per page",
+        paginate: {
+          previous: '<i class="fas fa-chevron-left"></i>',
+          next: '<i class="fas fa-chevron-right"></i>'
+        }
+      }
     });
+
+    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
+    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
   });
   
   // Barcode scanner function

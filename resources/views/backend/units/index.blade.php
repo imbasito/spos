@@ -59,6 +59,12 @@
   .custom-premium-table tbody tr:hover {
     background-color: #f8fafc;
   }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010) !important;
+  }
 </style>
 @endsection
 

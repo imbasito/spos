@@ -3,16 +3,17 @@
 @section('title', 'Purchase')
 
 @section('content')
-<div class="row">
+@section('content')
+<div class="row animate__animated animate__fadeIn">
   <div class="col-12">
-    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
-      <div class="card-header bg-white py-3 d-flex align-items-center border-bottom-0">
-        <h3 class="card-title font-weight-bold text-dark mb-0">
-          <i class="fas fa-shopping-cart mr-2 text-primary"></i> Purchase Records
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
+      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
+        <h3 class="card-title font-weight-bold text-white mb-0">
+          <i class="fas fa-shopping-cart mr-2"></i> Purchase Records
         </h3>
         @can('purchase_create')
-        <a href="{{ route('backend.admin.purchase.create') }}" class="btn bg-gradient-primary btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-white" style="color: #fff !important;">
-          <i class="fas fa-plus-circle mr-1 text-white"></i> Add New Purchase
+        <a href="{{ route('backend.admin.purchase.create') }}" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon">
+          <i class="fas fa-plus-circle mr-1"></i> Add New Purchase
         </a>
         @endcan
       </div>
@@ -22,12 +23,12 @@
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
             <thead class="bg-dark text-white text-uppercase font-weight-bold small">
               <tr>
-                <th width="50" class="pl-4 text-white" style="background-color: #004D40 !important;">#</th>
-                <th class="text-white" style="background-color: #004D40 !important;">Supplier</th>
-                <th class="text-white" style="background-color: #004D40 !important;">Purchase ID</th>
-                <th class="text-white" style="background-color: #004D40 !important;">Total ({{currency()->symbol??''}})</th>
-                <th class="text-white" style="background-color: #004D40 !important;">Date</th>
-                <th width="120" class="text-right pr-4 text-white" style="background-color: #004D40 !important;">Action</th>
+                <th width="50" class="pl-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">#</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Supplier</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Purchase ID</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Total ({{currency()->symbol??''}})</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Date</th>
+                <th width="120" class="text-right pr-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -60,6 +61,12 @@
   }
   .custom-premium-table tbody tr:hover {
     background-color: #f8fafc;
+  }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010) !important;
   }
 </style>
 @endsection
@@ -96,8 +103,8 @@
       }
     });
 
-    $('.dataTables_filter input').addClass('form-control form-control-sm border-0 bg-light px-3').css('border-radius', '20px');
-    $('.dataTables_length select').addClass('form-control form-control-sm border-0 bg-light').css('border-radius', '10px');
+    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
+    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
   });
 </script>
 @endpush

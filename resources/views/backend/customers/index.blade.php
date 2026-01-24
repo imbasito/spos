@@ -61,6 +61,12 @@
   .custom-premium-table tbody tr:hover {
     background-color: #f8fafc;
   }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010) !important;
+  }
 </style>
 @endsection
 
@@ -93,7 +99,7 @@
     });
 
     $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
-    $('.dataTables_length select').addClass('form-control form-control-sm border-0 bg-light').css('border-radius', '10px');
+    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
   });
 </script>
 @endpush
