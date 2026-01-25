@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt</title>
+    <style>
+        @page {
+            margin: 0;
+            size: 80mm auto; /* Critical for Thermal Printers */
+        }
+        body {
+            width: 80mm;
+            margin: 0;
+            padding: 5px;
+            font-family: 'Courier New', Courier, monospace; /* Monospace aligns digits */
+            font-size: 12px;
+            color: #000;
+            background: #fff;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .font-bold { font-weight: bold; }
+        .text-sm { font-size: 11px; }
+        .text-xs { font-size: 10px; }
+        
+        .header { margin-bottom: 10px; }
+        .logo { max-width: 60%; height: auto; margin-bottom: 5px; }
+        
+        .divider { border-top: 1px dashed #000; margin: 5px 0; }
+        .double-divider { border-top: 2px dashed #000; margin: 5px 0; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; padding: 2px 0; }
+        
+        .totals-row td { padding: 4px 0; }
+        .grand-total { font-size: 16px; border-top: 2px solid #000; padding: 8px 0; }
+        
+        .footer { margin-top: 15px; text-align: center; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div id="receipt-content">
+        <!-- JS will inject content here -->
+        <div class="text-center">Loading...</div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        ipcRenderer.on('render-receipt', (event, data) => {
+            try {
+                const { id, date, staff, customer, items, sub_total, discount, total, paid, due, change, payment_method, config } = data;
+                
+                let html = '';
+                
+                // Header (Logo/Site)
+                html += `<div class="text-center header">`;
+                if(config.show_logo && config.logo_url) {
+                    html += `<img src="${config.logo_url}" class="logo"><br>`;
+                }
+                if(config.site_name) {
+                    html += `<div class="font-bold" style="font-size:14px">${config.site_name}</div>`;
+                }
+                html += `<div class="text-xs">`;
+                if(config.address) html += `${config.address}<br>`;
+                if(config.phone) html += `Tel: ${config.phone}<br>`;
+                html += `</div>`;
+                html += `</div>`;
+
+                html += `<div class="divider"></div>`;
+                
+                // Meta
+                html += `<div style="display:flex; justify-content:space-between">`;
+                html += `<div class="text-left">Inv: <strong>#${id}</strong><br>${date}</div>`;
+                html += `<div class="text-right">Staff: ${staff}<br>Method: ${payment_method}</div>`;
+                html += `</div>`;
+
+                if(customer) {
+                    html += `<div class="divider"></div>`;
+                    html += `<div class="text-left text-sm">Customer: ${customer.name}<br>${customer.phone ? customer.phone : ''}</div>`;
+                }
+
+                html += `<div class="double-divider"></div>`;
+
+                // Items
+                html += `<table>`;
+                items.forEach(item => {
+                    html += `<tr>`;
+                    html += `<td width="55%">${item.name}</td>`;
+                    html += `<td width="15%" class="text-center">x${item.qty}</td>`;
+                    html += `<td width="30%" class="text-right">${item.total}</td>`;
+                    html += `</tr>`;
+                });
+                html += `</table>`;
+
+                html += `<div class="divider"></div>`;
+
+                // Totals
+                html += `<table>`;
+                html += `<tr><td class="text-right" width="70%">Total:</td><td class="text-right font-bold">${sub_total}</td></tr>`;
+                if(discount > 0) {
+                    html += `<tr><td class="text-right">Disc:</td><td class="text-right">-${discount}</td></tr>`;
+                }
+                
+                html += `<tr class="grand-total"><td class="text-left">OFFICIAL TOTAL</td><td class="text-right">${total}</td></tr>`;
+                
+                html += `<tr><td class="text-right">Paid:</td><td class="text-right">${paid}</td></tr>`;
+                if(parseFloat(change) > 0) {
+                     html += `<tr><td class="text-right">Change:</td><td class="text-right">${change}</td></tr>`;
+                }
+                if(parseFloat(due) > 0) {
+                     html += `<tr><td class="text-right font-bold">DUE:</td><td class="text-right font-bold">${due}</td></tr>`;
+                }
+                html += `</table>`;
+                
+                html += `<div class="divider"></div>`;
+
+                // Footer
+                if(config.footer_note) {
+                    html += `<div class="text-center text-sm">${config.footer_note}</div>`;
+                }
+                
+                html += `<div class="footer">Software by SINYX</div>`;
+
+                // Render into body
+                document.getElementById('receipt-content').innerHTML = html;
+
+                // Signal ready
+                // Wait for images to load if any
+                const images = document.querySelectorAll('img');
+                if(images.length > 0) {
+                    let loaded = 0;
+                    images.forEach(img => {
+                        if(img.complete) {
+                            loaded++;
+                            if(loaded === images.length) ipcRenderer.send('receipt-rendered', true);
+                        } else {
+                            img.onload = () => {
+                                loaded++;
+                                if(loaded === images.length) ipcRenderer.send('receipt-rendered', true);
+                            };
+                            img.onerror = () => {
+                                // proceed even if image fails
+                                loaded++;
+                                if(loaded === images.length) ipcRenderer.send('receipt-rendered', true);
+                            }
+                        }
+                    });
+                } else {
+                    ipcRenderer.send('receipt-rendered', true);
+                }
+
+            } catch(e) {
+                document.getElementById('receipt-content').innerHTML = "Render Error: " + e.message;
+                ipcRenderer.send('receipt-rendered', false);
+            }
+        });
+    </script>
+</body>
+</html>

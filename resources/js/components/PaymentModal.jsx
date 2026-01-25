@@ -19,9 +19,16 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
 
     // Handle Keyboard Shortcuts
     useEffect(() => {
+        if (!show) return;
+
         const handleKeyDown = (e) => {
+            if (!show) return; // DOUBLE SAFETY: Ensure modal is truly open
             if (e.key === 'Escape') onCancel();
-            if (e.key === 'Enter') handleConfirm();
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleConfirm();
+            }
             if (e.key === 'F1') setPaymentMethod('cash');
             if (e.key === 'F2') setPaymentMethod('card');
             if (e.key === 'F3') setPaymentMethod('online');
@@ -29,7 +36,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [paidAmount, paymentMethod, transactionId]); 
+    }, [show, paidAmount, paymentMethod, transactionId]); 
 
     const handleConfirm = () => {
         // Validation: Check if input is empty string

@@ -251,4 +251,56 @@ class OrderController extends Controller
         return view('backend.orders.pos-invoice', compact('order', 'maxWidth'));
     }
 
+    // New API for Headless Printing
+    public function receiptDetails($id)
+    {
+        $order = Order::with(['customer', 'products.product', 'transactions'])->findOrFail($id);
+        
+        // Structure data specifically for the JS template
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $order->id,
+                'date' => $order->created_at->format('d/m/Y h:i A'),
+                'staff' => $order->user->name ?? 'Staff',
+                'customer' => $order->customer ? [
+                    'name' => $order->customer->name,
+                    'phone' => $order->customer->phone ?? ''
+                ] : null,
+                'items' => $order->products->map(function($item) {
+                    return [
+                        'name' => $item->product->name,
+                        'qty' => $item->quantity,
+                        'price' => number_format($item->price, 2),
+                        'total' => number_format($item->total, 2)
+                    ];
+                }),
+                'sub_total' => number_format($order->sub_total, 2),
+                'discount' => number_format($order->discount, 2),
+                'total' => number_format($order->total, 2),
+                'paid' => number_format($order->paid, 2),
+                'due' => number_format($order->due, 2),
+                'change' => number_format(max(0, $order->paid - $order->total), 2),
+                'payment_method' => ucfirst($order->transactions->last()->paid_by ?? 'Cash'),
+                // Config
+                'config' => [
+                    'site_name' => readConfig('site_name'),
+                    'ntn' => '00000000', // Hardcoded per request
+                    'address' => readConfig('contact_address'),
+                    'phone' => readConfig('contact_phone'),
+                    'email' => readConfig('contact_email'),
+                    'footer_note' => readConfig('note_to_customer_invoice'),
+                    'show_logo' => readConfig('is_show_logo_invoice'),
+                    'show_site' => readConfig('is_show_site_invoice'),
+                    'show_address' => readConfig('is_show_address_invoice'),
+                    'show_phone' => readConfig('is_show_phone_invoice'),
+                    'show_email' => readConfig('is_show_email_invoice'),
+                    'show_customer' => readConfig('is_show_customer_invoice'),
+                    'show_note' => readConfig('is_show_note_invoice'),
+                    'logo_url' => assetImage(readconfig('site_logo'))
+                ]
+            ]
+        ]);
+    }
+
 }

@@ -75,17 +75,59 @@ export default function BarcodeGenerator() {
             }
         }
 
-        // Open print window first (user gets immediate feedback)
         const url = `/admin/barcode/print?label=${encodeURIComponent(label)}&barcode=${barcodeValue}&mfg=${mfgDate}&exp=${expDate}&size=${labelSize}&price=${showPrice ? price : 0}`;
-        let iframe = document.getElementById('print-frame');
-        if (!iframe) {
-            iframe = document.createElement('iframe');
-            iframe.id = 'print-frame';
-            document.body.appendChild(iframe);
+        const tagPrinter = window.posSettings?.tagPrinter;
+
+        // 1. Try Electron Silent Print
+        if (window.electron && window.electron.printSilent) {
+            const toastId = Swal.fire({
+                title: 'Printing Label...',
+                didOpen: () => Swal.showLoading(),
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false
+            });
+
+            try {
+                // Determine full URL if relative
+                let targetUrl = url;
+                if (!url.startsWith('http')) {
+                    const { protocol, host } = window.location;
+                    targetUrl = `${protocol}//${host}${url}`;
+                }
+
+                const res = await window.electron.printSilent(targetUrl, tagPrinter);
+                
+                if (res.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Printed Successfully',
+                        text: tagPrinter ? `Sent to: ${tagPrinter}` : 'Sent to Default Printer',
+                        toast: true,
+                        position: 'top-end',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else {
+                    throw new Error(res.error || "Unknown Print Error");
+                }
+            } catch (err) {
+                console.error("Silent Print Failed", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Print Error',
+                    text: 'Falling back to browser print...',
+                    toast: true,
+                    position: 'top-end',
+                    timer: 2000
+                });
+                // Fallback below
+                fallbackPrint(url);
+            }
+        } else {
+            // 2. Standard Browser Fallback
+            fallbackPrint(url);
         }
-        
-        // Use Standard Browser Print (Silent disabled per request)
-        iframe.src = url;
 
         // Save to history (silently in background)
         try {
@@ -101,6 +143,16 @@ export default function BarcodeGenerator() {
         // Clear and generate new for next item
         setLabel("");
         generateNewBarcode();
+    };
+
+    const fallbackPrint = (url) => {
+        let iframe = document.getElementById('print-frame');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-frame';
+            document.body.appendChild(iframe);
+        }
+        iframe.src = url;
     };
 
     // Reprint from history

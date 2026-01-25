@@ -107,20 +107,26 @@
         {{ date('d/m/Y h:i A') }}
       </div>
       <div class="text-right">
-        Staff: {{ Str::limit(auth()->user()->name, 10) }}<br>
+        NTN: <strong>00000000</strong><br>
         @php $transaction = $order->transactions->sortByDesc('id')->first(); @endphp
         Method: <strong>{{ ucfirst(optional($transaction)->paid_by ?? 'Other') }}</strong>
       </div>
     </div>
 
-    <!-- Customer -->
-    @if(readConfig('is_show_customer_invoice') && $order->customer)
+    <!-- Customer / Staff -->
     <div class="divider"></div>
-    <div class="text-left text-sm">
-      <strong>Customer:</strong> {{ $order->customer->name }}
-      @if($order->customer->phone) <br>Ph: {{ $order->customer->phone }} @endif
+    <div style="display: flex; justify-content: space-between;">
+      <div class="text-left text-sm">
+        @if(readConfig('is_show_customer_invoice') && $order->customer)
+          <strong>Cust:</strong> {{ $order->customer->name }}
+        @else
+          <strong>Cust:</strong> Walk-in
+        @endif
+      </div>
+      <div class="text-right text-sm">
+        <strong>Station:</strong> {{ Str::limit(auth()->user()->name, 10) }}
+      </div>
     </div>
-    @endif
 
     <div class="double-divider"></div>
 
@@ -161,7 +167,6 @@
         <td class="text-right">(-{{ number_format($order->discount, 2) }})</td>
       </tr>
 
-      <!-- Empty Row for visual spacing -->
       <tr><td colspan="2" style="height: 5px;"></td></tr>
 
       <tr class="grand-total">
@@ -188,20 +193,22 @@
 
     <div class="divider"></div>
 
-    <!-- Footer Note -->
-    @if(readConfig('is_show_note_invoice'))
-    <div class="text-center text-sm" style="margin-top: 10px;">
-      {{ readConfig('note_to_customer_invoice') }}
-    </div>
-    @endif
-
-    <!-- Barcode -->
+    <!-- Barcode (Moved Up) -->
     <div class="barcode-container">
       <svg id="barcode"></svg>
     </div>
 
+    <!-- Footer Note -->
+    @if(readConfig('is_show_note_invoice'))
+    <div class="text-center text-sm" style="margin-top: 5px; margin-bottom: 5px;">
+      {{ readConfig('note_to_customer_invoice') }}
+    </div>
+    @endif
+
+    <div class="divider"></div>
+
     <!-- Software Credit -->
-    <div class="text-center text-xs" style="margin-top: 10px; color: #666;">
+    <div class="text-center text-xs" style="margin-top: 5px; color: #666;">
       Software by <strong>SINYX</strong><br>
       Contact: +92 342 9031328
     </div>

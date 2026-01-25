@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const ReceiptModal = ({ show, url, onClose }) => {
     if (!show || !url) return null;
@@ -42,14 +43,41 @@ const ReceiptModal = ({ show, url, onClose }) => {
 
                 // Show feedback
                 const toastId = toast.loading("Processing Receipt...");
+                
                 try {
-                    const response = await window.electron.printSilent(targetUrl);
-                    if (response.success) {
-                        toast.success("Receipt Saved to Documents", { id: toastId });
+                    // NEW STRATEGY: HEADLESS JSON DATA
+                    // Convert "pos-invoice/123" url to "receipt-details/123"
+                    const invoiceMatch = targetUrl.match(/pos-invoice\/(\d+)/);
+                    if (invoiceMatch && invoiceMatch[1]) {
+                        const orderId = invoiceMatch[1];
+                        const apiUrl = `/admin/orders/receipt-details/${orderId}`;
+                        
+                        const jsonResponse = await axios.get(apiUrl);
+                        const jsonData = jsonResponse.data?.data; // { success: true, data: {...} }
+
+                        if (!jsonData) throw new Error("Empty receipt data received");
+
+                        // Send JSON to Electron Headless Renderer
+                        const response = await window.electron.printSilent(
+                            targetUrl, 
+                            window.posSettings?.receiptPrinter, 
+                            null, // htmlContent
+                            jsonData // jsonData
+                        );
+                        
+                        if (response.success) {
+                            toast.success("Receipt Sent (Headless Mode)", { id: toastId });
+                        } else {
+                            toast.error("Print Failed", { id: toastId });
+                        }
                     } else {
-                        toast.error("Print Failed", { id: toastId });
+                        // Fallback: Use HTML Injection if URL doesn't match expected pattern
+                        // ... (Legacy code if needed, or error out)
+                        throw new Error("Invalid Invoice URL format for Headless Print");
                     }
+
                 } catch (e) {
+                    console.error(e);
                     toast.error("Error: " + e.message, { id: toastId });
                 }
             } else {
@@ -62,47 +90,61 @@ const ReceiptModal = ({ show, url, onClose }) => {
     };
 
     return (
-        <div className="professional-blur modal-backdrop d-flex justify-content-center align-items-center" style={{ zIndex: 1060, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}>
-            <div className="professional-modal-content" style={{ width: '450px', height: '90vh', display: 'flex', flexDirection: 'column' }}>
-                
-                {/* Header */}
-                <div className="bg-dark text-white p-3 d-flex justify-content-between align-items-center">
-                    <h5 className="m-0"><i className="fas fa-receipt mr-2"></i> Receipt</h5>
-                    <div className="btn-group">
-                        <button onClick={handlePrint} className="btn btn-sm btn-info mr-2">
-                            <i className="fas fa-print"></i> Print
-                        </button>
-                        <button onClick={onClose} className="btn btn-sm btn-danger">
-                            <i className="fas fa-times"></i> Close (Esc)
-                        </button>
-                    </div>
-                </div>
-
-                {/* Body - Iframe */}
-                <div className="flex-grow-1 bg-white position-relative" style={{ overflow: 'hidden' }}>
-                    {loading && (
-                        <div className="position-absolute w-100 h-100 d-flex justify-content-center align-items-center text-muted">
-                            <div className="text-center">
-                                <div className="spinner-border text-primary mb-2" role="status"></div>
-                                <div>Loading Receipt...</div>
-                            </div>
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-hidden="true" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered" role="document">
+                <div className="modal-content shadow-lg" style={{ borderRadius: '12px', overflow: 'hidden', border: 'none' }}>
+                    
+                    {/* Header */}
+                    <div className="modal-header text-white p-2 d-flex justify-content-between align-items-center" style={{ background: '#800000' }}>
+                        <h5 className="modal-title m-0 ml-2" style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                            <i className="fas fa-receipt mr-2"></i> Invoice Preview
+                        </h5>
+                        <div className="d-flex align-items-center">
+                            <button 
+                                type="button" 
+                                className="btn btn-sm btn-light mr-2 font-weight-bold shadow-sm px-3" 
+                                onClick={handlePrint}
+                            >
+                                <i className="fas fa-print mr-1"></i> Print
+                            </button>
+                            <button 
+                                type="button" 
+                                className="btn btn-sm btn-danger font-weight-bold shadow-sm px-3" 
+                                style={{ background: '#dc3545' }} 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onClose();
+                                }}
+                            >
+                                <i className="fas fa-times mr-1"></i> Close
+                            </button>
                         </div>
-                    )}
-                    <iframe 
-                        ref={iframeRef}
-                        src={url} 
-                        className="receipt-iframe w-100 h-100 border-0" 
-                        scrolling="yes"
-                        style={{ overflow: 'auto' }}                        onLoad={() => {
-                            setLoading(false);
-                            // Auto-focus the iframe so its internal keyboard shortcuts (Enter=Print) work immediately
-                            if(iframeRef.current) {
-                                iframeRef.current.focus();
-                                iframeRef.current.contentWindow.focus();
-                            }
-                        }}
-                        title="Receipt Preview"
-                    />
+                    </div>
+
+                    {/* Body */}
+                    <div className="modal-body p-0 position-relative" style={{ height: '650px', background: '#fff' }}>
+                        {loading && (
+                             <div className="d-flex flex-column justify-content-center align-items-center w-100 h-100 position-absolute" 
+                                  style={{ top: 0, left: 0, zIndex: 999, background: '#fff' }}>
+                                  <div className="spinner-border" role="status" style={{ color: '#800000', width: '3rem', height: '3rem', borderWidth: '0.25em' }}></div>
+                                  <span className="mt-3 font-weight-bold text-dark" style={{ fontSize: '1.1rem' }}>Generating Receipt...</span>
+                             </div>
+                        )}
+                        <iframe 
+                            ref={iframeRef}
+                            src={url} 
+                            style={{ width: '100%', height: '100%', border: 'none', display: 'block', visibility: loading ? 'hidden' : 'visible' }}
+                            scrolling="yes"
+                            onLoad={() => {
+                                setLoading(false);
+                                if(iframeRef.current) {
+                                    iframeRef.current.focus();
+                                    iframeRef.current.contentWindow.focus();
+                                }
+                            }}
+                            title="Receipt Preview"
+                        />
+                    </div>
                 </div>
             </div>
         </div>

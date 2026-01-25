@@ -120,7 +120,7 @@ class ReportController extends Controller
 
         abort_if(!auth()->user()->can('reports_inventory'), 403);
         if ($request->ajax()) {
-            $products = Product::latest()->active()->get(); // Use get() for collection-based filtering
+            $products = Product::latest()->active(); // Query builder for DataTables
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->addColumn('name', fn($data) => $data->name)

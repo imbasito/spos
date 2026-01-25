@@ -8,6 +8,8 @@ import PaymentModal from "./PaymentModal";
 import ReceiptModal from "./ReceiptModal";
 import debounce from "lodash/debounce";
 import throttle from "lodash/throttle";
+import PrinterStatus from "./PrinterStatus";
+import ErrorBoundary from "./ErrorBoundary";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -48,8 +50,22 @@ const ProductCard = memo(({ product, onClick, baseUrl }) => (
                 </div>
             </div>
         </div>
+
     </div>
 ));
+
+// Skeleton Loader Component
+const ProductSkeleton = () => (
+    <div className="col-6 col-md-4 col-lg-3 mb-3 px-3px">
+        <div className="pos-product-card h-100" style={{ pointerEvents: 'none' }}>
+            <div className="pos-product-img-wrapper skeleton-shimmer" style={{ width: '100%' }}></div>
+            <div className="pos-product-info">
+                 <div className="skeleton-shimmer mb-2" style={{ height: '20px', width: '70%', borderRadius: '4px' }}></div>
+                 <div className="skeleton-shimmer" style={{ height: '20px', width: '40%', borderRadius: '4px' }}></div>
+            </div>
+        </div>
+    </div>
+);
 
 export default function Pos() {
     const [products, setProducts] = useState([]);
@@ -484,33 +500,93 @@ export default function Pos() {
             const orderId = res.data?.order?.id;
             if (orderId) {
                 const url = window.location.origin + `/admin/orders/pos-invoice/${orderId}`;
-                setReceiptUrl(url);
-                setShowReceiptModal(true);
+                const apiUrl = `/admin/orders/receipt-details/${orderId}`;
+                
+                // 1. AUTO-PRINT (Background)
+                if (window.electron && window.electron.printSilent) {
+                     // Fetch JSON specifically for the "Headless" Engine
+                     axios.get(apiUrl).then(jsonRes => {
+                         const jsonData = jsonRes.data?.data;
+                         if(jsonData) {
+                             const toastId = toast.loading("Auto-Printing...");
+                             window.electron.printSilent(url, window.posSettings?.receiptPrinter, null, jsonData)
+                                 .then(pRes => {
+                                     if(pRes.success) toast.success("Receipt Sent to Printer", { id: toastId });
+                                     else toast.error("Print Error: " + pRes.error, { id: toastId });
+                                 })
+                                 .catch(e => console.error("AutoPrint Error", e));
+                         }
+                     }).catch(e => console.error("Fetch Error", e));
+                }
+
+                // 2. SHOW PREVIEW (Disabled per user request)
+                // setReceiptUrl(url);
+                // setShowReceiptModal(true);
             }
+            
+            // Refresh Products (stock update)
             
             // Refresh Products (stock update)
             getProducts(debouncedSearch, currentPage);
             toast.success("Order Created Successfully!");
-        })
-        .catch((err) => {
-            toast.error(err.response?.data?.message || "Order Failed");
         });
     };
 
-    // Keyboard Shortcuts
+    // Headless Print Helper
+    const handleReceiptPrint = async (url) => {
+        if (window.electron && window.electron.printSilent) {
+             const toastId = toast.loading("Printing Receipt...");
+             try {
+                 // Convert URL to API for JSON
+                 let targetUrl = url;
+                 if (!url.startsWith('http')) {
+                    const { protocol, host } = window.location;
+                    targetUrl = `${protocol}//${host}${url}`;
+                 }
+                 const invoiceMatch = targetUrl.match(/pos-invoice\/(\d+)/);
+                 if (invoiceMatch && invoiceMatch[1]) {
+                     const orderId = invoiceMatch[1];
+                     const jsonResp = await axios.get(`/admin/orders/receipt-details/${orderId}`);
+                     if(jsonResp.data?.data) {
+                         await window.electron.printSilent(
+                             targetUrl, 
+                             window.posSettings?.receiptPrinter, 
+                             null, 
+                             jsonResp.data.data
+                         );
+                         toast.success("Printed Successfully", { id: toastId });
+                     }
+                 }
+             } catch (e) {
+                 console.error("Auto-Print Failed", e);
+                 toast.error("Print Failed", { id: toastId });
+             }
+        }
+    };
+
+    // Hotkeys Ref
+    const searchInputRef = useRef(null);
+
     useEffect(() => {
         const handleKeyDown = (e) => {
-            const isInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
-            
-            // F4 for Pay (Exclusive shortcut as requested)
-            if (e.key === 'F4') {
+            // F2: Focus Search
+            if (e.key === 'F2') {
                 e.preventDefault();
-                handleCheckoutClick();
-                return;
+                searchInputRef.current?.focus();
             }
 
-            // Removed Enter key for checkout to avoid barcode scanner conflicts
-            // Barcode scanners often send 'Enter' after scanning, which was causing premature checkout.
+            // F10: Pay (Standard POS key)
+            if (e.key === 'F10') {
+                e.preventDefault();
+                handleCheckoutClick();
+            }
+            
+            // Esc: Close Modals
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setShowPaymentModal(false);
+                setShowReceiptModal(false);
+            }
 
             if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
                 e.preventDefault();
@@ -520,29 +596,38 @@ export default function Pos() {
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [total, customerId, showPaymentModal]);
+    }, [total, customerId, showPaymentModal, showReceiptModal]);
 
     // Render
     return (
+        <ErrorBoundary>
         <div className="pos-app-container">
             {/* LEFT PANEL: PRODUCTS */}
             <div className="pos-left-panel d-flex flex-column border-right bg-white">
                 {/* Header / Search */}
                 <div className="p-3 border-bottom shadow-sm bg-light">
-                    <div className="d-flex align-items-center">
-                        <div className="input-group input-group-lg mr-3 pos-search-group shadow-sm">
+                    <div className="d-flex align-items-center justify-content-between">
+                        <div className="input-group input-group-lg mr-3 pos-search-group shadow-sm flex-grow-1">
                             <div className="input-group-prepend">
                                 <span className="input-group-text pos-search-icon"><i className="fas fa-search text-primary"></i></span>
                             </div>
                             <input 
+                                ref={searchInputRef}
                                 type="text" 
                                 className="form-control pos-search-input pl-2" 
-                                placeholder="Scan Barcode or Search Product..." 
+                                placeholder="Scan/Search (F2)" 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
+                                onKeyDown={e => {
+                                    // Prevent Enter from doing anything (like submitting forms or triggering modals)
+                                    if (e.key === 'Enter') e.preventDefault();
+                                }}
                                 autoFocus
                             />
                         </div>
+                        
+                        {/* Hardware Status Monitor */}
+                        <PrinterStatus />
                     </div>
                 </div>
 
@@ -566,11 +651,9 @@ export default function Pos() {
                                 </div>
                             </div>
                         )}
-                        {loading && (
-                            <div className="col-12 text-center py-4">
-                               <div className="spinner-border text-primary" role="status"></div>
-                            </div>
-                        )}
+                        {loading && Array.from({ length: 8 }).map((_, i) => (
+                             <ProductSkeleton key={i} />
+                        ))}
                     </div>
                 </div>
             </div>
@@ -684,7 +767,7 @@ export default function Pos() {
                                 className="btn btn-pay-premium btn-block py-3 font-weight-bold shadow-lg"
                                 style={{ fontSize: '1.4rem', borderRadius: '12px', height: '100%' }}
                                 disabled={total <= 0}
-                                title="Shortcut: Enter or F4"
+                                title="Shortcut: F10"
                             >
                                 <div className="d-flex justify-content-center align-items-center">
                                     <div className="text-left line-height-1 mr-3">
@@ -711,10 +794,9 @@ export default function Pos() {
                 show={showReceiptModal}
                 url={receiptUrl}
                 onClose={() => {
-                   setShowReceiptModal(false);
-                   setReceiptUrl('');
                 }}
             />
         </div>
+        </ErrorBoundary>
     );
 }
