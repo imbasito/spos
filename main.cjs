@@ -1,4 +1,9 @@
+require('v8-compile-cache');
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+
+// Performance Optimizations
+app.commandLine.appendSwitch('disable-http-cache');
+app.commandLine.appendSwitch('disable-spellcheck');
 const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -15,6 +20,46 @@ const basePath = app.isPackaged ? process.resourcesPath : __dirname;
 // ============================================
 // HEALTH CHECK UTILITIES
 // ============================================
+// ============================================
+// HEALTH CHECK UTILITIES
+// ============================================
+function checkDiskSpace(minMB = 500) {
+    return new Promise((resolve, reject) => {
+        const root = path.parse(basePath).root;
+        const cmd = process.platform === 'win32' 
+            ? `wmic logicaldisk where "Caption='${root.replace('\\', '')}'" get FreeSpace /value`
+            : `df -k "${root}"`;
+
+        const { exec } = require('child_process');
+        exec(cmd, (error, stdout) => {
+            if (error) {
+                console.error('Disk check failed:', error);
+                return resolve(true); // Fail open if check fails
+            }
+            
+            let freeBytes = 0;
+            if (process.platform === 'win32') {
+                const match = stdout.match(/FreeSpace=(\d+)/);
+                if (match) freeBytes = parseInt(match[1], 10);
+            } else {
+                // simple df parsing fallback
+                const lines = stdout.trim().split('\n');
+                const parts = lines[lines.length - 1].split(/\s+/);
+                freeBytes = parseInt(parts[3], 10) * 1024;
+            }
+
+            const freeMB = freeBytes / 1024 / 1024;
+            console.log(`Disk Free Space: ${Math.round(freeMB)} MB`);
+
+            if (freeMB < minMB) {
+                reject(new Error(`Low Disk Space! Only ${Math.round(freeMB)}MB available.\nMinimum ${minMB}MB required to run safely.`));
+            } else {
+                resolve(true);
+            }
+        });
+    });
+}
+
 function waitForMySQL(port, timeout = 30000) {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
@@ -126,6 +171,11 @@ function updateSplashStatus(message) {
 // ============================================
 // SERVER STARTUP
 // ============================================
+
+// ============================================
+// SERVER STARTUP
+// ============================================
+
 function startMySQL() {
     return new Promise((resolve) => {
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysqld.exe');
@@ -133,6 +183,8 @@ function startMySQL() {
 
         console.log('Starting MySQL server...');
 
+        // Revert to simple spawning using my.ini defaults (which has port=3307)
+        // Or explicitly pass the known port if needed, but my.ini is safest source of truth
         mysqlServer = spawn(mysqlPath, [`--defaults-file=${myIniPath}`, '--console'], {
             cwd: basePath,
             windowsHide: true
@@ -140,6 +192,18 @@ function startMySQL() {
 
         mysqlServer.stdout.on('data', data => console.log(`[MySQL] ${data}`));
         mysqlServer.stderr.on('data', data => console.log(`[MySQL] ${data}`));
+
+        // Silent Crash Recovery
+        mysqlServer.on('exit', (code, signal) => {
+            console.log(`[MySQL] Process exited with code ${code} signal ${signal}`);
+            
+            if (!app.isQuitting) {
+                console.log('[MySQL] Crash detected! Restarting automatically...');
+                setTimeout(() => {
+                    startMySQL();
+                }, 1000); 
+            }
+        });
 
         resolve();
     });
@@ -366,6 +430,9 @@ async function startApp() {
     try {
         createSplashWindow();
         
+        // Health Checks
+        await checkDiskSpace(200);
+
         updateSplashStatus('Starting database...');
         await startMySQL();
 

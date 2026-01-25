@@ -37,7 +37,8 @@
     "react-select": "^5.8.1",
     "react-to-print": "^3.2.0",
     "sweetalert2": "^11.14.1",
-    "tree-kill": "^1.2.2"
+    "tree-kill": "^1.2.2",
+    "v8-compile-cache": "^2.4.0"
   },
   "devDependencies": {
     "electron": "^37.3.1",
