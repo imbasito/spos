@@ -426,7 +426,7 @@ function generateReceiptHtml(data) {
                 ${date}
             </div>
             <div class="text-right">
-                NTN: <strong>${config.ntn || '00000000'}</strong><br>
+                NTN: <strong>1620237071939</strong><br>
                 Type: <strong>${payment_method || 'Cash'}</strong>
             </div>
         </div>

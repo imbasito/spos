@@ -107,7 +107,7 @@
         {{ date('d/m/Y h:i A') }}
       </div>
       <div class="text-right">
-        NTN: <strong>00000000</strong><br>
+        NTN: <strong>1620237071939</strong><br>
         @php $transaction = $order->transactions->sortByDesc('id')->first(); @endphp
         Method: <strong>{{ ucfirst(optional($transaction)->paid_by ?? 'Other') }}</strong>
       </div>

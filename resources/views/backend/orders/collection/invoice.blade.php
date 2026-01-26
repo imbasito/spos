@@ -50,6 +50,7 @@
           Sale ID #{{$order->id}}<br>
           Sale Date: {{date('d/m/Y', strtotime($order->created_at))}}<br>
           Collection Date: {{date('d/m/Y', strtotime($transaction->created_at))}}<br>
+          <strong>NTN: 1620237071939</strong><br>
           <!-- <br>
           <b>Payment Due:</b> 2/22/2014<br>
           <b>Account:</b> 968-34567 -->
