@@ -270,6 +270,13 @@ $route = request()->route()->getName();
                             <p>Refunds</p>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{route('backend.admin.report.daily.history')}}"
+                            class="nav-link {{ request()->routeIs(['backend.admin.report.daily.history', 'backend.admin.report.daily.closing']) ? 'active' : '' }}">
+                            <i class="fas fa-file-invoice-dollar nav-icon"></i>
+                            <p>Daily Closing</p>
+                        </a>
+                    </li>
                 </ul>
             </li>
             @endif
@@ -405,6 +412,13 @@ $route = request()->route()->getName();
             @role('Admin')
             <li class="nav-header">SYSTEM</li>
             
+            <li class="nav-item">
+                <a href="{{ route('backend.admin.activity.logs.index') }}"
+                    class="nav-link {{ request()->routeIs('backend.admin.activity.logs.index') ? 'active' : '' }}">
+                    <i class="nav-icon fas fa-shield-alt"></i>
+                    <p>Audit Logs</p>
+                </a>
+            </li>
             <li class="nav-item">
                 <a href="{{ route('backend.admin.barcode') }}"
                     class="nav-link {{ $route === 'backend.admin.barcode' ? 'active' : '' }}">

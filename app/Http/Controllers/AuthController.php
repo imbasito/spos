@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use App\Models\ActivityLog;
 
 class AuthController extends Controller
 {
@@ -54,7 +55,18 @@ class AuthController extends Controller
 
             if (Auth::attempt($valid, $credentials['remember'])) {
                 session()->regenerate();
-        
+                
+                try {
+                    ActivityLog::create([
+                        'user_id' => Auth::id(),
+                        'action' => 'Login',
+                        'module' => 'Authentication',
+                        'description' => 'User logged in successfully',
+                        'ip_address' => request()->ip(),
+                        'properties' => json_encode(['user_agent' => request()->userAgent()])
+                    ]);
+                } catch (\Exception $e) {}
+
                 return $this->redirectUser();
             } else {
                 return redirect()->route('login')->with('error', 'Incorrect email or password');
@@ -229,6 +241,19 @@ class AuthController extends Controller
     public function logout()
     {
         if (auth()->user()) {
+            $user = auth()->user();
+            
+            try {
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'action' => 'Logout',
+                    'module' => 'Authentication',
+                    'description' => 'User logged out successfully',
+                    'ip_address' => request()->ip(),
+                    'properties' => json_encode(['user_agent' => request()->userAgent()])
+                ]);
+            } catch (\Exception $e) {}
+
             Auth::logout();
 
             return redirect('/');

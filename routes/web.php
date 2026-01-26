@@ -183,6 +183,18 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::put('update/{id}', 'update')->name('permissions.update');
                 Route::get('delete/{id}', 'destroy')->name('permissions.delete');
             });
+
+            // Reports & Closing
+            Route::controller(\App\Http\Controllers\Backend\Report\DailyReportController::class)->prefix('reports')->group(function () {
+                Route::get('daily-closing', 'create')->name('report.daily.closing');
+                Route::post('daily-closing', 'store')->name('report.daily.closing.store');
+                Route::get('closing-history', 'index')->name('report.daily.history');
+            });
+
+            // Audit Logs
+            Route::controller(\App\Http\Controllers\Backend\ActivityLogController::class)->prefix('audit')->group(function () {
+                Route::get('logs', 'index')->name('activity.logs.index');
+            });
         });
     });
 });

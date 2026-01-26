@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\LogActivity;
     protected $fillable = [
         'image',
         'name',

@@ -151,7 +151,11 @@ function startLaravel(port) {
 // ============================================
 function createMainWindow() {
     mainWindow = new BrowserWindow({
-        width: 1280, height: 800, title: "SPOS", icon: path.join(basePath, 'pos-icon.ico'), autoHideMenuBar: true, show: false,
+        width: 1280, height: 800, title: "SPOS", icon: path.join(basePath, 'pos-icon.ico'), 
+        autoHideMenuBar: true, show: false,
+        // ENABLE MICA EFFECT (Windows 11 Only - Graceful Fallback)
+        backgroundMaterial: 'mica', 
+        transparent: false, // Mica requires transparent: false on some versions, but let's stick to standard opaque + mica
         webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.cjs'), zoomFactor: 0.85 }
     });
     mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);

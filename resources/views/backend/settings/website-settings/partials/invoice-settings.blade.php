@@ -90,12 +90,11 @@
                 </div>
 
                  <div class="col-md-12 mt-2">
-                    <label class="font-weight-bold">POS Receipt Width</label>
-                    <select name="receiptMaxwidth" class="form-control custom-select">
-                        <option value="300px" {{ readConfig('receiptMaxwidth') == '300px' ? 'selected' : '' }}>Small (58mm - 300px)</option>
-                        <option value="400px" {{ readConfig('receiptMaxwidth') == '400px' ? 'selected' : '' }}>Medium (80mm - 400px)</option>
-                        <option value="500px" {{ readConfig('receiptMaxwidth') == '500px' ? 'selected' : '' }}>Large (90mm+ - 500px)</option>
+                    <label class="font-weight-bold text-muted">POS Receipt Width <small>(Managed by System)</small></label>
+                    <select name="receiptMaxwidth" class="form-control custom-select" disabled style="background-color: #e9ecef; cursor: not-allowed;">
+                        <option value="400px" selected>Professional Standard (80mm) - Fixed</option>
                     </select>
+                    <small class="text-muted"><i class="fas fa-lock mr-1"></i> Locked for 1:1 Thermal Image Accuracy</small>
                 </div>
             </div>
 

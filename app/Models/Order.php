@@ -9,7 +9,7 @@ use function PHPSTORM_META\map;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\LogActivity;
 
     protected $guarded = [];
     protected $appends = ['total_item'];

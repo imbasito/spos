@@ -196,11 +196,13 @@ a:hover {
 .sidebar-dark-primary,
 .sidebar-light-lightblue,
 .sidebar {
-    background-color: var(--sidebar-color) !important;
+    background-color: rgba(78, 52, 46, 0.75) !important; /* Semi-transparent Chocolate */
     background-image: url('../assets/images/theme/mithai_pattern_subtle.png') !important;
     background-repeat: repeat !important;
     background-size: 300px !important;
     background-blend-mode: soft-light !important;
+    backdrop-filter: blur(15px); /* Static Blur for Glass Effect */
+    -webkit-backdrop-filter: blur(15px);
 }
 
 .brand-link {
@@ -295,7 +297,7 @@ a:hover {
 
 /* ========= SCROLLBAR ========== */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 6px; /* Ultra-thin Scrollbar */
 }
 
 ::-webkit-scrollbar-track {
