@@ -172,6 +172,10 @@ export default function Pos() {
     useEffect(() => {
          getProducts();
          setInitialLoadDone(true);
+         // Bridge Check
+         if(window.electron && window.electron.isElectron) {
+             console.log("SPOS: Desktop Bridge Ready");
+         }
     }, []);
 
     // Fetch Cart
@@ -602,28 +606,53 @@ export default function Pos() {
     return (
         <ErrorBoundary>
         <div className="pos-app-container">
+            <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} />
             {/* LEFT PANEL: PRODUCTS */}
             <div className="pos-left-panel d-flex flex-column border-right bg-white">
                 {/* Header / Search */}
                 <div className="p-3 border-bottom shadow-sm bg-light">
                     <div className="d-flex align-items-center justify-content-between">
-                        <div className="input-group input-group-lg mr-3 pos-search-group shadow-sm flex-grow-1">
-                            <div className="input-group-prepend">
-                                <span className="input-group-text pos-search-icon"><i className="fas fa-search text-primary"></i></span>
+                        <div className="d-flex align-items-center flex-grow-1 mr-3">
+                            <div className="input-group input-group-lg pos-search-group shadow-sm flex-grow-1">
+                                <div className="input-group-prepend">
+                                    <span className="input-group-text pos-search-icon"><i className="fas fa-search text-primary"></i></span>
+                                </div>
+                                <input 
+                                    ref={searchInputRef}
+                                    type="text" 
+                                    className="form-control pos-search-input pl-2" 
+                                    placeholder="Scan/Search (F2)" 
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') e.preventDefault();
+                                    }}
+                                    autoFocus
+                                />
                             </div>
-                            <input 
-                                ref={searchInputRef}
-                                type="text" 
-                                className="form-control pos-search-input pl-2" 
-                                placeholder="Scan/Search (F2)" 
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                onKeyDown={e => {
-                                    // Prevent Enter from doing anything (like submitting forms or triggering modals)
-                                    if (e.key === 'Enter') e.preventDefault();
+                            <button 
+                                className="btn btn-outline-dark ml-2 shadow-sm d-flex flex-column align-items-center justify-content-center pos-drawer-btn"
+                                style={{ 
+                                    height: '48px', 
+                                    minWidth: '80px', 
+                                    borderRadius: '10px', 
+                                    background: '#fff',
+                                    transition: 'all 0.2s ease-in-out'
                                 }}
-                                autoFocus
-                            />
+                                onClick={() => {
+                                    const isDesktop = window.electron && window.electron.isElectron;
+                                    if(isDesktop) {
+                                        window.electron.openDrawer();
+                                        toast.success("Drawer kick signal sent!");
+                                    } else {
+                                        toast.error("Drawer logic only works in Desktop Mode");
+                                    }
+                                }}
+                                title="Open Cash Drawer"
+                            >
+                                <i className="fas fa-cash-register mb-1 drawer-icon"></i>
+                                <span className="drawer-text" style={{ fontSize: '0.6rem', fontWeight: 'bold' }}>DRAWER</span>
+                            </button>
                         </div>
                         
                         {/* Hardware Status Monitor */}

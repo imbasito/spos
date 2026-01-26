@@ -1,15 +1,25 @@
-require('v8-compile-cache');
-const { app, BrowserWindow, dialog, ipcMain, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, session, powerSaveBlocker } = require('electron');
 
-// Performance Optimizations
+// Performance & Professionalism Optimizations (Apple-Style Native Feel)
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('disable-spellcheck');
+app.commandLine.appendSwitch('disable-voice-input');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+app.commandLine.appendSwitch('disable-breakpad'); // Disable crash reporting to save CPU
+app.commandLine.appendSwitch('no-pings'); // Disable background telemetry
+
+// Prevent System Sleep (High-Performance POS Mode)
+powerSaveBlocker.start('prevent-app-suspension');
+
 const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
 const net = require('net');
 const http = require('http');
 const treeKill = require('tree-kill');
+const os = require('os');
+
 
 let laravelServer, mysqlServer, splashWindow, mainWindow;
 const MYSQL_PORT = 3307;
@@ -117,13 +127,21 @@ function createSplashWindow() {
     });
     const splashPath = app.isPackaged ? path.join(process.resourcesPath, 'splash.html') : path.join(__dirname, 'splash.html');
     splashWindow.loadFile(splashPath);
+
+    // Sync Version with package.json (Apple-style accuracy)
+    splashWindow.webContents.on('did-finish-load', () => {
+        const version = app.getVersion();
+        splashWindow.webContents.executeJavaScript(`if(window.setVersion) window.setVersion('${version}');`).catch(() => {});
+    });
 }
+
 
 function updateSplashStatus(message) {
     if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.executeJavaScript(`if(document.getElementById('status-text')) document.getElementById('status-text').innerText = '${message}';`).catch(() => {});
+        splashWindow.webContents.executeJavaScript(`if(document.getElementById('status-text')) document.getElementById('status-text').innerHTML = \`${message}\`;`).catch(() => {});
     }
 }
+
 
 // ============================================
 // SERVER STARTUP
@@ -150,18 +168,68 @@ function startLaravel(port) {
 // MAIN WINDOW
 // ============================================
 function createMainWindow() {
+    const preloadPath = path.join(__dirname, 'preload.cjs');
+    console.log(`[INIT]: Loading Preload from ${preloadPath}`);
+    
     mainWindow = new BrowserWindow({
         width: 1280, height: 800, title: "SPOS", icon: path.join(basePath, 'pos-icon.ico'), 
         autoHideMenuBar: true, show: false,
-        backgroundColor: '#f4f6f9', // Solid Grey dashboard background
-        webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'preload.cjs'), zoomFactor: 0.85 }
+        backgroundColor: '#f4f6f9', 
+        webPreferences: { 
+            contextIsolation: true, 
+            preload: preloadPath, 
+            sandbox: false,
+            zoomFactor: 0.85 
+        }
     });
     mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
-    mainWindow.webContents.on('did-finish-load', () => {
-        if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
+    
+    mainWindow.once('ready-to-show', async () => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            // Trigger fade-out animation in splash screen
+            splashWindow.webContents.executeJavaScript('if(window.fadeOut) window.fadeOut();').catch(() => {});
+            
+            // Wait for animation to finish (400ms)
+            await new Promise(r => setTimeout(r, 500));
+            splashWindow.close();
+        }
+        
         mainWindow.show();
         mainWindow.maximize();
     });
+
+
+
+
+    // POS Lockdown: Disable Right-Click (Professional Appliance Feel)
+    mainWindow.webContents.on('context-menu', (e) => {
+        e.preventDefault();
+    });
+}
+
+// ============================================
+// SHARED CASH DRAWER KICKER
+// ============================================
+async function triggerCashDrawer(printerName) {
+    const pName = printerName || "Default";
+    console.log(`[DRAWER KICK]: Triggering on ${pName}`);
+    
+    // Tiny hidden window to send raw kick command through the driver
+    const kickWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: true, contextIsolation: false } });
+    const kickHtml = `<html><body><script>window.onload=()=>{ window.print(); window.close(); }</script>\x1b\x70\x00\x19\xfa</body></html>`;
+    const tempPath = path.join(app.getPath('temp'), `kick_${Date.now()}.html`);
+    const fs = require('fs');
+    fs.writeFileSync(tempPath, kickHtml);
+    
+    try {
+        await kickWindow.loadFile(tempPath);
+        await kickWindow.webContents.print({ silent: true, deviceName: pName });
+        if(!kickWindow.isDestroyed()) kickWindow.destroy();
+        try { fs.unlinkSync(tempPath); } catch(e){}
+    } catch (e) {
+        if(!kickWindow.isDestroyed()) kickWindow.destroy();
+        console.error("Drawer Kick Failed:", e.message);
+    }
 }
 
 // ============================================
@@ -248,8 +316,14 @@ function setupAutoUpdater() {
                             silent: true, 
                             deviceName: printerName, 
                             margins: { marginType: 'none' } 
-                        }, (success, err) => {
+                        }, async (success, err) => {
                             if(!success) console.error("Physical Print Failed:", err);
+                            else {
+                                // AUTO-DRAWER KICK ON SUCCESSFUL RECEIPT
+                                if (jsonData.type !== 'barcode') {
+                                    triggerCashDrawer(printerName);
+                                }
+                            }
                         });
                     }
                     
@@ -293,6 +367,12 @@ function setupAutoUpdater() {
             return { success: false, error: error.message };
         }
     });
+
+    // Cash Drawer Kick IPC
+    ipcMain.handle('printer:open-drawer', async (event, { printerName }) => {
+        await triggerCashDrawer(printerName);
+        return { success: true };
+    });
 }
 
 function killProcesses() {
@@ -304,27 +384,50 @@ async function startApp() {
     try {
         createSplashWindow();
         
-        // Visual delay (User Request)
-        await new Promise(r => setTimeout(r, 800));
+        // Boost Process Priority (Apple Power-Mode Optimization)
+        os.setPriority(os.constants.priority.PRIORITY_HIGH);
+        
         await checkDiskSpace(200);
+        updateSplashStatus('Starting...');
+        await new Promise(r => setTimeout(r, 400));
 
-        updateSplashStatus('Initializing Application Environment...');
-        await new Promise(r => setTimeout(r, 800));
+
+
+        await new Promise(r => setTimeout(r, 400));
+
+
         await startMySQL();
 
-        updateSplashStatus('Starting Database Services (MySQL)...');
-        await new Promise(r => setTimeout(r, 800));
+        updateSplashStatus('Loading database...');
+
+
+        await new Promise(r => setTimeout(r, 400));
+
+
         await startLaravel(laravelPort);
 
-        updateSplashStatus('Establishing Secure Connection...');
+        updateSplashStatus('Initializing application...');
+
+
         await waitForMySQL(MYSQL_PORT, 45000);
         await waitForLaravel(laravelPort, 60000);
         
-        updateSplashStatus('Loading Point of Sale Interface...');
-        await new Promise(r => setTimeout(r, 800));
+        updateSplashStatus('Establishing connection...');
+
+
+        await new Promise(r => setTimeout(r, 400));
+
+
         
-        createMainWindow();
+        updateSplashStatus('Finalizing...');
+
+        await new Promise(r => setTimeout(r, 300));
+
+
+        
+        // Register IPC BEFORE window creation
         setupAutoUpdater();
+        createMainWindow();
     } catch (error) {
         console.error('Startup error:', error);
         app.quit();

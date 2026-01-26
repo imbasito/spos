@@ -13,8 +13,8 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #fafafa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: transparent; /* Allows for soft rounded corners/shadows if needed */
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -22,33 +22,39 @@
             align-items: center;
             overflow: hidden;
             -webkit-app-region: drag;
+            transition: opacity 0.5s ease;
+        }
+
+        body.fade-out {
+            opacity: 0;
         }
 
         .container {
+            position: relative;
+            background: #ffffff;
+            width: 420px;
+            padding: 40px;
+            border-radius: 20px;
             text-align: center;
-            animation: fadeIn 0.8s ease-out;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.05);
+            animation: cardFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        /* Premium Maroon Logo Container */
+        /* Premium Breathing Logo */
         .logo {
-            width: 220px;
-            margin: 0 auto 20px;
+            width: 180px;
+            margin: 0 auto 25px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+            animation: breath 4s ease-in-out infinite;
         }
 
         .logo img {
@@ -57,126 +63,133 @@
             object-fit: contain;
         }
 
+        @keyframes breath {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 5px 15px rgba(0,0,0,0.05)); }
+            50% { transform: scale(1.03); filter: drop-shadow(0 10px 25px rgba(0,0,0,0.1)); }
+        }
+
         .brand {
-            font-size: 28px;
-            font-weight: 500;
+            font-size: 24px;
+            font-weight: 600;
             color: #1d1d1f;
             letter-spacing: -0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
 
         .tagline {
-            font-size: 15px;
+            font-size: 14px;
+            font-weight: 400;
+            color: #86868b;
+            letter-spacing: 0.1px;
+            margin-bottom: 30px;
+        }
+
+        /* Apple-style subtle loader dots */
+        .loader {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .loader span {
+            width: 6px;
+            height: 6px;
+            background: #d2d2d7;
+            border-radius: 50%;
+            animation: dotLoader 1.4s infinite ease-in-out;
+        }
+
+        .loader span:nth-child(1) { animation-delay: 0s; }
+        .loader span:nth-child(2) { animation-delay: 0.2s; }
+        .loader span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dotLoader {
+            0%, 80%, 100% { transform: scale(0.8); background: #d2d2d7; }
+            40% { transform: scale(1.2); background: #1d1d1f; }
+        }
+
+        #status-text {
+            font-size: 12px;
             font-weight: 400;
             color: #86868b;
             letter-spacing: 0.2px;
         }
 
-        /* Apple-style loading spinner */
-        .loader {
-            margin-top: 50px;
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .loader span {
-            width: 8px;
-            height: 8px;
-            background: #86868b;
-            border-radius: 50%;
-            animation: pulse 1.4s ease-in-out infinite;
-        }
-
-        .loader span:nth-child(1) {
-            animation-delay: 0s;
-        }
-
-        .loader span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .loader span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            80%,
-            100% {
-                opacity: 0.3;
-                transform: scale(0.8);
-            }
-
-            40% {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .footer {
-            position: absolute;
-            bottom: 30px;
-            text-align: center;
-            animation: fadeIn 1s ease-out 0.3s both;
-            width: 100%;
-        }
-
-        .developer {
-            font-size: 11px;
-            font-weight: 500;
-            color: #86868b;
-            letter-spacing: 0.3px;
-        }
-
-        .developer strong {
+        #status-text strong {
             color: #1d1d1f;
             font-weight: 600;
+            margin-right: 8px;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 1px;
         }
 
-        .contact {
-            font-size: 10px;
+
+        .footer {
+            margin-top: 40px;
+            font-size: 11px;
             color: #aeaeb2;
-            margin-top: 4px;
-            letter-spacing: 0.2px;
         }
+
+        .footer strong { color: #1d1d1f; font-weight: 600; }
 
         .version {
             position: absolute;
-            top: 20px;
-            right: 25px;
-            font-size: 11px;
-            font-weight: 500;
-            color: #aeaeb2;
-            background: rgba(0, 0, 0, 0.04);
-            padding: 4px 10px;
-            border-radius: 12px;
+            bottom: 12px;
+            right: 15px;
+            font-size: 10px;
+            font-weight: 600;
+            color: #8e8e93;
+            background: #f2f2f7; /* Apple System Gray 6 */
+            padding: 4px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(0,0,0,0.05);
+            text-transform: uppercase;
         }
+
+
+
+
     </style>
 </head>
 
 <body>
-    <span class="version">v1.0.5</span>
-
     <div class="container">
         <div class="logo">
             <img src="public/assets/images/branding/sinyx-slogan.png" alt="SINYX Logo">
         </div>
-        <h1 class="brand" style="display: none;">SPOS</h1>
-        <p class="tagline">Point of Sale System</p>
-
-        <div class="loader" style="margin-top: 30px;">
+        
+        <div class="loader">
             <span></span>
             <span></span>
             <span></span>
         </div>
-        <p id="status-text" style="margin-top: 30px; font-size: 13px; color: #86868b; letter-spacing: 0.2px;">Starting...</p>
+        <p id="status-text">INITIALIZING CORE SERVICES</p>
+
+        <div class="footer">
+            Developed by <strong>SINYX</strong>
+        </div>
+        <span class="version" id="version-text">V1.0.5</span>
     </div>
 
-    <div class="footer">
-        <p class="developer">Developed by <strong>SINYX</strong></p>
-    </div>
+
+    <script>
+        // Internal hooks for IPC
+        window.fadeOut = () => {
+            document.body.classList.add('fade-out');
+        };
+
+        window.setVersion = (v) => {
+            if(document.getElementById('version-text')) {
+                document.getElementById('version-text').innerText = 'V' + v;
+            }
+        };
+    </script>
+</body>
+
+
 </body>
 
 </html>

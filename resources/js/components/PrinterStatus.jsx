@@ -1,123 +1,106 @@
 import React, { useState, useEffect } from 'react';
 
 const PrinterStatus = () => {
-    const [status, setStatus] = useState('checking'); // checking, online, offline, error
-    const [message, setMessage] = useState('Checking printer...');
+    const [status, setStatus] = useState('checking'); // checking, online, offline
+    const [message, setMessage] = useState('Checking hardware...');
     
-    // Get config from global settings (injected via Blade)
     const targetPrinterName = window.posSettings?.receiptPrinter;
 
     useEffect(() => {
         let isMounted = true;
-
         const checkPrinter = async () => {
-            if (!window.electron || !window.electron.getPrinters) {
-                if (isMounted) {
-                    setStatus('error');
-                    setMessage('Desktop App Required');
-                }
-                return;
-            }
-
+            if (!window.electron?.getPrinters) return;
             try {
                 const printers = await window.electron.getPrinters();
+                const printer = printers.find(p => p.name === targetPrinterName) || printers.find(p => p.isDefault);
                 
-                if (printers.length === 0) {
-                    if (isMounted) {
-                        setStatus('error');
-                        setMessage('No Printers Found');
-                    }
-                    return;
-                }
-
-                if (!targetPrinterName) {
-                    // No specific printer set, just check if ANY default is online
-                    const defaultPrinter = printers.find(p => p.isDefault) || printers[0];
-                    if (isMounted) {
-                        if (defaultPrinter.status === 0) {
-                             setStatus('online');
-                             setMessage('Printer Online (Default)');
-                        } else {
-                             setStatus('offline');
-                             setMessage('Printer Offline');
-                        }
-                    }
-                } else {
-                    // Check specific target printer
-                    const printer = printers.find(p => p.name === targetPrinterName);
-                    
-                    if (isMounted) {
-                        if (printer) {
-                            // Status 0 is usually 'Good/Idle'. Non-zero often means error/offline/busy on Windows.
-                            // Note: Electron status codes vary by OS. On Windows, 0 is often OK.
-                            if (printer.status === 0) {
-                                setStatus('online');
-                                setMessage('Printer Online');
-                            } else {
-                                setStatus('offline');
-                                setMessage('Printer Check Cable');
-                            }
+                if (isMounted) {
+                    if (printer) {
+                        // Status 0 is success on most Windows systems
+                        if (printer.status === 0) {
+                            setStatus('online');
+                            setMessage(`Ready: ${printer.name}`);
                         } else {
                             setStatus('offline');
-                            setMessage('Printer Not Found');
+                            setMessage(`Offline: ${printer.name}`);
                         }
+                    } else {
+                        setStatus('offline');
+                        setMessage('Printer Not Found');
                     }
                 }
-
-            } catch (error) {
-                console.error("Printer Check Failed", error);
-                if (isMounted) {
-                    setStatus('error');
-                    setMessage('Service Error');
-                }
+            } catch (e) {
+                if (isMounted) setStatus('offline');
             }
         };
 
-        // Initial check
         checkPrinter();
-
-        // Poll every 10 seconds
-        const intervalId = setInterval(checkPrinter, 10000);
-
-        return () => {
-            isMounted = false;
-            clearInterval(intervalId);
-        };
+        const interval = setInterval(checkPrinter, 3000); // 3 seconds = Professional real-time feel
+        return () => { isMounted = false; clearInterval(interval); };
     }, [targetPrinterName]);
 
-    // Render Logic
-    if (status === 'error') return null; // Don't show anything if not desktop app
-
-    const colorMap = {
-        'checking': '#ffc107', // Amber
-        'online': '#28a745',   // Green
-        'offline': '#dc3545',  // Red
-        'error': '#6c757d'     // Grey
-    };
-    
-    const iconMap = {
-        'checking': 'fa-circle-notch fa-spin',
-        'online': 'fa-check-circle',
-        'offline': 'fa-exclamation-circle',
-        'error': 'fa-times-circle'
+    const getBulbClass = () => {
+        if (status === 'online') return 'bulb-green pulse-glow';
+        if (status === 'offline') return 'bulb-red blink-status';
+        return 'bulb-amber';
     };
 
     return (
-        <div 
-            className="d-flex align-items-center bg-white px-3 py-1 rounded shadow-sm mr-3" 
-            title={message}
-            style={{ 
-                border: `1px solid ${status === 'offline' ? '#ffcccc' : '#e9ecef'}`,
-                transition: 'all 0.3s ease'
-            }}
-        >
-            <i 
-                className={`fas ${iconMap[status]} mr-2`} 
-                style={{ color: colorMap[status], fontSize: '0.8rem' }}
-            ></i>
-            <small className="font-weight-bold text-muted" style={{ fontSize: '0.75rem', letterSpacing: '0.5px' }}>
-                {status === 'offline' ? 'PRINTER OFFLINE' : 'PRINTER READY'}
-            </small>
+        <div className="d-flex align-items-center bg-white px-3 py-2 rounded-lg shadow-sm border printer-status-container" title={message}>
+            <div className={`status-bulb ${getBulbClass()} mr-2`}></div>
+            <div className="d-flex flex-column">
+                <small className="font-weight-bold text-dark mb-0" style={{ fontSize: '0.65rem', lineHeight: 1 }}>
+                    PRINTER STATUS
+                </small>
+                <span className={`small font-weight-bold ${status === 'online' ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.65rem' }}>
+                    {status === 'online' ? 'CONNECTED' : 'OFFLINE'}
+                </span>
+            </div>
+
+            <style>{`
+                .printer-status-container { 
+                    min-width: 140px; 
+                    height: 48px; 
+                    border-color: #eee !important;
+                }
+                .status-bulb {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    border: 1px solid rgba(0,0,0,0.1);
+                }
+                .bulb-green { background-color: #28a745; box-shadow: 0 0 5px #28a745; }
+                .bulb-red { background-color: #dc3545; box-shadow: 0 0 5px #dc3545; }
+                .bulb-amber { background-color: #ffc107; }
+
+                .pulse-glow {
+                    animation: pulse-green 3s infinite ease-in-out;
+                }
+                .blink-status {
+                    animation: blink-red 1.5s infinite ease-in-out;
+                }
+
+                @keyframes pulse-green {
+                    0% { box-shadow: 0 0 2px #28a745; opacity: 0.8; }
+                    50% { box-shadow: 0 0 10px #28a745; opacity: 1; }
+                    100% { box-shadow: 0 0 2px #28a745; opacity: 0.8; }
+                }
+                @keyframes blink-red {
+                    0% { opacity: 1; box-shadow: 0 0 10px #dc3545; }
+                    50% { opacity: 0.2; box-shadow: 0 0 0px #dc3545; }
+                    100% { opacity: 1; box-shadow: 0 0 10px #dc3545; }
+                }
+                
+                /* POS Drawer Button Fix */
+                .pos-drawer-btn:hover {
+                    background-color: #343a40 !important;
+                    color: white !important;
+                }
+                .pos-drawer-btn:hover .drawer-icon, 
+                .pos-drawer-btn:hover .drawer-text {
+                    color: white !important;
+                }
+            `}</style>
         </div>
     );
 };
