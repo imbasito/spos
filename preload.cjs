@@ -14,8 +14,11 @@ contextBridge.exposeInMainWorld('electron', {
     isElectron: true,
     printSilent: (url, printerName = null, htmlContent = null, jsonData = null) => ipcRenderer.invoke('print:silent', { url, printerName, htmlContent, jsonData }),
     getPrinters: () => ipcRenderer.invoke('print:get-printers'),
+    pollStatus: (printerName) => ipcRenderer.invoke('hardware:poll-status', { printerName }),
+    closeDrawerManually: () => ipcRenderer.invoke('printer:close-drawer-manually'),
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     openDrawer: (printerName = null) => ipcRenderer.invoke('printer:open-drawer', { printerName }),
 });
+
 console.log("[PRELOAD]: Bridge Exposure Complete");
 } catch(e) { console.error("[PRELOAD ERROR]:", e); }

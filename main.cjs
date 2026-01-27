@@ -24,7 +24,10 @@ const os = require('os');
 
 
 let laravelServer, mysqlServer, splashWindow, mainWindow;
+let drawerStatus = 'closed'; // 'closed' or 'open'
+let drawerLastOpenTime = 0;
 const MYSQL_PORT = 3307;
+
 let laravelPort = 8000;
 
 const basePath = app.isPackaged ? process.resourcesPath : __dirname;
@@ -186,10 +189,24 @@ function waitForLaravel(port, timeout = 30000) {
 // ============================================
 function createSplashWindow() {
     splashWindow = new BrowserWindow({
-        width: 600, height: 450, frame: false, transparent: true, alwaysOnTop: true, resizable: false,
+        width: 650, height: 600, // Increased to prevent clipping of bottom radius
+        frame: false, 
+        transparent: true, 
+        alwaysOnTop: true, 
+        resizable: false,
+        center: true, 
+        skipTaskbar: true, 
+        show: false,
+        backgroundColor: '#00000000', // Fully transparent for rounded corners
         icon: path.join(basePath, 'pos-icon.ico'),
         webPreferences: { nodeIntegration: false, contextIsolation: true }
+
     });
+    
+    splashWindow.once('ready-to-show', () => {
+        splashWindow.show();
+    });
+
     const splashPath = app.isPackaged ? path.join(process.resourcesPath, 'splash.html') : path.join(__dirname, 'splash.html');
     splashWindow.loadFile(splashPath);
 
@@ -260,16 +277,22 @@ function createMainWindow() {
     
     mainWindow.once('ready-to-show', async () => {
         if (splashWindow && !splashWindow.isDestroyed()) {
+            // Pre-transition: Release focus priority
+            splashWindow.setAlwaysOnTop(false);
+            
             // Trigger fade-out animation in splash screen
             splashWindow.webContents.executeJavaScript('if(window.fadeOut) window.fadeOut();').catch(() => {});
             
-            // Wait for animation to finish (400ms)
-            await new Promise(r => setTimeout(r, 500));
+            // Wait for animation to finish (Apple-style smoothness)
+            await new Promise(r => setTimeout(r, 600));
+            splashWindow.hide();
             splashWindow.close();
         }
         
-        mainWindow.show();
+        // Final hand-off: Snappy yet smooth
         mainWindow.maximize();
+        mainWindow.show();
+        mainWindow.focus();
     });
 
 
@@ -419,10 +442,57 @@ function setupAutoUpdater() {
 
     // Cash Drawer Kick IPC
     ipcMain.handle('printer:open-drawer', async (event, { printerName }) => {
+        drawerStatus = 'open';
+        drawerLastOpenTime = Date.now();
         await triggerCashDrawer(printerName);
         return { success: true };
     });
+
+    // Handle Get Printers (Restore if missing)
+    ipcMain.handle('print:get-printers', async () => {
+        if (!mainWindow) return [];
+        return mainWindow.webContents.getPrinters();
+    });
+
+    // Hardware Health Polling (Printer + Drawer)
+    ipcMain.handle('hardware:poll-status', async (event, { printerName }) => {
+        // 1. Auto-close drawer state after 10s as a "soft-sensor" fallback 
+        // if we can't physically read the DK-port pin.
+        if (drawerStatus === 'open' && (Date.now() - drawerLastOpenTime > 10000)) {
+            drawerStatus = 'closed';
+        }
+
+        const res = {
+            printer: 'offline',
+            drawer: drawerStatus,
+            message: 'Scanning...'
+        };
+
+        try {
+            const printers = mainWindow.webContents.getPrinters();
+            const target = printers.find(p => p.name === printerName) || printers.find(p => p.isDefault);
+            
+            if (target) {
+                // Windows Status 0 = Ready
+                res.printer = (target.status === 0) ? 'online' : 'offline';
+                res.message = (target.status === 0) ? `Ready: ${target.name}` : `Offline: ${target.name}`;
+            } else {
+                res.message = 'Printer Not Linked';
+            }
+        } catch (e) {
+            res.message = 'Poll Failed';
+        }
+
+        return res;
+    });
+
+    // Manual Drawer Close (User Confirmation)
+    ipcMain.handle('printer:close-drawer-manually', () => {
+        drawerStatus = 'closed';
+        return { success: true };
+    });
 }
+
 
 function killProcesses() {
     if (laravelServer && !laravelServer.killed) treeKill(laravelServer.pid, 'SIGKILL');
@@ -490,8 +560,24 @@ async function startApp() {
 }
 
 
-app.whenReady().then(startApp);
+// --- SINGLE INSTANCE LOCK (Professional Startup) ---
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // Someone tried to run a second instance, we should focus our window.
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.maximize();
+            mainWindow.focus();
+        }
+    });
+
+    app.whenReady().then(startApp);
+}
 app.on('window-all-closed', () => { killProcesses(); app.quit(); });
+
 
 // ============================================
 // GNERATE RECEIPT HTML

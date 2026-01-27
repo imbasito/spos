@@ -1,0 +1,82 @@
+/**
+ * Sinyx POS: Apple-Standard Design System
+ * Focus: Rules, Consistency, and Premium Depth.
+ */
+
+:root {
+    /* --- COLOR PALETTE (Natural Mutes) --- */
+    --apple-gray-1: #1d1d1f;      /* Deep Text */
+    --apple-gray-2: #86868b;      /* Subtext / Medium focus */
+    --apple-gray-3: #aeaeb2;      /* Light subtext / Backgrounds */
+    --apple-gray-4: #f2f2f7;      /* System Gray 6 (Faint BG) */
+    --apple-bg: #f5f5f7;          /* Page background */
+    --apple-accent: #800000;      /* Sinyx Brand Maroon (Muted) */
+    
+    /* --- SPACING GRID (Rules, not guesses) --- */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* --- SHADOWS (Ambient Occlusion) --- */
+    --apple-shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
+    --apple-shadow-md: 0 12px 40px rgba(0, 0, 0, 0.08);
+    --apple-shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.12);
+    
+    /* --- BORDERS & CORNERS --- */
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 28px;
+    --apple-border: 1px solid rgba(0, 0, 0, 0.05);
+    --apple-border-light: 1px solid rgba(0, 0, 0, 0.03);
+
+    /* --- GLASS --- */
+    --glass-blur: blur(20px);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+
+    /* --- TYPOGRAPHY --- */
+    --font-main: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* --- Global Consistency Rules --- */
+body {
+    font-family: var(--font-main);
+    background-color: var(--apple-bg);
+    color: var(--apple-gray-1);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Rounded Cards by Default */
+.card {
+    border-radius: var(--radius-md);
+    border: var(--apple-border);
+    box-shadow: var(--apple-shadow-soft);
+    background: #fff;
+    overflow: hidden;
+}
+
+/* Glass Utility */
+.glass-effect {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Typography Hierarchy Helpers */
+.text-apple-main { color: var(--apple-gray-1); }
+.text-apple-sub { color: var(--apple-gray-2); font-size: 0.9em; }
+.text-apple-tiny { color: var(--apple-gray-3); font-size: 0.8em; }
+
+.btn-apple {
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-apple:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--apple-shadow-soft);
+}

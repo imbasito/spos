@@ -557,7 +557,11 @@
         })();
     </script>
 
+    <x-spotlight />
+
     @stack('script')
+
+
     <script>
         // FORCE UNREGISTER to fix caching issues for new menu items
         if ('serviceWorker' in navigator) {
@@ -569,5 +573,6 @@
         }
     </script>
 </body>
+
 
 </html>

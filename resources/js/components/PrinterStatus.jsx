@@ -1,104 +1,117 @@
 import React, { useState, useEffect } from 'react';
 
 const PrinterStatus = () => {
-    const [status, setStatus] = useState('checking'); // checking, online, offline
-    const [message, setMessage] = useState('Checking hardware...');
+    const [printerStatus, setPrinterStatus] = useState('offline'); // online, offline
+    const [drawerStatus, setDrawerStatus] = useState('closed'); // open, closed
+    const [message, setMessage] = useState('Scanning hardware...');
     
     const targetPrinterName = window.posSettings?.receiptPrinter;
 
     useEffect(() => {
         let isMounted = true;
-        const checkPrinter = async () => {
-            if (!window.electron?.getPrinters) return;
+        const checkHardware = async () => {
+            if (!window.electron?.pollStatus) return;
             try {
-                const printers = await window.electron.getPrinters();
-                const printer = printers.find(p => p.name === targetPrinterName) || printers.find(p => p.isDefault);
-                
+                const res = await window.electron.pollStatus(targetPrinterName);
                 if (isMounted) {
-                    if (printer) {
-                        // Status 0 is success on most Windows systems
-                        if (printer.status === 0) {
-                            setStatus('online');
-                            setMessage(`Ready: ${printer.name}`);
-                        } else {
-                            setStatus('offline');
-                            setMessage(`Offline: ${printer.name}`);
-                        }
-                    } else {
-                        setStatus('offline');
-                        setMessage('Printer Not Found');
-                    }
+                    setPrinterStatus(res.printer);
+                    setDrawerStatus(res.drawer);
+                    setMessage(res.message);
                 }
             } catch (e) {
-                if (isMounted) setStatus('offline');
+                if (isMounted) setPrinterStatus('offline');
             }
         };
 
-        checkPrinter();
-        const interval = setInterval(checkPrinter, 3000); // 3 seconds = Professional real-time feel
+        checkHardware();
+        const interval = setInterval(checkHardware, 2000); // 2 seconds for ultra-responsive feel
         return () => { isMounted = false; clearInterval(interval); };
     }, [targetPrinterName]);
 
-    const getBulbClass = () => {
-        if (status === 'online') return 'bulb-green pulse-glow';
-        if (status === 'offline') return 'bulb-red blink-status';
-        return 'bulb-amber';
+    const handleManualDrawerClose = async () => {
+        if (window.electron?.closeDrawerManually) {
+            await window.electron.closeDrawerManually();
+            setDrawerStatus('closed');
+        }
+    };
+
+    const getBulbClass = (type, state) => {
+        if (type === 'printer') {
+            return state === 'online' ? 'bulb-green pulse-glow' : 'bulb-red blink-status';
+        }
+        if (type === 'drawer') {
+            if (state === 'open') return 'bulb-amber-bright pulse-warning';
+            return 'bulb-green-dim';
+        }
+        return 'bulb-grey';
     };
 
     return (
-        <div className="d-flex align-items-center bg-white px-3 py-2 rounded-lg shadow-sm border printer-status-container" title={message}>
-            <div className={`status-bulb ${getBulbClass()} mr-2`}></div>
-            <div className="d-flex flex-column">
-                <small className="font-weight-bold text-dark mb-0" style={{ fontSize: '0.65rem', lineHeight: 1 }}>
-                    PRINTER STATUS
-                </small>
-                <span className={`small font-weight-bold ${status === 'online' ? 'text-success' : 'text-danger'}`} style={{ fontSize: '0.65rem' }}>
-                    {status === 'online' ? 'CONNECTED' : 'OFFLINE'}
-                </span>
+        <div className="d-flex align-items-center bg-white px-3 py-1 rounded-lg shadow-sm border hardware-status-dashboard" title={message}>
+            
+            {/* Printer Section */}
+            <div className="d-flex align-items-center mr-3 pr-3 border-right hardware-cell">
+                <div className={`status-bulb ${getBulbClass('printer', printerStatus)} mr-2`}></div>
+                <div className="d-flex flex-column">
+                    <small className="label-text">PRINTER</small>
+                    <span className={`status-text ${printerStatus === 'online' ? 'text-success' : 'text-danger'}`}>
+                        {printerStatus === 'online' ? 'READY' : 'OFFLINE'}
+                    </span>
+                </div>
+            </div>
+
+            {/* Drawer Section */}
+            <div className="d-flex align-items-center hardware-cell" style={{ cursor: drawerStatus === 'open' ? 'pointer' : 'default' }} onClick={drawerStatus === 'open' ? handleManualDrawerClose : null}>
+                <div className={`status-bulb ${getBulbClass('drawer', drawerStatus)} mr-2`}></div>
+                <div className="d-flex flex-column">
+                    <small className="label-text">DRAWER</small>
+                    <span className={`status-text ${drawerStatus === 'open' ? 'text-warning font-weight-bold' : 'text-muted'}`}>
+                        {drawerStatus === 'open' ? 'OPEN' : 'CLOSED'}
+                    </span>
+                </div>
+                {drawerStatus === 'open' && (
+                    <i className="fas fa-times-circle ml-2 text-danger animate__animated animate__fadeIn" title="Click if manually closed"></i>
+                )}
             </div>
 
             <style>{`
-                .printer-status-container { 
-                    min-width: 140px; 
-                    height: 48px; 
-                    border-color: #eee !important;
+                .hardware-status-dashboard { 
+                    min-width: 260px; 
+                    height: 44px; 
+                    border-color: #f0f0f0 !important;
+                    user-select: none;
                 }
-                .status-bulb {
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 50%;
-                    border: 1px solid rgba(0,0,0,0.1);
-                }
-                .bulb-green { background-color: #28a745; box-shadow: 0 0 5px #28a745; }
-                .bulb-red { background-color: #dc3545; box-shadow: 0 0 5px #dc3545; }
-                .bulb-amber { background-color: #ffc107; }
-
-                .pulse-glow {
-                    animation: pulse-green 3s infinite ease-in-out;
-                }
-                .blink-status {
-                    animation: blink-red 1.5s infinite ease-in-out;
-                }
-
-                @keyframes pulse-green {
-                    0% { box-shadow: 0 0 2px #28a745; opacity: 0.8; }
-                    50% { box-shadow: 0 0 10px #28a745; opacity: 1; }
-                    100% { box-shadow: 0 0 2px #28a745; opacity: 0.8; }
-                }
-                @keyframes blink-red {
-                    0% { opacity: 1; box-shadow: 0 0 10px #dc3545; }
-                    50% { opacity: 0.2; box-shadow: 0 0 0px #dc3545; }
-                    100% { opacity: 1; box-shadow: 0 0 10px #dc3545; }
-                }
+                .hardware-cell { min-width: 90px; }
+                .label-text { font-size: 0.6rem; color: #999; font-weight: 800; letter-spacing: 0.05em; line-height: 1; margin-bottom: 2px; }
+                .status-text { font-size: 0.7rem; font-weight: 700; line-height: 1; }
                 
-                /* POS Drawer Button Fix */
-                .pos-drawer-btn:hover {
-                    background-color: #343a40 !important;
-                    color: white !important;
+                .status-bulb {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
                 }
-                .pos-drawer-btn:hover .drawer-icon, 
-                .pos-drawer-btn:hover .drawer-text {
-                    color: white !important;
+                .bulb-green { background-color: #28a745; box-shadow: 0 0 6px #28a745; }
+                .bulb-green-dim { background-color: #28a745; opacity: 0.4; }
+                .bulb-red { background-color: #dc3545; box-shadow: 0 0 6px #dc3545; }
+                .bulb-amber-bright { background-color: #ffc107; box-shadow: 0 0 8px #ffc107; }
+                .bulb-grey { background-color: #ccc; }
+
+                .pulse-glow { animation: hardware-pulse 2s infinite ease-in-out; }
+                .pulse-warning { animation: drawer-warning 0.8s infinite ease-in-out; }
+                .blink-status { animation: hardware-blink 1.5s infinite ease-in-out; }
+
+                @keyframes hardware-pulse {
+                    0% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.7; transform: scale(1.1); }
+                    100% { opacity: 1; transform: scale(1); }
+                }
+                @keyframes hardware-blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                }
+                @keyframes drawer-warning {
+                    0%, 100% { transform: scale(1); box-shadow: 0 0 4px #ffc107; }
+                    50% { transform: scale(1.2); box-shadow: 0 0 12px #ffc107; }
                 }
             `}</style>
         </div>
@@ -106,3 +119,4 @@ const PrinterStatus = () => {
 };
 
 export default PrinterStatus;
+

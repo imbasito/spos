@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SPOS</title>
     <style>
+        :root {
+            --apple-gray-1: #1d1d1f;
+            --apple-gray-2: #86868b;
+            --apple-gray-3: #aeaeb2;
+            --apple-gray-pill: #f2f2f7;
+            --apple-bg: #f5f5f7;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,16 +21,15 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: transparent; /* Allows for soft rounded corners/shadows if needed */
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: transparent;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             overflow: hidden;
             -webkit-app-region: drag;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.fade-out {
@@ -32,132 +39,129 @@
         .container {
             position: relative;
             background: #ffffff;
-            width: 420px;
-            padding: 40px;
-            border-radius: 20px;
+            width: 460px;
+            padding: 70px 40px 40px; /* Airy Spacing */
+            border-radius: 28px; /* Professional Apple Curve */
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-            border: 1px solid rgba(0,0,0,0.05);
-            animation: cardFadeIn 1s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 
+                0 40px 80px rgba(0,0,0,0.12),
+                0 0 1px rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.03);
+            animation: cardAppear 1.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-
-        @keyframes cardFadeIn {
-            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+        @keyframes cardAppear {
+            from { opacity: 0; transform: scale(0.92) translateY(20px); }
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        /* Premium Breathing Logo */
-        .logo {
-            width: 180px;
-            margin: 0 auto 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: breath 4s ease-in-out infinite;
+        /* ------------------------------------------------ */
+        /* LOGO ANIMATION (UNWRAP + BREATH)                 */
+        /* ------------------------------------------------ */
+        .logo-wrapper {
+            position: relative;
+            width: 220px; /* Increased Size for Professional Focus */
+            margin: 0 auto 50px;
+            overflow: hidden;
+            border-radius: 12px;
+            animation: 
+                logoUnwrap 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+                breath 5s ease-in-out infinite 1.2s;
         }
 
-        .logo img {
+        .logo-wrapper img {
             width: 100%;
             height: auto;
-            object-fit: contain;
+            display: block;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.06));
+        }
+
+        @keyframes logoUnwrap {
+            0% { transform: translateY(-40px); opacity: 0; clip-path: inset(0 0 100% 0); }
+            100% { transform: translateY(0); opacity: 1; clip-path: inset(0 0 0% 0); }
         }
 
         @keyframes breath {
-            0%, 100% { transform: scale(1); filter: drop-shadow(0 5px 15px rgba(0,0,0,0.05)); }
-            50% { transform: scale(1.03); filter: drop-shadow(0 10px 25px rgba(0,0,0,0.1)); }
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.04); filter: brightness(1.03); }
         }
 
-        .brand {
-            font-size: 24px;
-            font-weight: 600;
-            color: #1d1d1f;
-            letter-spacing: -0.5px;
-            margin-bottom: 5px;
-        }
-
-        .tagline {
-            font-size: 14px;
-            font-weight: 400;
-            color: #86868b;
-            letter-spacing: 0.1px;
-            margin-bottom: 30px;
-        }
-
-        /* Apple-style subtle loader dots */
+        /* ------------------------------------------------ */
+        /* LOADER & TYPOGRAPHY                              */
+        /* ------------------------------------------------ */
         .loader {
             display: flex;
             justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
+            gap: 12px;
+            margin-bottom: 30px;
         }
 
         .loader span {
-            width: 6px;
-            height: 6px;
-            background: #d2d2d7;
+            width: 7px;
+            height: 7px;
+            background: #e5e5e7;
             border-radius: 50%;
-            animation: dotLoader 1.4s infinite ease-in-out;
+            animation: dotLoader 1.8s infinite ease-in-out;
         }
 
-        .loader span:nth-child(1) { animation-delay: 0s; }
-        .loader span:nth-child(2) { animation-delay: 0.2s; }
-        .loader span:nth-child(3) { animation-delay: 0.4s; }
+        .loader span:nth-child(2) { animation-delay: 0.3s; }
+        .loader span:nth-child(3) { animation-delay: 0.6s; }
 
         @keyframes dotLoader {
-            0%, 80%, 100% { transform: scale(0.8); background: #d2d2d7; }
-            40% { transform: scale(1.2); background: #1d1d1f; }
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+            40% { transform: scale(1.4); opacity: 1; background: var(--apple-gray-2); }
         }
 
         #status-text {
-            font-size: 12px;
-            font-weight: 400;
-            color: #86868b;
-            letter-spacing: 0.2px;
-        }
-
-        #status-text strong {
-            color: #1d1d1f;
-            font-weight: 600;
-            margin-right: 8px;
-            text-transform: uppercase;
-            font-size: 10px;
-            letter-spacing: 1px;
-        }
-
-
-        .footer {
-            margin-top: 40px;
             font-size: 11px;
-            color: #aeaeb2;
-        }
-
-        .footer strong { color: #1d1d1f; font-weight: 600; }
-
-        .version {
-            position: absolute;
-            bottom: 12px;
-            right: 15px;
-            font-size: 10px;
-            font-weight: 600;
-            color: #8e8e93;
-            background: #f2f2f7; /* Apple System Gray 6 */
-            padding: 4px 12px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(0,0,0,0.05);
+            font-weight: 500;
+            color: var(--apple-gray-2);
+            letter-spacing: 2.5px; /* Refined spacing */
             text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        /* ------------------------------------------------ */
+        /* FOOTER (DEVELOPER + VERSION ALIGNMENT)           */
+        /* ------------------------------------------------ */
+        .bottom-shelf {
+            margin-top: 45px; /* Tightened from 60px */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #f2f2f7;
+            padding-top: 10px; /* Closer to line */
         }
 
 
+        .developer-text {
+            font-size: 10px;
+            color: var(--apple-gray-3);
+            letter-spacing: 0.3px;
+            font-weight: 500;
+        }
 
+        .developer-text strong { color: var(--apple-gray-2); font-weight: 600; }
+
+        .version-pill {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--apple-gray-2);
+            background: var(--apple-gray-pill);
+            padding: 5px 14px;
+            border-radius: 20px;
+            letter-spacing: 0.8px;
+            border: 1px solid rgba(0,0,0,0.03);
+            /* Premium Sans Font instead of Mono */
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif;
+        }
 
     </style>
 </head>
 
 <body>
     <div class="container">
-        <div class="logo">
+        <div class="logo-wrapper">
             <img src="public/assets/images/branding/sinyx-slogan.png" alt="SINYX Logo">
         </div>
         
@@ -166,30 +170,39 @@
             <span></span>
             <span></span>
         </div>
-        <p id="status-text">INITIALIZING CORE SERVICES</p>
+        
+        <p id="status-text">INITIALIZING SYSTEMS</p>
 
-        <div class="footer">
-            Developed by <strong>SINYX</strong>
+        <div class="bottom-shelf">
+            <div class="developer-text">
+                Developed by <strong>SINYX</strong>
+            </div>
+            <div class="version-pill" id="version-text">v1.1.0</div>
         </div>
-        <span class="version" id="version-text">V1.0.5</span>
     </div>
 
-
     <script>
-        // Internal hooks for IPC
         window.fadeOut = () => {
             document.body.classList.add('fade-out');
         };
 
         window.setVersion = (v) => {
             if(document.getElementById('version-text')) {
-                document.getElementById('version-text').innerText = 'V' + v;
+                document.getElementById('version-text').innerText = 'v' + v;
+            }
+        };
+
+        // Smooth status transitions
+        let lastStatus = "";
+        window.updateStatus = (msg) => {
+            const el = document.getElementById('status-text');
+            if(el && msg !== lastStatus) {
+                el.innerText = msg;
+                lastStatus = msg;
             }
         };
     </script>
 </body>
 
-
-</body>
-
 </html>
+

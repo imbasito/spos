@@ -15,6 +15,8 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
+
+
 // Memoized ProductCard component
 const ProductCard = memo(({ product, onClick, baseUrl }) => (
     <div
@@ -93,6 +95,7 @@ export default function Pos() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
     const [initialLoadDone, setInitialLoadDone] = useState(false);
+    const [productCache, setProductCache] = useState({}); // Simple memory cache for Instant-On
 
     // Derived values
     const fullDomainWithPort = useMemo(() =>
@@ -139,10 +142,17 @@ export default function Pos() {
         setUpdateTotal(finalTotal.toFixed(2));
     }, [calculateOrderValues]);
 
-    // Fetch Products
-    const getProducts = useCallback(async (search = "", page = 1) => {
-        setLoading(true);
+    // Fetch Products (Optimized with Caching and Pre-fetching)
+    const getProducts = useCallback(async (search = "", page = 1, isPreFetch = false) => {
+        if (!isPreFetch) setLoading(true);
         try {
+            const cacheKey = `${search}_${page}`;
+            if (productCache[cacheKey] && !isPreFetch) {
+                setProducts(prev => page === 1 ? productCache[cacheKey] : [...prev, ...productCache[cacheKey]]);
+                if (!isPreFetch) setLoading(false);
+                return;
+            }
+
             const isBarcode = /^\d{3,}/.test(search); 
             const params = { page };
             if (isBarcode) params.barcode = search;
@@ -151,11 +161,19 @@ export default function Pos() {
             const res = await axios.get('/admin/get/products', { params });
             const productsData = res.data;
 
+            // Cache the result
+            setProductCache(prev => ({ ...prev, [cacheKey]: productsData.data }));
+
+            if (isPreFetch) return; // Don't update state if just pre-fetching
+
             if (page === 1) {
                 setProducts(productsData.data);
                 if (productsData.data.length === 1 && isBarcode) {
                    addProductToCart(productsData.data[0].id);
                    setSearchQuery(''); 
+                } else if (productsData.data.length === 0 && isBarcode) {
+                    playSound(WarningSound);
+                    toast.error("Product not found");
                 }
             } else {
                 setProducts(prev => [...prev, ...productsData.data]);
@@ -164,9 +182,21 @@ export default function Pos() {
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
-            setLoading(false);
+            if (!isPreFetch) setLoading(false);
         }
-    }, []);
+    }, [productCache]);
+
+    // Idle Pre-fetching (Apple-style "Instant-On")
+    useEffect(() => {
+        const idleTimer = setTimeout(() => {
+            if (!loading && currentPage < totalPages) {
+                console.log("[POS]: Idle... Pre-fetching next page");
+                getProducts(debouncedSearch, currentPage + 1, true);
+            }
+        }, 5000); // Start pre-fetching after 5s of idleness
+        return () => clearTimeout(idleTimer);
+    }, [loading, currentPage, totalPages, debouncedSearch, getProducts]);
+
 
     // Initial Load
     useEffect(() => {
@@ -302,6 +332,7 @@ export default function Pos() {
                 toast.error("Stock limit reached");
                 return;
             }
+
             item.quantity = parseFloat(item.quantity) + 1;
             item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
             newCarts[existingItemIndex] = item;
