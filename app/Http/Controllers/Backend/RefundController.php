@@ -33,7 +33,7 @@ class RefundController extends Controller
                 ->addColumn('created_at', fn($data) => '<span class="text-muted">' . $data->created_at->format('d M, Y') . '</span><br><small>' . $data->created_at->format('h:i A') . '</small>')
                 ->addColumn('action', function ($data) {
                     $url = route('backend.admin.refunds.receipt', $data->id);
-                    return '<button type="button" onclick="openRevisedRefundReceipt(\'' . $url . '\')" class="btn btn-sm btn-info px-3 font-weight-bold shadow-sm">
+                    return '<button type="button" onclick="openRefundReceiptV3(\'' . $url . '\')" class="btn btn-sm btn-info px-3 font-weight-bold shadow-sm">
                         <i class="fas fa-receipt mr-1"></i> View Receipt
                     </button>';
                 })
@@ -41,7 +41,7 @@ class RefundController extends Controller
                 ->toJson();
         }
 
-        return view('backend.refunds.index');
+        return view('backend.refunds.index_v3');
     }
 
     /**

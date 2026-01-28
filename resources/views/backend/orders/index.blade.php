@@ -269,11 +269,24 @@
       if (window.electron && window.electron.printSilent) {
           const frame = document.getElementById('receiptFrame');
           const currentUrl = frame.src;
-          
-          // Extract Order ID to fetch JSON for Raw Command
-          const match = currentUrl.match(/pos-invoice\/(\d+)/);
-          if(match && match[1]) {
-              const orderId = match[1];
+          let apiUrl = null;
+          let type = 'sale';
+
+          // A. Check for Sale (POS Invoice)
+          const saleMatch = currentUrl.match(/pos-invoice\/(\d+)/);
+          if (saleMatch && saleMatch[1]) {
+              apiUrl = `/admin/orders/receipt-details/${saleMatch[1]}`;
+              type = 'sale';
+          }
+
+          // B. Check for Refund
+          const refundMatch = currentUrl.match(/refunds\/(\d+)/);
+          if (refundMatch && refundMatch[1]) {
+              apiUrl = `/admin/refunds/${refundMatch[1]}/details`;
+              type = 'refund';
+          }
+
+          if(apiUrl) {
               const toastId = Swal.fire({
                   title: 'Printing...',
                   didOpen: () => Swal.showLoading(),
@@ -283,18 +296,18 @@
               });
 
               try {
-                  // Fetch Raw JSON Data
-                   const response = await fetch(`/admin/orders/receipt-details/${orderId}`);
+                   const response = await fetch(apiUrl);
                    const jsonRes = await response.json();
                    
-                   if(jsonRes.success && jsonRes.data) {
-                       // Fetch Raw JSON Data (Already fetched in jsonRes)
-                       await window.electron.printSilent(
-                           null, // No URL needed for Raw
-                           @json(readConfig('receipt_printer')), 
-                           null, 
-                           jsonRes.data // Pass the actual JSON data
-                       );
+                   // Handle different JSON structures (some wrap in 'data', some don't, normalized here)
+                   const printData = jsonRes.data || jsonRes; 
+
+                   if(jsonRes.success !== false) { // weak check in case success key missing
+                       // Force Type for Generator
+                       printData.type = type; 
+
+                       await window.electron.printSilent(null, "POS80", null, printData);
+                       
                        Swal.fire({
                            icon: 'success',
                            title: 'Sent to Printer',
@@ -303,10 +316,13 @@
                            timer: 2000,
                            showConfirmButton: false
                        });
+                   } else {
+                       throw new Error("Invalid API Data");
                    }
               } catch(e) {
                   console.error("Raw Print Error", e);
-                  // Fallback to Iframe Print
+                  // Continueth to Fallback
+                  Swal.fire({ icon: 'warning', title: 'Raw Print Failed', text: 'Falling back to simple print', toast: true, position: 'top-end', timer: 2000 });
                   if (frame && frame.contentWindow) {
                       frame.contentWindow.focus();
                       frame.contentWindow.print();
@@ -367,70 +383,6 @@
     </div>
 </div>
 
-<script>
-    // Global function to open Receipt Modal
-    window.openRefundReceipt = function(url) {
-        // Reset Modal State
-        $('#receiptLoader').show();
-        $('#receiptFrame').attr('src', 'about:blank'); // Clear previous
-        $('#receiptModal').modal('show');
-
-        // Load new URL with cache/bust
-        setTimeout(() => {
-            const frame = document.getElementById('receiptFrame');
-            frame.onload = () => { $('#receiptLoader').fadeOut('fast'); };
-            frame.src = url;
-        }, 200);
-    };
-
-    // Print Function (Calls backend for Raw Print)
-    window.printReceiptFrame = async function() {
-        const frame = document.getElementById('receiptFrame');
-        if (!frame || frame.src === 'about:blank') return;
-
-        // Visual Feedback
-        Swal.fire({
-            title: 'Printing...',
-            timer: 2000,
-            didOpen: () => Swal.showLoading(),
-            backdrop: `rgba(0,0,0,0.4)`
-        });
-
-        // 1. Try Electron Raw Print First
-        if (window.electron && window.electron.printSilent) {
-            try {
-                // Extract Return ID from URL to fetch JSON
-                // URL Format: .../admin/refunds/{id}/receipt
-                const match = frame.src.match(/refunds\/(\d+)\/receipt/);
-                if (match && match[1]) {
-                    const refundId = match[1];
-                    // Fetch JSON Data for Raw Gen
-                    const res = await fetch(`/admin/refunds/${refundId}/details`);
-                    const json = await res.json();
-                    
-                    if (json.success && json.data) {
-                        json.data.type = 'refund'; // Force type
-                        await window.electron.printSilent(
-                            null, 
-                            "POS80", // Default or user config
-                            null, 
-                            json.data
-                        );
-                        return; // Success
-                    }
-                }
-            } catch (e) {
-                console.error("Raw Print Failed, falling back to iframe:", e);
-            }
-        }
-
-        // 2. Fallback: Print Iframe contents (Browser Print)
-        if (frame.contentWindow) {
-            frame.contentWindow.focus();
-            frame.contentWindow.print();
-        }
-    };
-</script>
 
 <!-- Refund Modal -->
 <div class="modal fade" id="refundModal" tabindex="-1" role="dialog">

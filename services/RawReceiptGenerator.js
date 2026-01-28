@@ -21,22 +21,18 @@ class RawReceiptGenerator {
             day: '2-digit', month: '2-digit', year: 'numeric' 
         });
 
-        // Initialize printer and clear any residue
+        // Initialize
         let encoder = this.encoder.initialize(); 
 
         // 1. Header (STRICT CENTER)
-        encoder = encoder.align('center');
+        encoder = encoder.raw([0x1b, 0x61, 0x01]); // Align Center
         
         if (config.show_logo) {
             try {
-                // Command: Reset + Center (ESCape a 1)
-                encoder = encoder.raw([0x1b, 0x40, 0x1b, 0x61, 0x01]);
                 // Command: FS p 1 0 (Print NV Logo)
                 encoder = encoder.raw([0x1c, 0x70, 0x01, 0x00]);
                 encoder = encoder.newline();
             } catch (e) { console.warn("Logo failed:", e.message); }
-        } else {
-             encoder = encoder.raw([0x1b, 0x40, 0x1b, 0x61, 0x01]); // Reset + Center
         }
 
         if (config.show_site) {
@@ -60,20 +56,27 @@ class RawReceiptGenerator {
                              .text("=".repeat(width)).newline();
         }
 
-        // Return to Left for Content
-        encoder = encoder.raw([0x1B, 0x61, 0x00]);
+        // SEPARATOR after Header
+        if (data.type !== 'refund') {
+            encoder = encoder.text("-".repeat(width)).newline();
+        }
+
+        // Return to Center for Content (User Request: "make them centered too")
+        encoder = encoder.raw([0x1B, 0x61, 0x01]); // Center
 
         const typeLabel = data.type === 'refund' ? "Refund: #" : "Inv: #";
         const invStr = `${typeLabel}${id}`;
+        
         const methodStr = `Pay: ${payment_method || (data.type === 'refund' ? 'Refund' : 'Cash')}`;
-        encoder = encoder.align('left').line(this.twoColumn(invStr, methodStr, width));
+        // Note: Using RAW command above to set alignment. Don't use .align() here as it might conflict.
+        encoder = encoder.line(this.twoColumn(invStr, methodStr, width));
         
         if (data.type === 'refund') {
             encoder = encoder.line(`Ref Order: #${data.order_id}`);
+        } else {
+             const trxStr = `Trx: ${data.transaction_id || '---'}`;
+             encoder = encoder.line(this.twoColumn(currentTime, trxStr, width));
         }
-
-        const trxStr = `Trx: ${data.transaction_id || '---'}`;
-        encoder = encoder.line(this.twoColumn(currentTime, trxStr, width));
 
         encoder = encoder.line("-".repeat(width));
         const custStr = (config.show_customer !== false) ? `Cust: ${customer ? (customer.name || customer) : 'Walk-in'}` : "";
@@ -100,7 +103,7 @@ class RawReceiptGenerator {
 
         encoder = encoder.line("-".repeat(width));
 
-        // 4. Totals (Keep Left alignment, padding handles the rest)
+        // 4. Totals (Center aligned block)
         if (data.type === 'refund') {
             encoder = encoder.line(this.twoColumn("Refund Total:", total.toString(), width)).newline()
                              .line("-".repeat(width))
@@ -127,16 +130,16 @@ class RawReceiptGenerator {
             }
         }
 
-        // 5. Footer (SWITCH BACK TO CENTER)
+        // 5. Footer (Aggressive Centering)
         encoder = encoder.newline().line("-".repeat(width)).newline();
-
+        
         if (config.show_note && config.footer_note) {
-            encoder = encoder.raw([0x1B, 0x61, 0x01]); // FORCE CENTER
+            encoder = encoder.raw([0x1B, 0x61, 0x01]); // Center
             encoder = encoder.text(config.footer_note).newline().newline();
         }
 
         // SINYX Branding centered
-        encoder = encoder.raw([0x1B, 0x61, 0x01]); // FORCE CENTER
+        encoder = encoder.raw([0x1B, 0x61, 0x01]); // Center
         encoder = encoder.bold(true).text("Software by SINYX").bold(false).newline()
                          .text("Contact: +92 342 9031328");
         
