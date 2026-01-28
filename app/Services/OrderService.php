@@ -59,8 +59,21 @@ class OrderService
                     'total' => round((float)$totalAfterDiscount, 2),
                 ]);
 
-                // 4. Deduct Stock (Atomic)
-                $cart->product->decrement('quantity', $cart->quantity);
+                // 4. Deduct Stock (Atomic & Safe)
+                // Update only if we have enough stock. This prevents race conditions.
+                $affected = DB::table('products')
+                    ->where('id', $cart->product->id)
+                    ->where('quantity', '>=', $cart->quantity)
+                    ->decrement('quantity', $cart->quantity);
+
+                if ($affected === 0) {
+                    // Check if it's because of stock or product existence
+                    $freshProduct = Product::find($cart->product->id);
+                    if (!$freshProduct) {
+                         throw new \Exception("Product '" . ($cart->product->name ?? 'Unknown') . "' was removed during checkout.");
+                    }
+                    throw new \Exception("Insufficient stock for '" . $freshProduct->name . "'. Available: " . $freshProduct->quantity);
+                }
             }
 
             // 5. Finalize Totals

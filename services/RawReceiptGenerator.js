@@ -64,24 +64,34 @@ class RawReceiptGenerator {
         // Return to Center for Content (User Request: "make them centered too")
         encoder = encoder.raw([0x1B, 0x61, 0x01]); // Center
 
-        const typeLabel = data.type === 'refund' ? "Refund: #" : "Inv: #";
-        const invStr = `${typeLabel}${id}`;
-        
-        const methodStr = `Pay: ${payment_method || (data.type === 'refund' ? 'Refund' : 'Cash')}`;
-        // Note: Using RAW command above to set alignment. Don't use .align() here as it might conflict.
-        encoder = encoder.line(this.twoColumn(invStr, methodStr, width));
-        
         if (data.type === 'refund') {
-            encoder = encoder.line(`Ref Order: #${data.order_id}`);
-        } else {
-             const trxStr = `Trx: ${data.transaction_id || '---'}`;
-             encoder = encoder.line(this.twoColumn(currentTime, trxStr, width));
-        }
+            // Refund Layout (Matches test_refund_match.js)
+            // Line 1: Refund ID + Date
+            const dateStr = "Date: " + now.toLocaleDateString('en-GB'); // DD/MM/YYYY
+            encoder = encoder.line(this.twoColumn(`Refund: #${id}`, dateStr, width));
+            
+            // Line 2: Ref Order + Payment Method
+            const refStr = `Ref Order: #${data.order_id}`;
+            const payStr = `Pay: ${payment_method || 'Cash'}`;
+            encoder = encoder.line(this.twoColumn(refStr, payStr, width));
 
-        encoder = encoder.line("-".repeat(width));
-        const custStr = (config.show_customer !== false) ? `Cust: ${customer ? (customer.name || customer) : 'Walk-in'}` : "";
-        const staffStr = `STN: ${staff ? staff.substring(0, 10) : 'N/A'}`;
-        encoder = encoder.line(this.twoColumn(custStr, staffStr, width));
+        } else {
+            // Sale Layout
+            // Line 1: Invoice + Payment
+            const invStr = `Inv: #${id}`;
+            const methodStr = `Pay: ${payment_method || 'Cash'}`;
+            encoder = encoder.line(this.twoColumn(invStr, methodStr, width));
+
+            // Line 2: Date + Trx
+            // Use full formatted time for Sales
+            const trxStr = `Trx: ${data.transaction_id || '---'}`;
+            encoder = encoder.line(this.twoColumn(currentTime, trxStr, width));
+            
+            // Line 3: Customer + Staff (Sales Only or Shared?)
+            const custStr = (config.show_customer !== false) ? `Cust: ${customer ? (customer.name || customer) : 'Walk-in'}` : "";
+            const staffStr = `STN: ${staff ? staff.substring(0, 10) : 'N/A'}`;
+            encoder = encoder.line(this.twoColumn(custStr, staffStr, width));
+        }
 
         // 3. Items Table
         encoder = encoder.line("-".repeat(width)).bold(true)
@@ -141,7 +151,7 @@ class RawReceiptGenerator {
         // SINYX Branding centered
         encoder = encoder.raw([0x1B, 0x61, 0x01]); // Center
         encoder = encoder.bold(true).text("Software by SINYX").bold(false).newline()
-                         .text("Contact: +92 342 9031328");
+                         .text("Contact: +92 311 6514288");
         
         encoder = encoder.newline().newline().newline().newline().pulse().cut();
 

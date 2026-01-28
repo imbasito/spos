@@ -1,53 +1,230 @@
 @extends('backend.master')
 
-@section('title', 'Refunds V3')
+@section('title', 'Refunds')
 
 @section('content')
-<div class="card">
-  <div class="card-header bg-danger text-white">
-    <h3 class="card-title"><i class="fas fa-undo"></i> Refund History (V3 DUPLICATE)</h3>
-  </div>
-  <div class="card-body p-2 p-md-4 pt-0">
-    <div class="row g-4">
-      <div class="col-md-12">
-        <div class="card-body table-responsive p-0" id="table_data">
-          <!-- Debug Info -->
-          <div class="alert alert-info">
-              <strong>Debug Mode:</strong> This is the V3 Duplicate Tab. If you see this, the code update IS ACTIVE.
-          </div>
+<div class="row animate__animated animate__fadeIn">
+  <div class="col-12">
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
+      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <h3 class="card-title font-weight-bold text-white mb-0">
+          <i class="fas fa-undo mr-2"></i> Refund List
+        </h3>
+      </div>
 
-          <table id="datatables" class="table table-hover">
-            <thead>
-              <tr>
-                <th data-orderable="false">#</th>
-                <th>Return #</th>
-                <th>Order #</th>
-                <th>Refund Amount</th>
-                <th>Processed By</th>
-                <th>Date</th>
-                <th data-orderable="false">Action</th>
-              </tr>
-            </thead>
-          </table>
+      <div class="card-body p-4">
+        <div class="row g-4">
+          <div class="col-md-12">
+            <div class="table-responsive">
+              <table id="refundDatatables" class="table table-hover mb-0 custom-premium-table">
+                <thead class="bg-dark text-white text-uppercase font-weight-bold small">
+                  <tr>
+                    <th data-orderable="false" style="color: #ffffff !important; background-color: #4E342E !important;">#</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Return #</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Order ID</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Total Refund {{currency()->symbol??''}}</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Processed By</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Date</th>
+                    <th data-orderable="false" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div> {{-- Close main card-body --}}
-</div> {{-- Close main card --}}
+  </div>
+</div>
 
-<!-- FRESH REFUND PREVIEW MODAL V3 FIXED -->
-<div class="modal fade" id="refundPreviewModalV3_FIXED" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">
-        <div class="modal-content shadow-lg border-0" style="border-radius: 8px;">
+<style>
+  .custom-premium-table thead th {
+    border: none;
+    color: #ffffff !important;
+    letter-spacing: 0.05em;
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+  .custom-premium-table tbody td {
+    vertical-align: middle;
+    color: #2d3748;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #edf2f9;
+  }
+  .custom-premium-table tr:last-child td {
+    border-bottom: none;
+  }
+  .custom-premium-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+  .text-maroon {
+    color: #800000 !important;
+  }
+  .bg-gradient-maroon {
+    background: linear-gradient(45deg, #800000, #A01010) !important;
+  }
+</style>
+@endsection
+
+@push('script')
+<script type="text/javascript">
+  $(function() {
+    let table = $('#refundDatatables').DataTable({
+      processing: true,
+      serverSide: true,
+      ordering: true,
+      order: [[0, 'desc']], // Default sort by ID desc
+      ajax: {
+        url: "{{ route('backend.admin.refunds.index') }}"
+      },
+      columns: [
+        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4' },
+        { data: 'return_number', name: 'return_number', className: 'font-weight-bold' },
+        { data: 'order_id', name: 'order_id' },
+        { data: 'total_refund', name: 'total_refund', className: 'font-weight-bold text-danger' },
+        { data: 'processed_by', name: 'processed_by' },
+        { data: 'created_at', name: 'created_at' },
+        { data: 'action', name: 'action', className: 'text-right pr-4' },
+      ],
+      language: {
+        search: "_INPUT_",
+        searchPlaceholder: "Search refunds...",
+        lengthMenu: "_MENU_ per page",
+        paginate: {
+            previous: '<i class="fas fa-chevron-left"></i>',
+            next: '<i class="fas fa-chevron-right"></i>'
+        }
+      }
+    });
+    
+    // Style Inputs
+    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
+    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
+  });
+
+  // Global Helper to Hide Spinner
+  window.finalizeRefundReceiptLoad = function() {
+      const loader = document.getElementById('refundReceiptLoader');
+      const frame = document.getElementById('refundReceiptFrame');
+      if (loader) loader.style.display = 'none';
+      if (frame) frame.style.visibility = 'visible';
+  }
+
+  // Listener for Child Frame
+  window.addEventListener('message', function(e) {
+      if (e.data === 'receipt-loaded' || e.data === 'refund-receipt-loaded') {
+          window.finalizeRefundReceiptLoad();
+      }
+      if (e.data === 'close-modal') {
+          $('#refundReceiptModal').modal('hide');
+      }
+  });
+
+  // Open Refund Receipt Modal (Matches Sales List Logic)
+  window.openRefundReceiptV3 = function(url) {
+      const frame = document.getElementById('refundReceiptFrame');
+      const loader = document.getElementById('refundReceiptLoader');
+      
+      loader.style.display = 'flex';
+      frame.style.visibility = 'hidden';
+      frame.src = 'about:blank';
+      
+      $('#refundReceiptModal').modal('show');
+      
+      // Load Iframe
+      frame.onload = function() {
+          if (frame.contentWindow.location.href !== "about:blank") {
+              setTimeout(() => {
+                  loader.style.display = 'none';
+                  frame.style.visibility = 'visible';
+              }, 100);
+          }
+      };
+
+      const cacheBuster = url.indexOf('?') !== -1 ? '&_v=' : '?_v=';
+      frame.src = url + cacheBuster + Date.now();
+      
+      // Safety Timeout
+      setTimeout(() => {
+          loader.style.display = 'none';
+          frame.style.visibility = 'visible';
+      }, 3000);
+  };
+
+  // Print Logic (Raw / Headless)
+  async function printRefundReceipt() {
+      const frame = document.getElementById('refundReceiptFrame');
+      const currentUrl = frame.src;
+      
+      // Extract Refund ID
+      const match = currentUrl.match(/refunds\/(\d+)/);
+      if (!match || !match[1]) {
+           // Fallback Browser Print
+           frame.contentWindow.focus();
+           frame.contentWindow.print();
+           return;
+      }
+      
+      const refundId = match[1];
+      const apiUrl = `/admin/refunds/${refundId}/details`;
+
+      // Toast Loading
+      Swal.fire({
+          title: 'Printing...',
+          didOpen: () => Swal.showLoading(),
+          toast: true, 
+          position: 'top-end', 
+          showConfirmButton: false
+      });
+
+      try {
+           if (window.electron && window.electron.printSilent) {
+               const res = await fetch(apiUrl);
+               const jsonRes = await res.json();
+               
+               if(jsonRes.success && jsonRes.data) {
+                   const printData = jsonRes.data;
+                   printData.type = 'refund'; // Force Type
+
+                   await window.electron.printSilent(null, "POS80", null, printData);
+                   
+                   Swal.fire({ 
+                        icon: 'success', title: 'Printed Successfully', 
+                        toast: true, position: 'top-end', timer: 2000, showConfirmButton: false 
+                   });
+               } else {
+                   throw new Error("Invalid API Data");
+               }
+           } else {
+               // Fallback
+               frame.contentWindow.focus();
+               frame.contentWindow.print();
+               Swal.close();
+           }
+      } catch (e) {
+          console.error("Print Error", e);
+          Swal.fire({ icon: 'warning', title: 'Raw Print Failed', text: 'Falling back to simple print', toast: true, position: 'top-end', timer: 2000 });
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+      }
+  }
+
+</script>
+
+<!-- REFUND RECEIPT MODAL -->
+<div class="modal fade" id="refundReceiptModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 420px;">
+        <div class="modal-content shadow-lg" style="border: none; border-radius: 8px;">
             
-            <!-- Header: Title + Actions -->
-            <div class="modal-header bg-dark text-white p-2 d-flex justify-content-between align-items-center" style="border-bottom: 3px solid #800000;">
-                <h6 class="modal-title font-weight-bold ml-2">
-                    <i class="fas fa-receipt mr-1"></i> Receipt Preview (V3 FIXED)
+            <!-- Title Bar -->
+            <div class="modal-header bg-dark text-white p-2 d-flex justify-content-between align-items-center" style="border-bottom: 3px solid #800000; border-radius: 8px 8px 0 0;">
+                <h6 class="modal-title font-weight-bold m-0 pl-2">
+                    <i class="fas fa-receipt mr-1"></i> Refund Receipt
                 </h6>
                 <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-light font-weight-bold shadow-none" id="btnPrintRefundV3" title="Print Receipt">
-                        <i class="fas fa-print"></i> Print
+                    <button type="button" class="btn btn-light font-weight-bold shadow-none" onclick="printRefundReceipt()" title="Print Receipt">
+                        <i class="fas fa-print text-dark"></i> Print
                     </button>
                     <button type="button" class="btn btn-danger font-weight-bold shadow-none" data-dismiss="modal" title="Close">
                         <i class="fas fa-times"></i>
@@ -55,135 +232,19 @@
                 </div>
             </div>
 
-            <!-- Body: Iframe Container -->
-            <div class="modal-body p-0 position-relative" style="height: 550px; background: #e9ecef;">
+            <!-- Modal Body (Iframe) -->
+            <div class="modal-body p-0 position-relative" style="height: 600px; background: #525659;">
                 <!-- Loader -->
-                <div id="refundLoaderV3" class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: white; z-index: 10;">
+                <div id="refundReceiptLoader" class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: white; z-index: 10;">
                     <div class="spinner-border text-maroon" role="status"></div>
-                    <div class="mt-2 text-muted small font-weight-bold">Loading V3...</div>
+                    <div class="mt-2 font-weight-bold small text-muted">Loading Receipt...</div>
                 </div>
-                
-                <!-- Iframe -->
-                <iframe id="refundFrameV3" name="refundFrameV3" src="about:blank" 
+
+                <!-- Preview Frame -->
+                <iframe id="refundReceiptFrame" name="refundReceiptFrame" src="about:blank" 
                         style="width: 100%; height: 100%; border: none; display: block; background: white;"></iframe>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    /* Force Modal on Top - SUPER HIGH Z-INDEX */
-    #refundPreviewModalV3_FIXED { z-index: 100000 !important; }
-    .modal-backdrop { z-index: 99999 !important; }
-</style>
-
-@endsection
-
-@push('script')
-<script type="text/javascript">
-  
-  // 1. OPEN MODAL V3
-  window.openRefundReceiptV3 = function(url) {
-      console.log("V3 FIXED MODAL TRIGGERED:", url);
-
-      // Fix Stacking Context: Move UNIQUE modal to body
-      const modal = $('#refundPreviewModalV3_FIXED');
-      if (modal.parent()[0] !== document.body) {
-          modal.appendTo("body");
-      }
-
-      // Show Modal & Loader
-      $('#refundLoaderV3').show();
-      $('#refundFrameV3').attr('src', 'about:blank');
-      modal.modal('show');
-
-      // Set Iframe Source with robust loading logic
-      setTimeout(() => {
-          const frame = document.getElementById('refundFrameV3');
-          
-          // Safety Timeout: Force hide loader after 5 seconds if onload fails
-          const safetyTimeout = setTimeout(() => {
-               console.warn("Loader Safety Timeout triggered");
-               $('#refundLoaderV3').fadeOut(200);
-          }, 5000);
-
-          frame.onload = function() {
-              console.log("Iframe Loaded");
-              clearTimeout(safetyTimeout); 
-              $('#refundLoaderV3').fadeOut(200);
-          };
-          
-          frame.src = url; 
-          
-          // Store ID for Printing
-          const match = url.match(/\/refunds\/(\d+)/);
-          if(match && match[1]) {
-              $('#btnPrintRefundV3').data('refund-id', match[1]);
-          }
-      }, 300);
-  };
-
-  // 2. PRINT LOGIC (Raw / Silent)
-  $('#btnPrintRefundV3').click(async function() {
-      const refundId = $(this).data('refund-id');
-      const frame = document.getElementById('refundFrameV3');
-      const btn = $(this);
-      const originalIcon = btn.html();
-      
-      btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Printing...');
-
-      try {
-          // Attempt Raw Printing via Electron
-          if (window.electron && window.electron.printSilent) {
-              const res = await fetch(`/admin/refunds/${refundId}/details`);
-              const json = await res.json();
-              
-              if (json.success && json.data) {
-                  json.data.type = 'refund'; 
-                  await window.electron.printSilent(null, "POS80", null, json.data);
-                  Swal.fire({ 
-                      icon: 'success', 
-                      title: 'Printed Successfully', 
-                      toast: true, 
-                      position: 'top-end', 
-                      showConfirmButton: false, 
-                      timer: 2000 
-                  });
-              } else {
-                  throw new Error("Invalid Data Received");
-              }
-          } else {
-              // Fallback: Browser Print
-              if(frame.contentWindow) { 
-                  frame.contentWindow.focus(); 
-                  frame.contentWindow.print(); 
-              }
-          }
-      } catch (e) {
-          console.error("Print Error:", e);
-          Swal.fire({ icon: 'error', title: 'Print Failed', text: e.message, toast: true, position: 'top-end', timer: 3000 });
-          if(frame.contentWindow) frame.contentWindow.print();
-      } finally {
-          btn.prop('disabled', false).html(originalIcon);
-      }
-  });
-
-  $(function() {
-    $('#datatables').DataTable({
-      processing: true,
-      serverSide: true,
-      ajax: "{{ route('backend.admin.refunds.index') }}",
-      columns: [
-        { data: 'DT_RowIndex', name: 'DT_RowIndex' },
-        { data: 'return_number', name: 'return_number' },
-        { data: 'order_id', name: 'order_id' },
-        { data: 'total_refund', name: 'total_refund' },
-        { data: 'processed_by', name: 'processed_by' },
-        { data: 'created_at', name: 'created_at' },
-        { data: 'action', name: 'action' },
-      ],
-      order: [[1, 'desc']]
-    });
-  });
-</script>
 @endpush
