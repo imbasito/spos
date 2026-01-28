@@ -44,8 +44,8 @@
   'backup_path' => '',
   'auto_backup' => 'disabled',
   'last_backup_date' => '2026-01-26 12:40:54',
-  'license_key' => 'MPOS-eyJzaG9wIjoiQmFzaXQiLCJleHBpcnkiOiIyMDI3LTAxLTE5IiwibWFjaGluZSI6IkU4MEEwNzAyRDMxNCIsImNyZWF0ZWQiOiIyMDI2LTAxLTIwIn0=-730FAEA5',
-  'licensed_to' => 'Basit',
-  'receipt_printer' => 'Microsoft Print to PDF',
-  'tag_printer' => 'Microsoft Print to PDF',
+  'license_key' => 'MPOS-eyJzaG9wIjoiYmciLCJleHBpcnkiOiIyMDI3LTAxLTI3IiwibWFjaGluZSI6IkFOWSIsImNyZWF0ZWQiOiIyMDI2LTAxLTI3In0=-1AE19D5F',
+  'licensed_to' => 'bg',
+  'receipt_printer' => 'POS80',
+  'tag_printer' => 'POS80',
 );

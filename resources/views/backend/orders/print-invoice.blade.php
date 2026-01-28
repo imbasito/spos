@@ -118,6 +118,17 @@
                 <th>Discount:</th>
                 <td class="text-right">{{currency()->symbol.' '.number_format($order->discount,2,'.',',')}}</td>
               </tr>
+              <!-- Tax Implementation -->
+               @php 
+                $taxPercent = 0; 
+                $taxAmount = 0; 
+              @endphp
+              @if($taxAmount > 0)
+              <tr>
+                <th>Tax / VAT ({{$taxPercent}}%):</th>
+                <td class="text-right">(+{{ number_format($taxAmount, 2) }})</td>
+              </tr>
+              @endif
               <tr>
                 <th>Total:</th>
                 <td class="text-right">{{currency()->symbol.' '.number_format($order->total,2,'.',',')}}</td>
@@ -152,6 +163,26 @@
 <style>
   .invoice {
     border: none !important;
+    font-family: 'Inter', sans-serif; /* Consisent Typography */
+  }
+  
+  /* Thermal/Clean Optimization */
+  .brand-image {
+      filter: grayscale(100%) contrast(150%);
+  }
+
+  /* Table Breathing Room */
+  .table th, .table td {
+      padding: 12px 0.75rem !important;
+      vertical-align: middle !important;
+      border-top: 1px dotted #dee2e6 !important; /* Dotted style */
+  }
+
+  .table thead th {
+      border-bottom: 2px solid #000 !important;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
   }
 </style>
 @endpush

@@ -33,7 +33,7 @@ class RefundController extends Controller
                 ->addColumn('created_at', fn($data) => '<span class="text-muted">' . $data->created_at->format('d M, Y') . '</span><br><small>' . $data->created_at->format('h:i A') . '</small>')
                 ->addColumn('action', function ($data) {
                     $url = route('backend.admin.refunds.receipt', $data->id);
-                    return '<button type="button" onclick="openRefundReceipt(\'' . $url . '\')" class="btn btn-sm btn-info px-3 font-weight-bold shadow-sm">
+                    return '<button type="button" onclick="openRevisedRefundReceipt(\'' . $url . '\')" class="btn btn-sm btn-info px-3 font-weight-bold shadow-sm">
                         <i class="fas fa-receipt mr-1"></i> View Receipt
                     </button>';
                 })
@@ -105,9 +105,16 @@ class RefundController extends Controller
 
                 if ($quantity <= 0) continue;
 
-                // Calculate refund amount for this item (exact proportional refund based on original bill)
+                // Calculate refund amount for this item (exact proportional refund based on original line total)
                 $pricePerUnit = $orderProduct->total / $orderProduct->quantity;
-                $refundAmount = $pricePerUnit * $quantity;
+                $lineRefundAmount = $pricePerUnit * $quantity;
+                
+                // ADJUST FOR GLOBAL ORDER DISCOUNT:
+                // If there was an order-level discount, we must refund proportionally to what was actually paid.
+                // Formula: Adjusted Refund = LineRefund * (OrderTotal / OrderSubTotal)
+                $adjustmentFactor = ($order->sub_total > 0) ? ($order->total / $order->sub_total) : 1;
+                $refundAmount = round($lineRefundAmount * $adjustmentFactor, 2);
+                
                 $totalRefund += $refundAmount;
 
                 // Create return item
@@ -119,12 +126,11 @@ class RefundController extends Controller
                     'refund_amount' => $refundAmount,
                 ]);
 
-                // Update product stock (add back to inventory)
+                // Update product stock (add back to inventory) - ATOMIC
                 $product = Product::find($orderProduct->product_id);
                 if ($product) {
-                    $product->quantity += $quantity;
-                    $product->total_returned = ($product->total_returned ?? 0) + $quantity;
-                    $product->save();
+                    $product->increment('quantity', $quantity);
+                    $product->increment('total_returned', $quantity);
                 }
             }
 
@@ -212,5 +218,68 @@ class RefundController extends Controller
 
         $maxWidth = readConfig('receiptMaxwidth') ?? '300px';
         return view('backend.refunds.receipt', compact('return', 'maxWidth'));
+    }
+
+    public function refundDetails($id)
+    {
+        try {
+            $return = ProductReturn::with([
+                'order.customer',
+                'order.products.product',
+                'items.product',
+                'processedBy'
+            ])->findOrFail($id);
+
+            $order = $return->order;
+            // Sum all refunds for this order
+            $totalRefundedSoFar = \App\Models\ProductReturn::where('order_id', $order->id)->sum('total_refund');
+
+            $data = [
+                'success' => true,
+                'data' => [
+                    'id' => $return->return_number,
+                    'order_id' => $order->order_number ?? $order->id,
+                    'date' => $return->created_at->format('d M Y h:i A'),
+                    'staff' => $return->processedBy->name ?? 'Admin',
+                    'customer' => [
+                        'name' => $order->customer->name ?? 'Walk-in',
+                        'phone' => $order->customer->phone ?? ''
+                    ],
+                    'items' => $return->items->map(function($item) {
+                        $qty = (float) $item->quantity;
+                        $refundAmt = (float) $item->refund_amount;
+                        $unitPrice = ($qty > 0.00001) ? ($refundAmt / $qty) : 0.00;
+
+                        return [
+                            'name' => $item->product->name ?? 'Product',
+                            'qty' => $item->quantity,
+                            'price' => number_format($unitPrice, 2),
+                            'total' => number_format($refundAmt, 2)
+                        ];
+                    }),
+                    'total' => number_format($return->total_refund, 2),
+                    'order_summary' => [
+                        'original_total' => number_format($order->sub_total - $order->discount, 2),
+                        'total_refunded' => number_format($totalRefundedSoFar, 2),
+                        'adjusted_total' => number_format($order->total, 2)
+                    ],
+                    'config' => [
+                        'site_name' => readConfig('site_name'),
+                        'address' => readConfig('contact_address'),
+                        'phone' => readConfig('contact_phone'),
+                        'email' => readConfig('contact_email'),
+                        'logo_url' => assetImage(readConfig('site_logo')),
+                        'show_logo' => readConfig('is_show_logo_invoice'),
+                        'show_address' => readConfig('is_show_address_invoice'),
+                        'show_phone' => readConfig('is_show_phone_invoice'),
+                        'show_email' => readConfig('is_show_email_invoice')
+                    ]
+                ]
+            ];
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 }

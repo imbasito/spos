@@ -14,6 +14,11 @@ class BarcodeHistory extends Model
     protected $fillable = [
         'barcode',
         'label',
+        'price',
+        'label_size',
+        'mfg_date',
+        'exp_date',
+        'show_price',
         'user_id',
     ];
 

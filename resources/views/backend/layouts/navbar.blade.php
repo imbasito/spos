@@ -15,8 +15,6 @@
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto align-items-center">
 
-        <!-- Live Hardware Monitor (Apple-Standard) -->
-        <li class="nav-item d-none d-lg-block mr-3" id="hardware-monitor"></li>
 
 
         @can('sale_create')

@@ -5,12 +5,14 @@
 
 :root {
     /* --- COLOR PALETTE (Natural Mutes) --- */
-    --apple-gray-1: #1d1d1f;      /* Deep Text */
-    --apple-gray-2: #86868b;      /* Subtext / Medium focus */
-    --apple-gray-3: #aeaeb2;      /* Light subtext / Backgrounds */
-    --apple-gray-4: #f2f2f7;      /* System Gray 6 (Faint BG) */
-    --apple-bg: #f5f5f7;          /* Page background */
-    --apple-accent: #800000;      /* Sinyx Brand Maroon (Muted) */
+    --apple-gray-1: #1d1d1f;      /* Apple Standard Deep Text */
+    --apple-gray-2: #424245;      /* Apple Standard Subtext */
+    --apple-gray-3: #86868b;      /* Muted focus */
+    --apple-gray-4: #f5f5f7;      /* System Gray 6 (Dimmed) */
+    --apple-bg: #e5e5ea;          /* Standard Apple Dim Background (More comfortable) */
+    --apple-accent: #800000;      /* Pure Maroon */
+    --pastel-bg: #f2f2f7;         /* Dimmer Sidebar Background */
+
     
     /* --- SPACING GRID (Rules, not guesses) --- */
     --spacing-xs: 4px;
@@ -19,24 +21,19 @@
     --spacing-lg: 24px;
     --spacing-xl: 32px;
 
-    /* --- SHADOWS (Ambient Occlusion) --- */
-    --apple-shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
-    --apple-shadow-md: 0 12px 40px rgba(0, 0, 0, 0.08);
-    --apple-shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.12);
+    /* --- SHADOWS (Ambient Occlusion - 0% Performance Cost) --- */
+    --apple-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.04);
+    --apple-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
+    --apple-shadow-deep: 0 15px 45px rgba(0, 0, 0, 0.1);
     
     /* --- BORDERS & CORNERS --- */
     --radius-sm: 8px;
     --radius-md: 14px;
-    --radius-lg: 28px;
+    --radius-lg: 24px;
     --apple-border: 1px solid rgba(0, 0, 0, 0.05);
-    --apple-border-light: 1px solid rgba(0, 0, 0, 0.03);
 
-    /* --- GLASS --- */
-    --glass-blur: blur(20px);
-    --glass-bg: rgba(255, 255, 255, 0.7);
-
-    /* --- TYPOGRAPHY --- */
-    --font-main: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
+    /* --- TYPOGRAPHY (Windows Native - 0MB RAM Cost) --- */
+    --font-main: -apple-system, 'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif;
 }
 
 /* --- Global Consistency Rules --- */
@@ -47,12 +44,13 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+
 /* Rounded Cards by Default */
 .card {
     border-radius: var(--radius-md);
     border: var(--apple-border);
-    box-shadow: var(--apple-shadow-soft);
-    background: #fff;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* Softer shadow for dim mode */
+    background: #ffffff;
     overflow: hidden;
 }
 
@@ -80,3 +78,182 @@ body {
     transform: translateY(-1px);
     box-shadow: var(--apple-shadow-soft);
 }
+
+/* ============================================================ 
+   APPLE-STANDARD SIDEBAR RECONSTRUCTION (HIGH PERFORMANCE)
+   ============================================================ */
+
+/* Hover Trigger Area */
+.sidebar-hover-trigger {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 20px; /* Wider proximity trigger */
+    height: 100vh;
+    z-index: 1039; /* Just below sidebar but above content */
+    background: transparent;
+}
+
+.main-sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    width: 260px !important;
+    background: #ffffff !important; /* Pure Solid White - No Glass */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: none !important;
+    z-index: 1050 !important;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: transform;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    transform: translateX(0);
+}
+
+.main-sidebar::after {
+    display: none !important;
+}
+
+/* Binary State: Fully Hidden and Detached */
+.sidebar-collapse .main-sidebar {
+    transform: translateX(-100%) !important;
+}
+
+/* Hover Reveal Physics */
+.sidebar-hover-trigger:hover ~ .main-sidebar,
+.main-sidebar:hover {
+    transform: translateX(0) !important;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.05) !important;
+}
+
+/* Ensure no glass effects during reveal/slide */
+.sidebar-collapse .main-sidebar,
+.sidebar-open .main-sidebar,
+.main-sidebar:hover {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+
+/* Logo Area - Absolute Cleanliness */
+.brand-link, .main-sidebar .brand-link {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+    padding: 30px 10px 20px !important;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: none !important;
+    height: auto !important;
+    min-height: 160px;
+}
+
+.brand-link img.brand-image-refined {
+    width: 85px !important;
+    height: auto !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    padding: 6px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+    margin-bottom: 15px !important;
+}
+
+.brand-text {
+    color: var(--apple-gray-1) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin: 0 !important;
+    text-align: center;
+}
+
+
+/* Navigation Items - Contrast & Spacing Fix */
+.nav-sidebar .nav-item {
+    margin: 4px 12px !important; /* Spacing for pills */
+    width: calc(100% - 24px) !important;
+}
+
+.nav-sidebar .nav-link {
+    border-radius: 10px !important;
+    padding: 10px 16px !important;
+    color: #3a3a3c !important; /* High contrast for unselected */
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+.nav-sidebar .nav-link:hover {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: #000 !important;
+}
+
+.nav-sidebar .nav-item > .nav-link.active,
+.sidebar-light-lightblue .nav-sidebar > .nav-item > .nav-link.active,
+aside.main-sidebar .nav-link.active {
+    background-color: #800000 !important;
+    background: #800000 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25) !important;
+    font-weight: 600 !important;
+}
+
+.nav-sidebar .nav-icon {
+    color: inherit !important;
+    font-size: 1.1rem !important;
+    margin-right: 12px !important;
+    opacity: 0.9;
+}
+
+.nav-header {
+    padding: 20px 24px 8px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: #8e8e93 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em;
+}
+
+/* Clean Sidebar Scrollbar */
+.sidebar::-webkit-scrollbar { width: 0px !important; }
+
+/* Content Wrapper adjustment */
+/* Content & Header Smooth Shifts (Static fallback) */
+.main-header, .content-wrapper, .main-footer {
+    margin-left: 260px !important;
+    transition: margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* Binary State: Handle Shifts when collapsed */
+body.sidebar-collapse .main-header,
+body.sidebar-collapse .content-wrapper,
+body.sidebar-collapse .main-footer {
+    margin-left: 0 !important;
+}
+
+/* Hide legacy AdminLTE noise WITHOUT hiding the sidebar itself */
+.main-sidebar::before {
+    display: none !important;
+}
+
+/* Reset AdminLTE background layers to transparent */
+.sidebar-dark-primary, .sidebar-light-primary, .sidebar-light-lightblue {
+    background: transparent !important;
+}
+
+
+
+

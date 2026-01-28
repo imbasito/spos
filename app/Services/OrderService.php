@@ -54,9 +54,9 @@ class OrderService
                     'quantity' => $cart->quantity,
                     'price' => $cart->product->price,
                     'purchase_price' => $cart->product->purchase_price,
-                    'sub_total' => $mainTotal,
-                    'discount' => $discount,
-                    'total' => $totalAfterDiscount,
+                    'sub_total' => round((float)$mainTotal, 2),
+                    'discount' => round((float)$discount, 2),
+                    'total' => round((float)$totalAfterDiscount, 2),
                 ]);
 
                 // 4. Deduct Stock (Atomic)
@@ -69,9 +69,9 @@ class OrderService
             $due = $total - $paid;
 
             $order->update([
-                'sub_total' => $totalAmountOrder,
-                'discount' => $orderDiscount,
-                'paid' => $paid,
+                'sub_total' => round((float)$totalAmountOrder, 2),
+                'discount' => round((float)$orderDiscount, 2),
+                'paid' => round((float)$paid, 2),
                 'total' => round((float)$total, 2),
                 'due' => round((float)$due, 2),
                 'status' => round((float)$due, 2) <= 0,
@@ -117,7 +117,8 @@ class OrderService
                 'amount' => $amount,
                 'customer_id' => $order->customer_id,
                 'user_id' => $userId,
-                'paid_by' => 'cash',
+                'paid_by' => $data['payment_method'] ?? 'cash',
+                'transaction_id' => $data['transaction_id'] ?? null,
             ]);
 
             return $transaction;

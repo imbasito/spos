@@ -258,7 +258,7 @@
 
             }).catch(err => {
                 console.error(err);
-                statusMsg.innerHTML = '<i class="fas fa-times-circle"></i> Service unavailable.';
+                statusMsg.innerHTML = `<i class="fas fa-times-circle"></i> Service unavailable: ${err.message || err}`;
                 statusMsg.className = 'text-danger small';
             });
         } else {

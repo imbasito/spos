@@ -6,9 +6,11 @@
         autoFractionalDiscount: {{ (readConfig('auto_fractional_discount') ?? 0) == 1 ? 'true' : 'false' }},
         logoPath: "{{ assetImage(readConfig('site_logo')) }}",
         receiptPrinter: "{{ readConfig('receipt_printer') }}",
-        tagPrinter: "{{ readConfig('tag_printer') }}"
+        tagPrinter: "{{ readConfig('tag_printer') }}",
+        currencySymbol: "{{ currency()->symbol ?? 'Rs.' }}"
     };
 </script>
+
 <div id="cart"></div>
 @push('style')
 <style>

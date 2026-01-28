@@ -8,27 +8,93 @@ import PaymentModal from "./PaymentModal";
 import ReceiptModal from "./ReceiptModal";
 import debounce from "lodash/debounce";
 import throttle from "lodash/throttle";
-import PrinterStatus from "./PrinterStatus";
 import ErrorBoundary from "./ErrorBoundary";
 
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
+// Custom Professional Context Menu Component
+const ContextMenu = ({ x, y, onAction, onClose, product }) => {
+    useEffect(() => {
+        const handleClick = () => onClose();
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, [onClose]);
+
+    return (
+        <div 
+            className="pos-context-menu shadow-lg"
+            style={{ 
+                position: 'fixed', 
+                top: y + 'px', 
+                left: x + 'px', 
+                zIndex: 10000, 
+                display: 'block',
+                margin: 0
+            }}
+        >
+            <div className="px-3 py-1 mb-1 border-bottom" style={{ background: 'rgba(0,0,0,0.02)' }}>
+                <small className="font-weight-bold text-muted text-uppercase" style={{ fontSize: '0.65rem', letterSpacing: '0.08em' }}>{product.name}</small>
+            </div>
+            <div className="context-item d-flex align-items-center px-3 py-2" onClick={() => onAction('edit')} style={{ cursor: 'pointer' }}>
+                <i className="fas fa-edit mr-3 text-secondary" style={{ fontSize: '0.85rem', opacity: 0.8 }}></i> <span>Edit Detail</span>
+            </div>
+            <div className="context-item d-flex align-items-center px-3 py-2 border-top" onClick={() => onAction('purchase')} style={{ cursor: 'pointer' }}>
+                <i className="fas fa-cart-arrow-down mr-3 text-success" style={{ fontSize: '0.85rem', opacity: 0.8 }}></i> <span>Add Stock</span>
+            </div>
+
+
+            <style>{`
+                .pos-context-menu {
+                    background-color: rgba(255, 255, 255, 0.82);
+                    backdrop-filter: blur(25px);
+                    -webkit-backdrop-filter: blur(25px);
+                    border-radius: 12px;
+                    min-width: 220px; 
+                    padding: 6px 0;
+                    overflow: hidden; 
+                    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                    animation: appleContextMenuFade 0.15s ease-out;
+                    transform-origin: 0 0;
+                }
+
+                @keyframes appleContextMenuFade {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+                .context-item { 
+                    font-size: 0.9rem; 
+                    font-weight: 500;
+                    color: #1d1d1f !important;
+                    transition: all 0.2s ease; 
+                }
+                .context-item:hover { background: rgba(0,0,0,0.05); }
+            `}</style>
+        </div>
+    );
+};
+
+
+
+
+
 
 
 // Memoized ProductCard component
-const ProductCard = memo(({ product, onClick, baseUrl }) => (
+const ProductCard = memo(({ product, onClick, onContextMenu, baseUrl }) => (
     <div
         onClick={() => onClick(product.id)}
+        onContextMenu={(e) => onContextMenu(e, product)}
         className="col-6 col-md-4 col-lg-3 mb-3 px-3px"
         style={{ cursor: "pointer" }}
     >
-        <div className="pos-product-card h-100">
+        <div className={`pos-product-card h-100 ${product.quantity <= 0 ? 'out-of-stock-card' : ''}`}>
             <div className="pos-product-img-wrapper">
                 <div className="pos-availability-badge">
                     <span className={`pos-availability-dot ${product.quantity <= 0 ? 'out-of-stock' : ''}`}></span>
-                    {product.quantity > 0 ? `Available ( ${product.quantity} )` : 'Out of Stock'}
+                    {product.quantity > 0 ? `Available ( ${product.quantity} )` : `Not Available ( 0 )`}
                 </div>
                 <img
                     src={`${baseUrl}/storage/${product.image}`}
@@ -52,9 +118,13 @@ const ProductCard = memo(({ product, onClick, baseUrl }) => (
                 </div>
             </div>
         </div>
-
+        <style>{`
+            .out-of-stock-card { opacity: 0.95; filter: grayscale(0.2); }
+            .pos-availability-dot.out-of-stock { background-color: #ff3b30 !important; box-shadow: 0 0 6px rgba(255, 59, 48, 0.4); }
+        `}</style>
     </div>
 ));
+
 
 // Skeleton Loader Component
 const ProductSkeleton = () => (
@@ -90,6 +160,10 @@ export default function Pos() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showReceiptModal, setShowReceiptModal] = useState(false);
     const [receiptUrl, setReceiptUrl] = useState('');
+    
+    // Context Menu State
+    const [contextMenu, setContextMenu] = useState(null);
+
 
     const { protocol, hostname, port } = window.location;
     const [currentPage, setCurrentPage] = useState(1);
@@ -122,9 +196,9 @@ export default function Pos() {
             }
         }
 
-        // 3. Final Values
+        // 3. Final Values: Show full decimals (as requested)
         const finalTotal = parseFloat((subTotalAfterManual - roundDisc).toFixed(2));
-        const finalDiscount = parseFloat((manDisc + roundDisc).toFixed(2));
+        const finalDiscountValue = parseFloat((manDisc + roundDisc).toFixed(2));
 
         return {
             subTotal,
@@ -132,7 +206,7 @@ export default function Pos() {
             subTotalAfterManual,
             roundingDiscount: roundDisc,
             finalTotal,
-            finalDiscount
+            finalDiscount: finalDiscountValue
         };
     }, [total, manualDiscount, autoRound]);
 
@@ -159,7 +233,16 @@ export default function Pos() {
             else params.search = search;
 
             const res = await axios.get('/admin/get/products', { params });
-            const productsData = res.data;
+            let productsData = res.data;
+
+            // Professional Partitioning: Available (Quantity > 0) items first, then Not Available.
+            const sortedData = [...productsData.data].sort((a, b) => {
+                if (a.quantity > 0 && b.quantity <= 0) return -1;
+                if (a.quantity <= 0 && b.quantity > 0) return 1;
+                return 0; // Maintain relative order (ID order) within groups
+            });
+
+            productsData.data = sortedData;
 
             // Cache the result
             setProductCache(prev => ({ ...prev, [cacheKey]: productsData.data }));
@@ -168,6 +251,7 @@ export default function Pos() {
 
             if (page === 1) {
                 setProducts(productsData.data);
+
                 if (productsData.data.length === 1 && isBarcode) {
                    addProductToCart(productsData.data[0].id);
                    setSearchQuery(''); 
@@ -201,7 +285,13 @@ export default function Pos() {
     // Initial Load
     useEffect(() => {
          getProducts();
-         checkJournal(); // Check for interrupted session
+         
+         // Only check journal if not already checked in this session (Tab switching vs App launch)
+         const alreadyChecked = sessionStorage.getItem('pos_journal_checked');
+         if (!alreadyChecked) {
+             checkJournal();
+         }
+         
          setInitialLoadDone(true);
          // Bridge Check
          if(window.electron && window.electron.isElectron) {
@@ -209,7 +299,44 @@ export default function Pos() {
          }
     }, []);
 
-    // Journal Recovery logic
+    // --- KEYBOARD SHORTCUTS (Professional Workflow) ---
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            // F1: New Sale (Reload)
+            if (e.key === 'F1') {
+                e.preventDefault();
+                if(confirm('Start New Sale? Current cart will be cleared.')) {
+                   window.location.reload();
+                }
+            }
+            
+            // F2: Focus Search
+            if (e.key === 'F2') {
+                e.preventDefault();
+                document.getElementById('product-search-input')?.focus();
+            }
+
+            // F10: Checkout / Pay
+            if (e.key === 'F10') {
+                e.preventDefault();
+                // Check if cart has items
+                if(cart.length > 0) {
+                   handleCheckoutModal();
+                } else {
+                   toast.error('Cart is empty!');
+                }
+            }
+
+             // F4: Customer Search (Optional add-on)
+             if (e.key === 'F4') {
+                e.preventDefault();
+                document.querySelector('.select2-selection')?.click(); // Trigger Select2
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [cart]); // Re-bind if cart changes (for Checkout check)
     const checkJournal = async () => {
         try {
             const res = await axios.get('/admin/cart/check-journal');
@@ -217,6 +344,10 @@ export default function Pos() {
                 const journal = res.data.data;
                 const lastItems = journal.items.length;
                 
+                // Set flag immediately to prevent re-popups during tab switching 
+                // but keep it in database until Decision is made
+                sessionStorage.setItem('pos_journal_checked', 'true');
+
                 Swal.fire({
                     title: 'Interrupted Session Found!',
                     text: `Restore ${lastItems} items from previous session?`,
@@ -225,26 +356,59 @@ export default function Pos() {
                     confirmButtonText: 'Yes, Restore',
                     cancelButtonText: 'Discard',
                     confirmButtonColor: '#800000',
+                    allowOutsideClick: false // Ensure professional decision flow
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         const toastId = toast.loading('Restoring session...');
                         try {
-                            // Loop through journal items and add to DB cart
+                            // 1. Clear existing cart physically to prevent incrementing existing DB items
+                            await axios.put("/admin/cart/empty");
+
+                            // 2. Restore items with correct Quantity and Custom Prices
                             for (const item of journal.items) {
-                                await axios.post('/admin/cart', { id: item.product_id });
+                                // Add item first (Creates row with Qty 1)
+                                const addRes = await axios.post('/admin/cart', { id: item.product_id });
+                                
+                                if (addRes.data?.cart?.id) {
+                                    const cartId = addRes.data.cart.id;
+
+                                    // If quantity > 1, update it
+                                    if (item.quantity > 1) {
+                                        await axios.put("/admin/cart/update-quantity", { 
+                                            id: cartId, 
+                                            quantity: item.quantity 
+                                        });
+                                    }
+                                    
+                                    // If price was customized (e.g. Price overrides), restore it? 
+                                    // Note: The current journal structure stores 'price'. 
+                                    // If your system allows price overrides, you'd check difference here.
+                                    // For now, we trust Qty restoration.
+                                }
                             }
                             setCartUpdated(!cartUpdated);
-                            toast.success('Session restored!', { id: toastId });
+                            toast.success('Session restored successfully!', { id: toastId });
                         } catch (e) {
-                            toast.error('Restoration partially failed', { id: toastId });
+                            console.error(e);
+                            toast.error('Restoration failed. Please try fresh.', { id: toastId });
                         }
-                    } 
+                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                        // DISCARD: Must clear the cart physically from backend
+                        axios.put("/admin/cart/empty").then(() => {
+                            setCartUpdated(!cartUpdated);
+                            toast.success("Previous session discarded");
+                        });
+                    }
                 });
+            } else {
+                // If no journal exists, still set the flag so we don't hit the DB again
+                sessionStorage.setItem('pos_journal_checked', 'true');
             }
         } catch (e) {
             console.error("Journal check failed", e);
         }
     };
+
 
 
     // Fetch Cart
@@ -583,6 +747,7 @@ export default function Pos() {
                          const jsonData = jsonRes.data?.data;
                          if(jsonData) {
                              const toastId = toast.loading("Auto-Printing...");
+                             // Pass jsonData for Raw Engine
                              window.electron.printSilent(url, window.posSettings?.receiptPrinter, null, jsonData)
                                  .then(pRes => {
                                      if(pRes.success) toast.success("Receipt Sent to Printer", { id: toastId });
@@ -627,7 +792,7 @@ export default function Pos() {
                              targetUrl, 
                              window.posSettings?.receiptPrinter, 
                              null, 
-                             jsonResp.data.data
+                             null // FORCE URL MODE: Disable JSON/Headless to fix "Inch Print" issue
                          );
                          toast.success("Printed Successfully", { id: toastId });
                      }
@@ -639,7 +804,35 @@ export default function Pos() {
         }
     };
 
+    // Context Menu Handlers
+    const handleContextMenu = (e, product) => {
+        e.preventDefault();
+        // Adjust coordinates for the 0.9 zoom factor used in pos-app-container
+        const zoom = 0.9;
+        setContextMenu({
+            product,
+            x: e.clientX / zoom,
+            y: e.clientY / zoom
+        });
+    };
+
+
+    const handleContextAction = (action) => {
+        const product = contextMenu.product;
+        if (action === 'edit') {
+            window.location.href = `/admin/products/${product.id}/edit`;
+        } else if (action === 'print') {
+            // Simplified print tag logic using existing utility if possible, 
+            // otherwise navigate to tag print page
+             window.location.href = `/admin/barcode/print?label=${product.name}&barcode=${product.sku}&size=large`;
+        } else if (action === 'purchase') {
+            window.location.href = `/admin/purchase/create?barcode=${product.sku}`;
+        }
+        setContextMenu(null);
+    };
+
     // Hotkeys Ref
+
     const searchInputRef = useRef(null);
 
     useEffect(() => {
@@ -702,34 +895,51 @@ export default function Pos() {
                                 />
                             </div>
                             <button 
-                                className="btn btn-outline-dark ml-2 shadow-sm d-flex flex-column align-items-center justify-content-center pos-drawer-btn"
-                                style={{ 
-                                    height: '48px', 
-                                    minWidth: '80px', 
-                                    borderRadius: '10px', 
-                                    background: '#fff',
-                                    transition: 'all 0.2s ease-in-out'
-                                }}
                                 onClick={() => {
                                     const isDesktop = window.electron && window.electron.isElectron;
                                     if(isDesktop) {
-                                        window.electron.openDrawer();
-                                        toast.success("Drawer kick signal sent!");
+                                        window.electron.openDrawer(window.posSettings?.receiptPrinter);
+                                        toast.success("Drawer kick signal sent!", {
+                                            icon: '💰',
+                                            style: { borderRadius: '10px', background: '#333', color: '#fff' }
+                                        });
                                     } else {
                                         toast.error("Drawer logic only works in Desktop Mode");
                                     }
                                 }}
                                 title="Open Cash Drawer"
+                                className="btn btn-light ml-2 shadow-sm d-flex flex-column align-items-center justify-content-center pos-drawer-btn"
+                                style={{ 
+                                    height: '52px', 
+                                    minWidth: '85px', 
+                                    borderRadius: '12px', 
+                                    border: '1px solid rgba(0,0,0,0.1)',
+                                    background: '#ffffff',
+                                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }}
                             >
-                                <i className="fas fa-cash-register mb-1 drawer-icon"></i>
-                                <span className="drawer-text" style={{ fontSize: '0.6rem', fontWeight: 'bold' }}>DRAWER</span>
+                                <i className="fas fa-cash-register mb-1" style={{ fontSize: '1rem', color: '#555' }}></i>
+                                <span style={{ fontSize: '0.65rem', fontWeight: '800', color: '#666', letterSpacing: '0.5px' }}>DRAWER</span>
+                                
+                                <style>{`
+                                    .pos-drawer-btn:hover {
+                                        background: #f4f6f9 !important;
+                                        border-color: rgba(0,0,0,0.15) !important;
+                                        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
+                                        transform: translateY(-1px);
+                                    }
+                                    .pos-drawer-btn:active {
+                                        transform: translateY(0);
+                                        background: #e9ecef !important;
+                                    }
+                                `}</style>
                             </button>
                         </div>
                         
-                        {/* Hardware Status Monitor */}
-                        <PrinterStatus />
+                        {/* Hardware Status Monitor - Removed redundant local instance, moved to Global Navbar */}
                     </div>
                 </div>
+
 
                 {/* Product Grid */}
                 <div id="product-grid-container" className="flex-grow-1 custom-scroll p-3" style={{ backgroundColor: '#f4f6f9' }}>
@@ -739,9 +949,11 @@ export default function Pos() {
                                 key={product.id} 
                                 product={product} 
                                 onClick={addProductToCart} 
+                                onContextMenu={handleContextMenu}
                                 baseUrl={fullDomainWithPort} 
                             />
                         ))}
+
                         {products.length === 0 && !loading && (
                             <div className="col-12">
                                 <div className="empty-state-container mx-auto" style={{ maxWidth: '400px' }}>
@@ -758,8 +970,19 @@ export default function Pos() {
                 </div>
             </div>
 
+            {/* Context Menu Overlay */}
+            {contextMenu && (
+                <ContextMenu 
+                    {...contextMenu} 
+                    onAction={handleContextAction} 
+                    onClose={() => setContextMenu(null)} 
+                />
+            )}
+
+
             {/* RIGHT PANEL: CART & CHECKOUT */}
-            <div className="pos-right-panel d-flex flex-column bg-white shadow-lg" style={{ zIndex: 10 }}>
+            <div className="pos-right-panel d-flex flex-column bg-white shadow-md" style={{ zIndex: 10, borderLeft: 'var(--apple-border)' }}>
+
                 {/* Customer Select */}
                 <div className="p-3 border-bottom bg-gradient-light">
                     <CustomerSelect setCustomerId={setCustomerId} />
@@ -782,9 +1005,9 @@ export default function Pos() {
                 </div>
 
                 {/* Footer: Totals & Actions */}
-                <div className="border-top bg-light p-3" style={{ fontSize: '1.rem' }}>
+                <div className="border-top p-3" style={{ fontSize: '1.rem', backgroundColor: 'var(--apple-bg)' }}>
                      {/* Professional Unified Discount Toolbar */}
-                     <div className="bg-white p-0 rounded shadow-sm border mb-3 overflow-hidden d-flex align-items-center" style={{ height: '70px' }}>
+                     <div className="p-0 rounded shadow-sm border mb-3 overflow-hidden d-flex align-items-center" style={{ height: '70px', backgroundColor: 'var(--pastel-bg)' }}>
                         
                         {/* Manual Discount Input Area */}
                         <div className="flex-grow-1 d-flex flex-column justify-content-center px-3 border-right" style={{ height: '100%' }}>
@@ -795,7 +1018,7 @@ export default function Pos() {
                                 )}
                             </div>
                             <div className="d-flex align-items-baseline">
-                                <span className="text-muted mr-1" style={{ fontSize: '1rem' }}>Rs.</span>
+                                <span className="text-muted mr-1" style={{ fontSize: '1rem' }}>{window.posSettings?.currencySymbol || 'Rs.'}</span>
                                 <input 
                                     type="number" 
                                     className="form-control border-0 p-0 font-weight-bold text-dark h-auto" 
@@ -814,6 +1037,7 @@ export default function Pos() {
                                     }}
                                 />
                             </div>
+
                         </div>
 
                         {/* Auto-Round Toggle Area */}
@@ -841,14 +1065,16 @@ export default function Pos() {
                         </div>
                      </div>
 
-                    {/* Grand Total */}
-                    <div className="d-flex justify-content-between align-items-center mb-3 p-3 bg-gradient-dark rounded shadow-sm">
+                    {/* Grand Total - Focal Point Refinement */}
+                    <div className="d-flex justify-content-between align-items-center mb-3 p-3 bg-gradient-maroon rounded shadow-md" style={{ borderRadius: 'var(--radius-md) !important' }}>
                         <div className="line-height-1">
-                            <small className="text-white-50 text-uppercase font-weight-bold" style={{ fontSize: '0.7em' }}>Total Payable</small>
-                            <h4 className="m-0 text-white font-weight-light">PKR</h4>
+                            <small className="text-white-50 text-uppercase font-weight-bold" style={{ fontSize: '0.7em', letterSpacing: '1px' }}>Total Payable</small>
+                            <h4 className="m-0 text-white font-weight-light">{window.posSettings?.currencySymbol || 'PKR'}</h4>
                         </div>
-                        <h1 className="m-0 text-white font-weight-bold display-4" style={{ fontSize: '3.5rem' }}>{Math.max(0, updateTotal)}</h1>
+                        <h1 className="m-0 text-white font-weight-bold" style={{ fontSize: '3.8rem', letterSpacing: '-1px' }}>{Math.max(0, updateTotal)}</h1>
                     </div>
+
+
 
                     <div className="row no-gutters">
                         <div className="col-4 pr-1">

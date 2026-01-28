@@ -3,251 +3,169 @@
 @section('title', 'Dashboard')
 
 @section('content')
-<section class="content">
+<section class="content animate__animated animate__fadeIn">
     @can('dashboard_view')
     <div class="container-fluid">
-        <!-- Dashboard Stats Row 1: Primary KPIs with Vibrant Gradients -->
-        <div class="row">
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box bg-gradient-navy shadow-sm">
-                    <span class="info-box-icon bg-info elevation-1"><i class="fas fa-cash-register"></i></span>
-                    <div class="info-box-content">
-                        <span class="info-box-text text-uppercase font-weight-bold" style="font-size: 0.75rem; opacity: 0.9;">Total Revenue</span>
-                        <span class="info-box-number" style="font-size: 1.5rem;">
-                            {{currency()->symbol??''}} {{number_format($total,2,'.',',')}}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box bg-gradient-maroon shadow-sm text-white">
-                    <span class="info-box-icon bg-light elevation-1 text-maroon"><i class="fas fa-chart-line"></i></span>
-                    <div class="info-box-content">
-                        <span class="info-box-text text-uppercase font-weight-bold" style="font-size: 0.75rem; opacity: 0.9;">Total Profit</span>
-                        <span class="info-box-number" style="font-size: 1.5rem;">
-                            {{currency()->symbol??''}} {{number_format($total_profit,2,'.',',')}}
-                        </span>
-                    </div>
-                </div>
+        
+        <!-- Header: Apple-style greeting and date -->
+        <div class="d-flex justify-content-between align-items-end mb-4 pt-3">
+            <div>
+                <h1 class="font-weight-bold apple-h1 mb-1">Dashboard</h1>
+                <p class="text-apple-sub m-0">Performance insights for {{ now()->format('F d, Y') }}</p>
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box bg-gradient-success shadow-sm">
-                    <span class="info-box-icon bg-white elevation-1 text-success"><i class="fas fa-shopping-basket"></i></span>
-                    <div class="info-box-content">
-                        <span class="info-box-text text-uppercase font-weight-bold" style="font-size: 0.75rem; opacity: 0.8;">Sale Subtotal</span>
-                        <span class="info-box-number" style="font-size: 1.5rem;">
-                            {{currency()->symbol??''}} {{number_format($sub_total,2,'.',',')}}
-                        </span>
-                    </div>
-                </div>
+            <div class="input-group w-auto bg-white rounded-pill px-3 shadow-soft border align-items-center" style="height: 38px; border: 1px solid rgba(0,0,0,0.05) !important;">
+                <i class="far fa-calendar-alt text-muted mr-2" style="font-size: 0.8rem;"></i>
+                <input type="text" class="form-control border-0 bg-transparent p-0 font-weight-500" id="reservation" style="width: 170px; font-size: 0.8rem; color: #444;" placeholder="Filter dates...">
             </div>
 
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box bg-gradient-warning shadow-sm">
-                    <span class="info-box-icon bg-white elevation-1 text-warning"><i class="fas fa-hand-holding-usd"></i></span>
-                    <div class="info-box-content">
-                        <span class="info-box-text text-uppercase font-weight-bold" style="font-size: 0.75rem; opacity: 0.8;">Total Due</span>
-                        <span class="info-box-number" style="font-size: 1.5rem;">
-                            {{currency()->symbol??''}} {{number_format($due,2,'.',',')}}
-                        </span>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Dashboard Stats Row 2: Secondary Counters -->
-        <div class="row">
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-white shadow-sm border-left border-info" style="border-left-width: 4px !important;">
-                    <div class="inner">
-                        <h3 class="text-info">{{$total_customer}}</h3>
-                        <p class="text-muted font-weight-bold">Registered Customers</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-users" style="opacity: 0.1;"></i>
-                    </div>
-                    <a href="{{route('backend.admin.customers.index')}}" class="small-box-footer bg-light text-info border-top">
-                        Manage Customers <i class="fas fa-arrow-right ml-1" style="font-size: 0.8rem;"></i>
-                    </a>
-                </div>
-            </div>
-            
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-white shadow-sm border-left border-success" style="border-left-width: 4px !important;">
-                    <div class="inner">
-                        <h3 class="text-success">{{$total_product}}</h3>
-                        <p class="text-muted font-weight-bold">Total Products</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-box-open" style="opacity: 0.1;"></i>
-                    </div>
-                    <a href="{{route('backend.admin.products.index')}}" class="small-box-footer bg-light text-success border-top">
-                        Inventory List <i class="fas fa-arrow-right ml-1" style="font-size: 0.8rem;"></i>
-                    </a>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-white shadow-sm border-left border-maroon" style="border-left-width: 4px !important;">
-                    <div class="inner">
-                        <h3 class="text-maroon">{{$total_order}}</h3>
-                        <p class="text-muted font-weight-bold">Total Sales</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-receipt" style="opacity: 0.1;"></i>
-                    </div>
-                    <a href="{{route('backend.admin.orders.index')}}" class="small-box-footer bg-light text-maroon border-top">
-                        Recent Invoices <i class="fas fa-arrow-right ml-1" style="font-size: 0.8rem;"></i>
-                    </a>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-6">
-                <div class="small-box bg-white shadow-sm border-left border-warning" style="border-left-width: 4px !important;">
-                    <div class="inner">
-                        <h3 class="text-warning text-maroon">{{$low_stock_products->count()}}</h3>
-                        <p class="text-muted font-weight-bold">Low Stock Items</p>
-                    </div>
-                    <div class="icon">
-                        <i class="fas fa-exclamation-triangle" style="opacity: 0.1;"></i>
-                    </div>
-                    <a href="{{route('backend.admin.products.index')}}" class="small-box-footer bg-light text-warning border-top">
-                        Restock Now <i class="fas fa-arrow-right ml-1" style="font-size: 0.8rem;"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-        <!-- /.row -->
-
-
-        <!-- Recent Activity & Detailed Analytics -->
-        <div class="row mt-4">
-            <!-- Sales Trends (Interactive Chart) -->
-            <div class="col-lg-8">
-                <div class="card shadow-sm border-0" style="border-radius: 15px; overflow: hidden;">
-                    <div class="card-header bg-white border-0 py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="card-title font-weight-bold mb-0">
-                                <i class="fas fa-chart-area mr-2 text-primary"></i>Sales Performance
-                            </h5>
-                            <div class="input-group w-auto bg-light rounded-pill px-2" style="border: 1px solid #eee;">
-                                <i class="far fa-calendar-alt mt-2 mr-2 text-muted"></i>
-                                <input type="text" class="form-control border-0 bg-transparent py-0" id="reservation" style="width: 180px; font-size: 0.85rem;" placeholder="Filter dates...">
-                            </div>
+        <!-- Dashboard Stats: Precision Tiles -->
+        <div class="row mb-4">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="card shadow-soft apple-card-refinement h-100 border-0">
+                    <div class="card-body p-4 text-center">
+                        <small class="text-uppercase text-apple-tiny font-weight-bold mb-2 d-block">Total Revenue</small>
+                        <h2 class="font-weight-bold apple-h2 m-0 text-dark">
+                            <small class="text-muted" style="font-size: 0.6em; vertical-align: middle;">{{currency()->symbol??''}}</small> {{number_format($total,0)}}
+                        </h2>
+                        <div class="mt-2 text-success small font-weight-bold">
+                            <i class="fas fa-arrow-up mr-1"></i> Global Scale Active
                         </div>
                     </div>
-                    <div class="card-body">
+                </div>
+            </div>
+            
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="card shadow-soft apple-card-refinement h-100 border-0">
+                    <div class="card-body p-4 text-center">
+                        <small class="text-uppercase text-apple-tiny font-weight-bold mb-2 d-block">Net Profit</small>
+                        <h2 class="font-weight-bold apple-h2 m-0 text-maroon">
+                            <small class="text-muted" style="font-size: 0.6em; vertical-align: middle;">{{currency()->symbol??''}}</small> {{number_format($total_profit,0)}}
+                        </h2>
+                        <span class="badge badge-pill bg-light text-maroon mt-2 px-3 border">Performance Index</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="card shadow-soft apple-card-refinement h-100 border-0">
+                    <div class="card-body p-4 text-center">
+                        <small class="text-uppercase text-apple-tiny font-weight-bold mb-2 d-block">Total Sales</small>
+                        <h2 class="font-weight-bold apple-h2 m-0 text-dark">{{number_format($total_order)}}</h2>
+                        <div class="mt-2 text-apple-sub small">Completed Invoices</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="card shadow-soft apple-card-refinement h-100 border-0">
+                    <div class="card-body p-4 text-center">
+                        <small class="text-uppercase text-apple-tiny font-weight-bold mb-2 d-block">Customer Base</small>
+                        <h2 class="font-weight-bold apple-h2 m-0 text-dark">{{$total_customer}}</h2>
+                        <a href="{{route('backend.admin.customers.index')}}" class="mt-2 text-primary small font-weight-bold d-block">View Details <i class="fas fa-chevron-right ml-1" style="font-size: 0.7em;"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-soft apple-card-refinement border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="font-weight-bold apple-h3 mb-0">Sales Analytics</h5>
+                        <p class="text-apple-sub small">Transaction volume and trends over time</p>
+                    </div>
+                    <div class="card-body px-4 pb-4">
                         <div id="salesChart" style="min-height: 350px;"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Top Selling Products -->
             <div class="col-lg-4">
-                <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                    <div class="card-header bg-white border-0 py-3">
-                        <h5 class="card-title font-weight-bold mb-0">
-                            <i class="fas fa-crown mr-2 text-warning"></i>Top Selling
-                        </h5>
+                <div class="card shadow-soft apple-card-refinement border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="font-weight-bold apple-h3 mb-0 text-maroon">Inventory Alert</h5>
+                        <p class="text-apple-sub small">Products nearing zero stock</p>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover table-valign-middle mb-0">
-                                <thead>
-                                    <tr class="text-muted" style="font-size: 0.75rem; text-uppercase; letter-spacing: 1px;">
-                                        <th>Product</th>
-                                        <th class="text-right">Price</th>
-                                        <th class="text-right">Sold</th>
-                                    </tr>
-                                </thead>
+                            <table class="table table-hover mb-0">
                                 <tbody>
-                                    @foreach($top_products as $tp)
+                                    @forelse($low_stock_products->take(5) as $lsp)
                                     <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="{{ asset('storage/' . $tp->image) }}" class="rounded mr-2" style="width: 32px; height: 32px; object-fit: cover;" onerror="this.src='{{ asset('assets/images/no-image.png') }}'">
-                                                <span class="font-weight-bold text-truncate" style="max-width: 120px;">{{ $tp->name }}</span>
-                                            </div>
+                                        <td class="pl-4 py-3">
+                                            <div class="font-weight-bold text-dark">{{ $lsp->name }}</div>
+                                            <code class="small text-muted">{{ $lsp->sku }}</code>
                                         </td>
-                                        <td class="text-right font-weight-bold">${{ number_format($tp->discounted_price, 0) }}</td>
-                                        <td class="text-right">
-                                            <span class="badge badge-pill badge-info px-2">{{ $tp->sold_qty ?? 0 }} sold</span>
+                                        <td class="text-right pr-4 py-3">
+                                            <span class="badge badge-pill {{ $lsp->quantity <= 5 ? 'bg-danger' : 'bg-warning' }} px-3">
+                                                {{ $lsp->quantity }} Left
+                                            </span>
                                         </td>
                                     </tr>
-                                    @endforeach
+                                    @empty
+                                    <tr>
+                                        <td colspan="2" class="text-center py-5 text-apple-sub italic">Stock levels are healthy.</td>
+                                    </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer bg-white text-center border-0">
-                        <a href="{{ route('backend.admin.products.index') }}" class="small font-weight-bold text-primary">View All Products <i class="fas fa-arrow-right ml-1"></i></a>
+                    @if($low_stock_products->count() > 5)
+                    <div class="card-footer bg-transparent border-0 text-center pb-4">
+                        <a href="{{ route('backend.admin.products.index') }}" class="text-maroon font-weight-bold small">Restock Remaining ({{$low_stock_products->count() - 5}}) <i class="fas fa-arrow-right ml-1"></i></a>
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
 
-        <div class="row">
-            <!-- Low Stock Alerts -->
-            <div class="col-lg-6">
-                <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between">
-                        <h5 class="card-title font-weight-bold mb-0">
-                            <i class="fas fa-exclamation-circle mr-2 text-danger"></i>Low Stock Inventory
-                        </h5>
-                        <span class="badge badge-danger">Critical</span>
+        <!-- Secondary Charts & Top Products -->
+        <div class="row mt-4 mb-5">
+            <div class="col-lg-4">
+                 <div class="card shadow-soft apple-card-refinement border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="font-weight-bold apple-h3 mb-0">Top Categories</h5>
                     </div>
                     <div class="card-body p-0">
-                        <table class="table table-sm table-hover mb-0">
-                            <thead class="bg-light text-muted" style="font-size: 0.7rem;">
-                                <tr>
-                                    <th class="pl-3">Product Name</th>
-                                    <th>Sku/Barcode</th>
-                                    <th class="text-right pr-3">In Stock</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($low_stock_products as $lsp)
-                                <tr>
-                                    <td class="pl-3 py-2">
-                                        <div class="font-weight-bold">{{ $lsp->name }}</div>
-                                    </td>
-                                    <td><code>{{ $lsp->sku }}</code></td>
-                                    <td class="text-right pr-3">
-                                        <b class="text-danger">{{ $lsp->quantity }}</b> 
-                                        <small class="text-muted">{{ $lsp->unit->short_name ?? '' }}</small>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="3" class="text-center py-4 text-muted">All products are healthy in stock.</td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                        <div class="list-group list-group-flush">
+                            @foreach($top_products->take(4) as $tp)
+                                <div class="list-group-item bg-transparent border-0 d-flex align-items-center px-4 py-3">
+                                    <div class="bg-light rounded mr-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border: var(--apple-border)">
+                                        <i class="fas fa-box text-apple-sub"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="font-weight-bold text-dark small text-truncate" style="max-width: 150px;">{{ $tp->name }}</div>
+                                        <div class="text-apple-sub x-small">{{ $tp->sold_qty ?? 0 }} Sold</div>
+                                    </div>
+                                    <div class="text-right font-weight-bold text-success">{{currency()->symbol??''}}{{ number_format($tp->discounted_price, 0) }}</div>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Yearly Bar Chart -->
-            <div class="col-lg-6">
-                <div class="card shadow-sm border-0" style="border-radius: 15px;">
-                    <div class="card-header bg-white border-0 py-3">
-                        <h5 class="card-title font-weight-bold mb-0">
-                            <i class="fas fa-chart-bar mr-2 text-success"></i>Monthly Growth ({{ $currentYear }})
-                        </h5>
+            
+            <div class="col-lg-8">
+                <div class="card shadow-soft apple-card-refinement border-0 h-100">
+                    <div class="card-header bg-transparent border-0 pt-4 px-4">
+                        <h5 class="font-weight-bold apple-h3 mb-0">Monthly Revenue</h5>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body px-4 pb-4">
                         <div id="yearlyChart" style="min-height: 250px;"></div>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
     @endcan
-    <!-- /.container-fluid -->
 </section>
+
 @endsection
 
 @push('style')

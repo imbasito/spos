@@ -75,14 +75,15 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
     const showDue = (parseFloat(paidAmount || 0) < total) || !paidAmount;
 
     return (
-        <div className="professional-blur modal-backdrop d-flex justify-content-center align-items-center" style={{ zIndex: 1050, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}>
-            <div className="professional-modal-content p-0" style={{ width: '600px', maxWidth: '95%' }}>
+        <div className="modal-backdrop d-flex justify-content-center align-items-center" style={{ zIndex: 1050, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+            <div className="professional-modal-content p-0 shadow-deep" style={{ width: '600px', maxWidth: '95%', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: 'var(--apple-border)' }}>
                 
-                {/* Header */}
-                <div className="bg-gradient-primary text-white p-3 d-flex justify-content-between align-items-center">
-                    <h4 className="m-0 font-weight-bold"><i className="fas fa-cash-register mr-2"></i> Finalize Payment</h4>
+                {/* Header - Brand Maroon */}
+                <div className="bg-gradient-maroon text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
+                    <h4 className="m-0 font-weight-bold" style={{ letterSpacing: '0.5px' }}><i className="fas fa-cash-register mr-2"></i> Finalize Payment</h4>
                     <button onClick={onCancel} className="btn btn-sm btn-outline-light border-0"><i className="fas fa-times fa-lg"></i></button>
                 </div>
+
 
                 <div className="p-4 bg-white">
                     {/* Big Total Display */}
@@ -101,10 +102,16 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
                                 <button type="button" className={`btn ${paymentMethod === 'cash' ? 'btn-success' : 'btn-outline-secondary'}`} onClick={() => setPaymentMethod('cash')}>
                                     <i className="fas fa-money-bill-wave mr-2"></i> Cash (F1)
                                 </button>
-                                <button type="button" className={`btn ${paymentMethod === 'card' ? 'btn-info' : 'btn-outline-secondary'}`} onClick={() => setPaymentMethod('card')}>
+                                <button type="button" className={`btn ${paymentMethod === 'card' ? 'btn-info' : 'btn-outline-secondary'}`} onClick={() => {
+                                    setPaymentMethod('card');
+                                    setPaidAmount(total); // Force Full Payment for Card
+                                }}>
                                     <i className="fas fa-credit-card mr-2"></i> Card (F2)
                                 </button>
-                                <button type="button" className={`btn ${paymentMethod === 'online' ? 'btn-warning' : 'btn-outline-secondary'}`} onClick={() => setPaymentMethod('online')}>
+                                <button type="button" className={`btn ${paymentMethod === 'online' ? 'btn-warning' : 'btn-outline-secondary'}`} onClick={() => {
+                                    setPaymentMethod('online');
+                                    setPaidAmount(total); // Force Full Payment for Online
+                                }}>
                                     <i className="fas fa-mobile-alt mr-2"></i> Online (F3)
                                 </button>
                             </div>
@@ -124,8 +131,8 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
                                     style={{ fontSize: '1.5rem' }}
                                     placeholder="0.00"
                                     value={paidAmount}
+                                    onFocus={(e) => e.target.select()}
                                     onChange={(e) => setPaidAmount(e.target.value)}
-                                    // Make Enter trigger submit in keyDown handler
                                 />
                             </div>
                         </div>

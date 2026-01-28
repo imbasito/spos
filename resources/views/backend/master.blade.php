@@ -57,6 +57,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+
+
+
     <style>
         .image-upload-container {
             border: 2px dashed #8b9ee9;
@@ -117,8 +120,8 @@
         }
         
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         /* Card entrance animation */
@@ -127,9 +130,10 @@
         }
         
         @keyframes cardSlide {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
+
         
         /* Stagger card animations */
         .card:nth-child(1) { animation-delay: 0s; }
@@ -221,11 +225,11 @@
         /* Professional Product Grid Styles */
         .pos-product-card {
             transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-            border: 1px solid transparent; /* Cleaner look */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            border: 1px solid rgba(0,0,0,0.03); 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             height: 100%;
-            background: #fff;
-            border-radius: 8px;
+            background: #ffffff;
+            border-radius: 12px;
             overflow: hidden;
         }
         .pos-product-card:hover {
@@ -308,16 +312,119 @@
             left: 120%;
         }
 
-        .empty-state-container {
-            padding: 40px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 20px;
-            border: 2px dashed #dee2e6;
-            margin-top: 50px;
-            text-align: center;
+        /* ========= APPLE-STANDARD SIDEBAR OVERHAUL ========== */
+        .main-sidebar {
+            background: rgba(255, 255, 255, 0.92) !important;
+            backdrop-filter: blur(40px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+            border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: none !important;
+            width: 250px !important;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
+            overflow-x: hidden !important;
+        }
+
+        .main-sidebar::before {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+
+
+
+        /* Removed Logo White Box */
+        .brand-link, .main-sidebar .brand-link {
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+            padding: 25px 5px !important;
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: none !important;
+            height: auto !important;
+        }
+        
+        .brand-link img {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+
+
+        .brand-link img.brand-image-refined {
+            width: 100px !important;
+            height: auto !important;
+            border-radius: 8px !important;
+            margin-bottom: 12px !important;
+            background: rgba(255, 255, 255, 0.4) !important;
+            padding: 8px !important;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0,0,0,0.05) !important;
+        }
+
+        .nav-sidebar .nav-item {
+
+            margin: 4px 12px !important; /* Spacing for pills */
+        }
+
+        /* Force high contrast for tabs */
+        .nav-sidebar .nav-link {
+            border-radius: 10px !important; /* Pill shape */
+            padding: 10px 16px !important;
+            color: #111 !important; /* Pitch black for visibility */
+            transition: all 0.2s ease !important;
+            border: 1px solid transparent !important;
+            font-weight: 500 !important;
+        /* SOFT PASTEL SIDEBAR */
+        .main-sidebar, 
+        .sidebar,
+        .brand-link {
+            background-color: #fcfcfc !important; /* Slightly dimmer than pure white */
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+        }
+        
+        /* High Contrast Active State */
+        .nav-sidebar .nav-link.active {
+            background-color: #800000 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(128, 0, 0, 0.2) !important;
+        }
+
+        .main-sidebar {
+            border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: none !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            opacity: 1 !important;
+        }
+
+        /* Proximity Reveal Physics */
+        .sidebar-hover-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 20px;
+            height: 100vh;
+            z-index: 1039;
+            background: transparent;
+        }
+
+        /* Brand Text Consistency */
+        .brand-text {
+            color: #111 !important;
+            font-size: 14px !important;
+            letter-spacing: 0.5px;
+            margin-top: 10px;
+            font-weight: 600 !important;
         }
     </style>
     @stack('style')
+    
+    {{-- High-Priority Apple Global Design System --}}
+    <link rel="stylesheet" href="{{ asset('css/design-system.css') }}?v={{ time() }}">
+
     @viteReactRefresh
     @vite('resources/js/app.jsx')
 
@@ -336,65 +443,71 @@
     <x-simple-alert />
 
     <div class="wrapper">
-
-        <!-- Professional Top Loading Bar -->
-        <div id="page-loading-bar" style="display: none;">
-            <div class="loading-bar-progress"></div>
-        </div>
-        <style>
-            #page-loading-bar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 3px;
-                z-index: 9999;
-                background: rgba(0,0,0,0.1);
-            }
-            .loading-bar-progress {
-                height: 100%;
-                width: 0%;
-                background: linear-gradient(90deg, var(--primary-color, #800000), #ff4444);
-                animation: loadingProgress 1.5s ease-in-out infinite;
-                box-shadow: 0 0 10px rgba(128, 0, 0, 0.5);
-            }
-            @keyframes loadingProgress {
-                0% { width: 0%; margin-left: 0%; }
-                50% { width: 30%; margin-left: 35%; }
-                100% { width: 0%; margin-left: 100%; }
-            }
-        </style>
+        <!-- Sidebar Proximity Sentinel -->
+        <div class="sidebar-hover-trigger"></div>
+        
         <script>
-            // Show loading bar on page navigation
-            document.addEventListener('click', function(e) {
-                const link = e.target.closest('a');
-                if (link && link.href && !link.href.includes('#') && !link.target && !e.ctrlKey && !e.metaKey) {
-                    document.getElementById('page-loading-bar').style.display = 'block';
+            // Sidebar Logic: Proximity Reveal & Focus Mode
+            (function() {
+                const isPos = window.location.pathname.includes('/admin/cart'); 
+                if (isPos) {
+                    document.body.classList.add('pos-focus-mode');
+                    document.body.classList.add('sidebar-collapse');
+                } else {
+                    document.body.classList.remove('sidebar-collapse');
                 }
-            });
-            // Hide on page load
-            window.addEventListener('load', function() {
-                document.getElementById('page-loading-bar').style.display = 'none';
-            });
+
+                // High-Performance Proximity Detector
+                const trigger = document.querySelector('.sidebar-hover-trigger');
+                
+                document.addEventListener('mousemove', function(e) {
+                    // Only active if sidebar is collapsed (POS Mode or Manual)
+                    if (document.body.classList.contains('sidebar-collapse')) {
+                        if (e.pageX < 20) {
+                            // Reveal
+                            document.body.classList.add('sidebar-open');
+                        } else if (e.pageX > 280 && document.body.classList.contains('sidebar-open')) {
+                            // Dismiss
+                            document.body.classList.remove('sidebar-open');
+                        }
+                    }
+                });
+
+                // Auto-close when clicking outside on mobile or tablet
+                document.addEventListener('click', function(e) {
+                    if (document.body.classList.contains('sidebar-open') && e.pageX > 260) {
+                        document.body.classList.remove('sidebar-open');
+                    }
+                });
+
+                // 2. Sidebar Toggle Shortcut (Ctrl+B)
+                document.addEventListener('keydown', function(event) {
+                    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'b') {
+                        event.preventDefault();
+                        const btn = document.querySelector('[data-widget="pushmenu"]');
+                        if(btn) {
+                            btn.click();
+                        } else {
+                            document.body.classList.toggle('sidebar-collapse');
+                        }
+                    }
+                });
+            })();
         </script>
 
         <!-- Navbar -->
         @include('backend.layouts.navbar')
-        <!-- /.navbar -->
 
         <!-- Main Sidebar Container -->
-        <aside class="main-sidebar elevation-4 sidebar-light-lightblue">
+        <aside class="main-sidebar sidebar-light-lightblue elevation-4">
             <!-- Brand Logo -->
-            <a href="{{ route('backend.admin.dashboard') }}" class="brand-link text-center" style="display: flex; flex-direction: column; align-items: center; padding: 15px 5px; padding-top: 50px; height: auto !important; border-bottom: 1px solid #dee2e6;">
-                <img src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo"
-                    style="border-radius: 4px; object-fit: cover; width: 120px; height: auto; margin-bottom: 10px;">
-                <span class="brand-text font-weight-bold" style="font-size: 15px; word-wrap: break-word; text-align: center; line-height: 1.2; color: #D4AF37 !important; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">{{ readConfig('site_name') }}</span>
+            <a href="{{ route('backend.admin.dashboard') }}" class="brand-link">
+                <img src="{{ assetImage(readconfig('site_logo')) }}" alt="Logo" class="brand-image-refined">
+                <span class="brand-text">{{ readConfig('site_name') }}</span>
             </a>
 
             <!-- Sidebar -->
             @include('backend.layouts.sidebar')
-            <!-- /.sidebar -->
-
         </aside>
 
         <!-- Content Wrapper. Contains page content -->
@@ -404,33 +517,17 @@
                 <div class="container-fluid">
                     <div class="row mb-2">
                         <div class="col-sm-6">
-                            <h1 class="m-0">
-                                @yield('title')
-                            </h1>
-                        </div><!-- /.col -->
-                    </div><!-- /.row -->
-                </div><!-- /.container-fluid -->
+                            <h1 class="m-0">@yield('title')</h1>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <!-- /.content-header -->
-
 
             <!-- Main content -->
             <section class="content">
-                <!-- container-fluid -->
                 <div class="container-fluid">
-
-                    <!-- content -->
                     <div id="initial-skeleton">
                         <div class="skeleton-shimmer mb-4" style="height: 40px; width: 30%; border-radius: 8px;"></div>
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="skeleton-shimmer mb-3" style="height: 300px; width: 100%; border-radius: 12px;"></div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="skeleton-shimmer mb-3" style="height: 150px; width: 100%; border-radius: 12px;"></div>
-                                <div class="skeleton-shimmer" style="height: 150px; width: 100%; border-radius: 12px;"></div>
-                            </div>
-                        </div>
                     </div>
                     
                     <div id="actual-page-content" style="opacity: 0; transition: opacity 0.2s ease-in-out;">
@@ -438,16 +535,52 @@
                     </div>
                     
                     <script>
-                        // Hide skeleton and show content when DOM is ready
-                        document.addEventListener("DOMContentLoaded", function() {
-                            const skel = document.getElementById('initial-skeleton');
-                            const cont = document.getElementById('actual-page-content');
-                            if(skel && cont) {
-                                skel.style.display = 'none';
-                                cont.style.opacity = '1';
+                        (function() {
+                            function revealContent() {
+                                const skel = document.getElementById('initial-skeleton');
+                                const cont = document.getElementById('actual-page-content');
+                                if(cont) {
+                                    if(skel) skel.style.display = 'none';
+                                    cont.style.opacity = '1';
+                                }
                             }
-                        });
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', revealContent);
+                            } else {
+                                revealContent();
+                            }
+                            setTimeout(revealContent, 2000); 
+                        })();
+                        
+                        // --- BACKGROUND GARBAGE COLLECTION (RAM OPTIMIZATION) ---
+                        // For 4GB RAM devices: Cleans memory when user is idle (e.g. talking to customer)
+                        (function() {
+                            let idleTime = 0;
+                            
+                            // Reset timer on interaction
+                            function resetTimer() { idleTime = 0; }
+                            window.onload = resetTimer;
+                            window.onmousemove = resetTimer;
+                            window.onkeypress = resetTimer;
+                            window.ontouchstart = resetTimer;
+
+                            // Check every minute
+                            setInterval(function() {
+                                idleTime++;
+                                if (idleTime >= 1) { // 1 minute of silence
+                                    try {
+                                        if (window.gc) {
+                                            console.log('System Idle: Running Background Cleaning...');
+                                            window.gc(); // Force memory release
+                                        }
+                                    } catch (e) {
+                                        // GC not exposed, ignore
+                                    }
+                                }
+                            }, 60000); 
+                        })();
                     </script>
+
                     <!-- /.content -->
 
                 </div>
@@ -457,10 +590,10 @@
         </div>
         <!-- /.content-wrapper -->
 
-        @include('backend.layouts.footer')
 
     </div>
     <!-- ./wrapper -->
+
 
     <!-- jQuery -->
     <script src="{{ asset('plugins/jquery/jquery.min.js') }}"></script>

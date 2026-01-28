@@ -47,9 +47,9 @@ class OrderController extends Controller
                 ->addColumn('action', function ($data) {
                     $buttons = '';
 
-                    $buttons .= '<a class="btn btn-success btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-invoice"></i> Invoice</a>';
-
-                    $buttons .= '<button type="button" class="btn btn-secondary btn-sm" onclick="openPosInvoice(' . $data->id . ')"><i class="fas fa-file-invoice"></i> Pos Invoice</button>';
+                    $buttons .= '<button type="button" class="btn btn-success btn-sm" onclick="openPosInvoice(' . $data->id . ')"><i class="fas fa-print"></i> POS Receipt</button>';
+                    
+                    $buttons .= '<a class="btn btn-secondary btn-sm" href="' . route('backend.admin.orders.invoice', $data->id) . '"><i class="fas fa-file-pdf"></i> Invoice</a>';
                     if (!$data->status) {
                         $buttons .= '<a class="btn btn-warning btn-sm" href="' . route('backend.admin.due.collection', $data->id) . '"><i class="fas fa-receipt"></i> Due Collection</a>';
                     }
@@ -150,6 +150,8 @@ class OrderController extends Controller
         if ($request->isMethod('post')) {
             $data = $request->validate([
                 'amount' => 'required|numeric|min:1',
+                'payment_method' => 'nullable|string|in:cash,card,online',
+                'transaction_id' => 'nullable|string|max:255',
             ]);
 
             try {

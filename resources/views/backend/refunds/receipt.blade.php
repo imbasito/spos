@@ -101,99 +101,60 @@
       @endif
       
       @if(readConfig('is_show_site_invoice'))
-      <div class="font-bold text-uppercase" style="font-size: 17px; margin-bottom: 3px;">{{ readConfig('site_name') }}</div>
+      <div class="font-bold text-uppercase" style="font-size: 19px; margin-bottom: 2px;">{{ readConfig('site_name') }}</div>
       @endif
       
-      <div class="text-xs">
+      <div class="text-xs" style="line-height: 1.4;">
         @if(readConfig('is_show_address_invoice')){{ readConfig('contact_address') }}<br>@endif
         @if(readConfig('is_show_phone_invoice'))Tel: {{ readConfig('contact_phone') }}<br>@endif
         @if(readConfig('is_show_email_invoice')){{ readConfig('contact_email') }}@endif
       </div>
+      <div class="text-xs font-bold mt-1">NTN: 1620237071939</div>
     </div>
 
-    <div class="divider"></div>
-
-    <!-- Refund Badge -->
-    <div class="text-center" style="margin: 12px 0;">
-      <span style="border: 2px solid #000; padding: 6px 15px; font-weight: bold; font-size: 14px; text-transform: uppercase;">Revised Refund Receipt</span>
-    </div>
+    <!-- Refund Banner -->
+    <div class="text-center font-bold" style="margin: 5px 0; font-size: 12px; letter-spacing: 2px;">==========================================</div>
+    <div class="text-center font-bold" style="margin: 2px 0; font-size: 15px;">REVISED REFUND RECEIPT</div>
+    <div class="text-center font-bold" style="margin: 5px 0; font-size: 12px; letter-spacing: 2px;">==========================================</div>
 
     <!-- Metadata -->
     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px;">
       <div class="text-left">
-        Return: <strong>#{{ $return->return_number }}</strong><br>
-        Date: {{ $return->created_at->format('d/m/Y h:i A') }}
+        Refund: <strong>#{{ $return->return_number }}</strong><br>
+        Ref Order: #{{ $return->order_id }}
       </div>
       <div class="text-right">
-        Ref Inv: #{{ $return->order_id }}<br>
-        Staff: {{ Str::limit(optional($return->processedBy)->name ?? 'Admin', 10) }}
+        Date: {{ $return->created_at->format('d/m/Y') }}<br>
+        Pay: {{ $return->order->payment_method ?? 'Cash' }}
       </div>
     </div>
-
-    <!-- Customer -->
-    @if($return->order->customer)
+    
     <div class="divider"></div>
-    <div class="text-left text-sm" style="margin-bottom: 5px;">
-      <strong>Customer:</strong> {{ $return->order->customer->name }}
-    </div>
-    @endif
 
-    <div class="double-divider"></div>
-
-    <!-- Items Table -->
+    <!-- Items Table (MATCHING PHYSICAL RECEIPT LOOP) -->
     <table>
       <thead>
         <tr>
-          <th width="40%">Item</th>
-          <th width="20%" class="text-center">Qty</th>
-          <th width="20%" class="text-right price-col">Price</th>
-          <th width="20%" class="text-right amt-col">Amt</th>
+          <th width="45%">RETURNED ITEM</th>
+          <th width="20%" class="text-center">QTY</th>
+          <th width="15%" class="text-right price-col">PRICE</th>
+          <th width="20%" class="text-right amt-col">AMT</th>
         </tr>
       </thead>
       <tbody>
-        @php 
-            $thisReturnItemIds = $return->items->pluck('order_product_id')->toArray(); 
-            $allReturnedQuantities = \App\Models\ReturnItem::whereIn('return_id', $return->order->returns->pluck('id'))
-                ->groupBy('order_product_id')
-                ->selectRaw('order_product_id, sum(quantity) as total_qty')
-                ->pluck('total_qty', 'order_product_id')
-                ->toArray();
-        @endphp
-        @foreach ($return->order->products as $item)
-        @php
-            $totalReturnedQty = isset($allReturnedQuantities[$item->id]) ? $allReturnedQuantities[$item->id] : 0;
-            $unitPrice = $item->quantity > 0 ? ($item->total / $item->quantity) : 0;
-            
-            $newQuantity = $item->quantity - $totalReturnedQty;
-            $hasReturn = ($totalReturnedQty > 0);
-            $isFullyReturned = ($newQuantity <= 0);
-        @endphp
+        @foreach ($return->items as $item)
         <tr>
           <td>
-            <div style="line-height: 1.2; {{ $isFullyReturned ? 'text-decoration: line-through; color: #777;' : '' }}">
+            <div style="line-height: 1.2;">
                 {{ optional($item->product)->name ?? 'Item' }}
             </div>
           </td>
           <td class="qty-cell">
-            @if($hasReturn)
-                <span class="original-qty">{{ number_format($item->quantity, 0) }}</span>
-                @if(!$isFullyReturned)
-                    <span class="new-qty">{{ number_format($newQuantity, 0) }}</span>
-                @endif
-            @else
-                <span class="new-qty">{{ number_format($item->quantity, 0) }}</span>
-            @endif
+            <span class="new-qty">x{{ number_format($item->quantity, 0) }}</span>
           </td>
-          <td class="text-right price-col">{{ number_format($unitPrice, 0) }}</td>
+          <td class="text-right price-col">{{ number_format($item->refund_amount / $item->quantity, 2) }}</td>
           <td class="text-right amt-col">
-            @if($hasReturn)
-                <span class="original-qty">{{ number_format($item->total, 2) }}</span>
-                @if(!$isFullyReturned)
-                    <span class="new-qty font-bold">{{ number_format($unitPrice * $newQuantity, 2) }}</span>
-                @endif
-            @else
-                <span class="new-qty font-bold">{{ number_format($item->total, 2) }}</span>
-            @endif
+            <span class="new-qty font-bold">{{ number_format($item->refund_amount, 2) }}</span>
           </td>
         </tr>
         @endforeach
@@ -205,34 +166,39 @@
     <!-- Totals Area -->
     <table class="totals-table">
       <tr>
-        <td class="text-right" width="60%">Gross Sale Value:</td>
-        <td class="text-right font-bold" width="40%">{{ number_format($return->original_order_total + $return->order->discount, 2) }}</td>
+        <td class="text-right" width="60%">Refund Total:</td>
+        <td class="text-right font-bold" width="40%">{{ number_format($return->total_refund, 2) }}</td>
       </tr>
-      @if($return->order->discount > 0)
-      <tr>
-        <td class="text-right">Original Discount:</td>
-        <td class="text-right">(-{{ number_format($return->order->discount, 2) }})</td>
-      </tr>
-      @endif
-      
-      <tr style="color: #d9534f;">
-        <td class="text-right">Cumulative Returns:</td>
-        <td class="text-right font-bold">-{{ number_format($return->order_total_refunded, 2) }}</td>
-      </tr>
+    </table>
+    
+    <div class="divider"></div>
+    <div class="text-center font-bold mb-2">ORDER SUMMARY (ADJUSTED)</div>
 
-      <tr class="grand-total">
-        <td class="text-left" style="font-size: 14px;">ADJUSTED SALE TOTAL</td>
-        <td class="text-right" style="font-size: 18px;">{{ number_format($return->order->total, 2) }}</td>
-      </tr>
+    <table class="totals-table">
+        <tr>
+            <td class="text-right" width="60%">Original Total:</td>
+            <td class="text-right" width="40%">{{ number_format($return->original_order_total + $return->order->discount, 2) }}</td>
+        </tr>
+        <tr>
+            <td class="text-right">Total Refunded:</td>
+            <td class="text-right">{{ number_format($return->order_total_refunded, 2) }}</td>
+        </tr>
+        <tr class="grand-total" style="border-top: 1.5px solid #000; border-bottom: 1.5px solid #000;">
+            <td class="text-left" style="font-size: 13px;">FINAL BALANCE</td>
+            <td class="text-right" style="font-size: 16px;">{{ number_format($return->order->total, 2) }}</td>
+        </tr>
     </table>
 
     <div class="divider"></div>
-
-    <!-- Software Credit -->
-    <div class="text-center text-xs" style="margin-top: 15px; color: #666;">
-      Software by <strong>SINYX</strong><br>
-      Contact: +92 342 9031328
+    
+    <!-- Footer Note -->
+    @if(readConfig('invoice_description'))
+    <div class="text-center text-xs" style="margin-top: 10px;">
+        {!! nl2br(readConfig('invoice_description')) !!}
     </div>
+    @endif
+    
+    <div class="text-center font-bold text-xs" style="margin-top: 15px;">Software by SINYX<br>Contact: +92 342 9031328</div>
   </div>
 
   @push('script')

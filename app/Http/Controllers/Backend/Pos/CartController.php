@@ -22,7 +22,8 @@ class CartController extends Controller
                 ->get()
                 ->map(function ($item) {
                     // Calculate row total for each item
-                    $item->row_total = round(($item->quantity * $item->product->discounted_price),2);
+                    // Hybrid Precision: Round item totals to nearest cent
+                    $item->row_total = round($item->quantity * $item->product->discounted_price, 2);
                     return $item;
                 });
             $total = $cartItems->sum('row_total');
@@ -67,8 +68,8 @@ class CartController extends Controller
         } else {
             $products = Product::query()
                 ->select(['id', 'name', 'image', 'price', 'discount', 'discount_type', 'quantity', 'sku', 'status'])
-                ->active()
-                ->stocked();
+                ->active();
+
 
             // Search by name if provided
             $products->when($search, function ($query, $search) {

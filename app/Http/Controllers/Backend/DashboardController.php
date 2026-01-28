@@ -102,11 +102,21 @@ class DashboardController extends Controller
         $request->validate([
             'barcode' => 'required|string|max:20',
             'label' => 'nullable|string|max:255',
+            'price' => 'nullable|numeric',
+            'label_size' => 'nullable|string',
+            'mfg_date' => 'nullable|date',
+            'exp_date' => 'nullable|date',
+            'show_price' => 'nullable|boolean',
         ]);
 
         $history = \App\Models\BarcodeHistory::create([
             'barcode' => $request->barcode,
             'label' => $request->label,
+            'price' => $request->price,
+            'label_size' => $request->label_size ?? 'large',
+            'mfg_date' => $request->mfg_date,
+            'exp_date' => $request->exp_date,
+            'show_price' => $request->show_price ?? false,
             'user_id' => auth()->id(),
         ]);
 

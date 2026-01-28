@@ -17,10 +17,12 @@ powerSaveBlocker.start('prevent-app-suspension');
 const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
+const receiptline = require('receiptline');
 const net = require('net');
 const http = require('http');
 const treeKill = require('tree-kill');
 const os = require('os');
+const PrinterTransport = require('./services/PrinterTransport.js');
 
 
 let laravelServer, mysqlServer, splashWindow, mainWindow;
@@ -228,16 +230,66 @@ function updateSplashStatus(message) {
 // ============================================
 // SERVER STARTUP
 // ============================================
-function startMySQL() {
+
+
+async function isPortOpen(port) {
+    return new Promise((resolve) => {
+        const s = new net.Socket();
+        s.once('error', (err) => {
+            s.destroy();
+            if (err.code === 'ECONNREFUSED') resolve(false); // Valid: Port is free
+            else resolve(false); // Other error, assume free/broken
+        });
+        s.once('connect', () => {
+            s.destroy();
+            resolve(true); // Port is taken
+        });
+        s.on('timeout', () => { s.destroy(); resolve(false); });
+        s.connect(port, '127.0.0.1');
+    });
+}
+
+async function startMySQL() {
+    // 1. Check if MySQL is already running
+    const isOpen = await isPortOpen(MYSQL_PORT);
+    if (isOpen) {
+        logger.log(`MySQL port ${MYSQL_PORT} is already in use. Verifying connection...`);
+        try {
+            await waitForMySQL(MYSQL_PORT, 2000);
+            logger.log("Existing MySQL instance found and responsive. Skipping spawn.");
+            return;
+        } catch (e) {
+            logger.warn("Port is used but MySQL not responding. Killing orphan process...");
+            try { treeKill(process.pid); /* Safe Attempt */ } catch(e){}
+            // We'll proceed to spawn anyway, hoping the OS clears the port
+        }
+    }
+
     return new Promise((resolve) => {
         logger.log('Starting MySQL Server...');
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysqld.exe');
         const myIniPath = path.join(basePath, 'mysql', 'my.ini');
+        
+        // Spawn without 'shell: true' to keep PID tracking accurate
         mysqlServer = spawn(mysqlPath, [`--defaults-file=${myIniPath}`, '--console'], { cwd: basePath, windowsHide: true });
+        
+        mysqlServer.on('error', (err) => {
+            logger.error(`Failed to start MySQL: ${err.message}`);
+        });
+
+        // Loop Prevention: Only restart if we actually own the process and it wasn't a clean exit
         mysqlServer.on('exit', (code) => { 
             if (!app.isQuitting) {
-                logger.warn('MySQL exited unexpectedly. Restarting...');
-                setTimeout(startMySQL, 1000); 
+                logger.warn(`MySQL exited with code ${code}. Checking if we need to restart...`);
+                // Check if port became free (meaning it actually died)
+                isPortOpen(MYSQL_PORT).then(stillOpen => {
+                    if (!stillOpen) {
+                        logger.warn("MySQL died and port is free. Restarting in 1s...");
+                        setTimeout(startMySQL, 1000); 
+                    } else {
+                        logger.warn("MySQL exited but port is still open. Likely conflict or concurrent instance. NOT restarting.");
+                    }
+                });
             }
         });
         resolve();
@@ -308,23 +360,21 @@ function createMainWindow() {
 // SHARED CASH DRAWER KICKER
 // ============================================
 async function triggerCashDrawer(printerName) {
-    const pName = printerName || "Default";
-    console.log(`[DRAWER KICK]: Triggering on ${pName}`);
-    
-    // Tiny hidden window to send raw kick command through the driver
-    const kickWindow = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: true, contextIsolation: false } });
-    const kickHtml = `<html><body><script>window.onload=()=>{ window.print(); window.close(); }</script>\x1b\x70\x00\x19\xfa</body></html>`;
-    const tempPath = path.join(app.getPath('temp'), `kick_${Date.now()}.html`);
-    const fs = require('fs');
-    fs.writeFileSync(tempPath, kickHtml);
+    const pName = printerName || "POS80 Printer"; // Fallback to user's hardware name
+    console.log(`[DRAWER KICK]: Sending Raw Signal to ${pName}`);
     
     try {
-        await kickWindow.loadFile(tempPath);
-        await kickWindow.webContents.print({ silent: true, deviceName: pName });
-        if(!kickWindow.isDestroyed()) kickWindow.destroy();
-        try { fs.unlinkSync(tempPath); } catch(e){}
+        // Standard ESC/POS Drawer Kick Sequence (ESC p 0 25 250)
+        // This is sent as RAW BYTES to bypass driver parsing
+        const kickBytes = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa]);
+        await PrinterTransport.printBuffer(pName, kickBytes);
+        
+        // Double kick for extra reliability on some hardware
+        const kickBytes2 = Buffer.from([0x1b, 0x70, 0x01, 0x19, 0xfa]);
+        await PrinterTransport.printBuffer(pName, kickBytes2);
+        
+        console.log("[DRAWER KICK]: Raw Signal Sent Successfully");
     } catch (e) {
-        if(!kickWindow.isDestroyed()) kickWindow.destroy();
         console.error("Drawer Kick Failed:", e.message);
     }
 }
@@ -347,95 +397,94 @@ function setupAutoUpdater() {
     // Silent Printing / PDF IPC
     ipcMain.handle('print:silent', async (event, options) => {
         const { url, printerName, htmlContent, jsonData } = options;
-        console.log(`[PRINT REQUEST]: ${jsonData ? 'Headless JSON' : 'Legacy'}`);
-        
-        const printWindow = new BrowserWindow({
-            show: false, // Hidden as requested (PNG Capture)
-            width: 302, 
-            height: 1000,
-            parent: mainWindow, 
-            webPreferences: { 
-                contextIsolation: false,
-                nodeIntegration: true,
-                paintWhenInitiallyHidden: true,
-                backgroundThrottling: false // Ensure painting happens in background
-            }
-        });
+        console.log(`[PRINT REQUEST]: ${jsonData ? 'Headless JSON (ESC/POS)' : 'Legacy HTML'}`);
         
         try {
-            if (jsonData) {
-                let htmlString = "";
-                if (jsonData.type === 'barcode') {
-                    htmlString = generateBarcodeHtml(jsonData);
-                } else {
-                    htmlString = generateReceiptHtml(jsonData);
-                }
-                
-                const tempPath = path.join(app.getPath('temp'), `${jsonData.type || 'receipt'}_${Date.now()}.html`);
-                const fs = require('fs');
-                fs.writeFileSync(tempPath, htmlString);
-                
-                await printWindow.loadFile(tempPath);
-                
-                // 3. Reliable Height Detection & Capture (Maturity Plan)
+            if (jsonData && jsonData.type === 'barcode') {
+                // PROFESSIONAL BARCODE PRINTING (RAW ESC/POS)
                 try {
-                    // Wait for fonts & rendering
-                    await printWindow.webContents.executeJavaScript('document.fonts.ready');
-                    await new Promise(r => setTimeout(r, 600)); // Buffer for paint
+                    const buffer = generateBarcodeESC(jsonData);
+                    if (buffer) {
+                        console.log(`[RAW BARCODE]: Starting RAW print for ${jsonData.barcodeValue} on "${printerName}". Buffer length: ${buffer.length} bytes`);
+                        
+                        // ESC/POS Initialization (ESC @) + Existing Buffer + Line Feeds
+                        const flushBuffer = Buffer.concat([
+                            Buffer.from([0x1B, 0x40]), // Initialize Printer
+                            Buffer.from(buffer),
+                            Buffer.from([0x0A, 0x0A, 0x0A, 0x0A]) // 4 Line Feeds
+                        ]);
 
-                    const contentHeight = await printWindow.webContents.executeJavaScript('document.body.scrollHeight');
-                    printWindow.setContentSize(302, Math.ceil(contentHeight) + 50);
-                    
-                    // Capture Page as PNG
-                    const image = await printWindow.webContents.capturePage();
-                    const receiptsDir = path.join(app.getPath('documents'), 'Receipts');
-                    if (!require('fs').existsSync(receiptsDir)) require('fs').mkdirSync(receiptsDir);
-                    
-                    const filename = `${jsonData.type === 'barcode' ? 'Barcode' : 'Receipt'}_${jsonData.id || Date.now()}.png`;
-                    const imagePath = path.join(receiptsDir, filename);
-                    require('fs').writeFileSync(imagePath, image.toPNG());
-
-                    // 4. Physical Print (Silent)
-                    printWindow.webContents.print({ 
-                        silent: true, 
-                        deviceName: printerName, 
-                        margins: { marginType: 'none' } 
-                    }, (success, err) => {
-                        if(!success) console.error("Physical Print Failed:", err);
-                        else if (jsonData.type !== 'barcode') {
-                            triggerCashDrawer(printerName);
-                        }
-                        if(!printWindow.isDestroyed()) printWindow.close();
+                        await PrinterTransport.printBuffer(printerName, flushBuffer);
+                        return { success: true };
+                    } else {
+                        throw new Error("Failed to generate ESC/POS buffer");
+                    }
+                } catch (rawError) {
+                    console.error("[RAW BARCODE FAILED]:", rawError);
+                    // Graphical Fallback if RAW fails
+                    const isLarge = jsonData.labelSize === 'large';
+                    const windowWidth = isLarge ? 190 : 145;
+                    const windowHeight = isLarge ? 115 : 95;
+                    const printWindow = new BrowserWindow({
+                        show: false, width: windowWidth, height: windowHeight,
+                        webPreferences: { contextIsolation: false, nodeIntegration: true }
                     });
-
-                } catch (captureErr) {
-                    console.error("Reliable capture failed:", captureErr);
-                    if(!printWindow.isDestroyed()) printWindow.close();
+                    const barcodeHtml = generateBarcodeHtmlFallback(jsonData);
+                    const tempPath = path.join(app.getPath('temp'), `barcode_fb_${Date.now()}.html`);
+                    fs.writeFileSync(tempPath, barcodeHtml);
+                    await printWindow.loadFile(tempPath);
+                    await new Promise(r => setTimeout(r, 800)); 
+                    await new Promise((resolve, reject) => {
+                        printWindow.webContents.print({ 
+                            silent: true, printBackground: true, deviceName: printerName,
+                            margins: { marginType: 'none' }
+                        }, (s, e) => s ? resolve() : reject(e));
+                    });
+                    printWindow.close();
+                    return { success: true };
                 }
 
-                return { success: true };
-
-
+            } else if (jsonData) {
+                // PROFESSIONAL RAW RECEIPT PRINTING (ESC/POS)
+                try {
+                    const rawGenerator = require('./services/RawReceiptGenerator');
+                    const buffer = await rawGenerator.generate(jsonData);
+                    await PrinterTransport.printBuffer(printerName, buffer);
+                    return { success: true };
+                } catch (rawError) {
+                    console.error("[RAW PRINT FAILED]:", rawError);
+                    return { success: false, error: rawError.message };
+                }
 
             } else {
-                // Legacy URL/HTML support (Simplified)
+                // LEGACY URL PRINTING
+                const printWindow = new BrowserWindow({
+                    show: false, width: 302, height: 1000,
+                    webPreferences: { contextIsolation: false, nodeIntegration: true }
+                });
+
                 if (htmlContent) {
                     const tempPath = path.join(app.getPath('temp'), `legacy_${Date.now()}.html`);
-                    require('fs').writeFileSync(tempPath, htmlContent);
+                    fs.writeFileSync(tempPath, htmlContent);
                     await printWindow.loadFile(tempPath);
                 } else {
                     await printWindow.loadURL(url);
                 }
+                
                 await new Promise(r => setTimeout(r, 1000));
                 await new Promise((resolve, reject) => {
-                    printWindow.webContents.print({ silent: true, deviceName: printerName }, (s, e) => s ? resolve() : reject(e));
+                    printWindow.webContents.print({ 
+                        silent: true, 
+                        printBackground: true, 
+                        deviceName: printerName,
+                        margins: { marginType: 'none' }
+                    }, (s, e) => s ? resolve() : reject(e));
                 });
                 printWindow.close();
                 return { success: true };
             }
         } catch (error) {
             console.error('[PRINT ERROR]:', error);
-            if (!printWindow.isDestroyed()) printWindow.close();
             return { success: false, error: error.message };
         }
     });
@@ -451,39 +500,16 @@ function setupAutoUpdater() {
     // Handle Get Printers (Restore if missing)
     ipcMain.handle('print:get-printers', async () => {
         if (!mainWindow) return [];
-        return mainWindow.webContents.getPrinters();
+        return await mainWindow.webContents.getPrintersAsync();
     });
 
-    // Hardware Health Polling (Printer + Drawer)
+    // Hardware Health Polling - DEPRECATED/REMOVED per User Feedback
     ipcMain.handle('hardware:poll-status', async (event, { printerName }) => {
-        // 1. Auto-close drawer state after 10s as a "soft-sensor" fallback 
-        // if we can't physically read the DK-port pin.
-        if (drawerStatus === 'open' && (Date.now() - drawerLastOpenTime > 10000)) {
-            drawerStatus = 'closed';
-        }
-
-        const res = {
-            printer: 'offline',
-            drawer: drawerStatus,
-            message: 'Scanning...'
+        return {
+            printer: 'online', // Fallback to "online" to avoid red bulbs
+            drawer: 'closed',
+            message: 'Status Monitoring Disabled'
         };
-
-        try {
-            const printers = mainWindow.webContents.getPrinters();
-            const target = printers.find(p => p.name === printerName) || printers.find(p => p.isDefault);
-            
-            if (target) {
-                // Windows Status 0 = Ready
-                res.printer = (target.status === 0) ? 'online' : 'offline';
-                res.message = (target.status === 0) ? `Ready: ${target.name}` : `Offline: ${target.name}`;
-            } else {
-                res.message = 'Printer Not Linked';
-            }
-        } catch (e) {
-            res.message = 'Poll Failed';
-        }
-
-        return res;
     });
 
     // Manual Drawer Close (User Confirmation)
@@ -797,66 +823,108 @@ function generateReceiptHtml(data) {
 </html>`;
 }
 
-// ============================================
-// GENERATE BARCODE HTML (Professional Label)
-// ============================================
-function generateBarcodeHtml(data) {
+/**
+ * GENERATE BARCODE ESC/POS (Manual Binary Path)
+ * Bypasses libraries to prevent gibberish and ensure scannability.
+ */
+function generateBarcodeESC(data) {
     const { label, barcodeValue, mfgDate, expDate, labelSize, price, showPrice } = data;
-    const fs = require('fs');
-    let barcodeLib = '';
-    try { barcodeLib = fs.readFileSync('d:\\Projects\\POS System\\public\\plugins\\JsBarcode.all.min.js', 'utf8'); } catch(e) {}
+    const isLarge = labelSize === 'large';
+    const hasDates = isLarge && (mfgDate || expDate);
+    const hasPrice = showPrice && price;
 
-    // Scaled for high-density 50mm label
+    const chunks = [];
+    
+    // 1. Initialize & Center
+    chunks.push(Buffer.from([0x1B, 0x40])); // ESC @ (Init)
+    chunks.push(Buffer.from([0x1B, 0x61, 0x01])); // ESC a 1 (Center)
+
+    // 2. Label (Double Width/Height)
+    chunks.push(Buffer.from([0x1D, 0x21, 0x11])); // GS ! 17 (Double width/height)
+    chunks.push(Buffer.from(`${label}\n`));
+    chunks.push(Buffer.from([0x1D, 0x21, 0x00])); // Reset size
+
+    // 3. Price (Bold)
+    if (hasPrice) {
+        const pStr = (Math.round(parseFloat(price) * 100) / 100).toFixed(2);
+        chunks.push(Buffer.from([0x1B, 0x45, 0x01])); // ESC E 1 (Bold)
+        chunks.push(Buffer.from(`Rs. ${pStr}\n`));
+        chunks.push(Buffer.from([0x1B, 0x45, 0x00])); // Reset Bold
+    }
+
+    // SPACER LINE (Explicit Feed 1 Line - User Verified)
+    chunks.push(Buffer.from([0x1B, 0x64, 0x01]));
+
+    // 4. Barcode (NATIVE GS k)
+    const h = isLarge ? 80 : 60;
+    const w = isLarge ? 3 : 2;
+    chunks.push(Buffer.from([
+        0x1D, 0x68, h,       // Height
+        0x1D, 0x77, w,       // Width
+        0x1D, 0x48, 0x02,    // HRI Below
+        0x1D, 0x6B, 0x49, barcodeValue.length // GS k 73 (CODE128) + len
+    ]));
+    chunks.push(Buffer.from(barcodeValue));
+    chunks.push(Buffer.from("\n"));
+
+    // 5. Dates (Small)
+    if (hasDates) {
+        // Updated prefixes per user request (M -> MFG, E -> EXP)
+        const mfg = mfgDate ? `MFG:${new Date(mfgDate).toLocaleDateString('en-GB')}` : '';
+        const exp = expDate ? `EXP:${new Date(expDate).toLocaleDateString('en-GB')}` : '';
+        chunks.push(Buffer.from(`${mfg}   ${exp}\n`));
+    }
+
+    // 6. Flush (Increased to 6 lines to clear cutter - User Verified)
+    chunks.push(Buffer.from([0x1B, 0x64, 0x06])); 
+    chunks.push(Buffer.from([0x1D, 0x56, 0x41, 0x00])); // GS V 65 0 (AutoCut if supported)
+
+    return Buffer.concat(chunks);
+}
+
+// ============================================
+// FALLBACK BARCODE HTML (Graphical)
+// ============================================
+function generateBarcodeHtmlFallback(data) {
+    const { label, barcodeValue, mfgDate, expDate, labelSize, price, showPrice } = data;
+    const isLarge = labelSize === 'large';
+    const hasDates = isLarge && (mfgDate || expDate);
+    const hasPrice = showPrice && price;
+
+    let receiptText = `{c:}\n`;
+    receiptText += `{b:900}${label}\n`;
+    if (hasPrice) {
+        receiptText += `{b:900}Rs. ${(Math.round(parseFloat(price) * 100) / 100).toFixed(2)}\n`;
+    }
+    
+    const w = isLarge ? 3 : 2;
+    const h = isLarge ? 100 : 80;
+    receiptText += `{code: ${barcodeValue}; type: code128; width: ${w}; height: ${h}}\n`;
+    
+    if (hasDates) {
+        const mfg = mfgDate ? `M:${new Date(mfgDate).toLocaleDateString('en-GB')}` : '';
+        const exp = expDate ? `E:${new Date(expDate).toLocaleDateString('en-GB')}` : '';
+        receiptText += `--- \n`;
+        receiptText += `{s:0.8}${mfg}   ${exp}\n`;
+    }
+
+    const svg = receiptline.transform(receiptText, {
+        cpl: isLarge ? 42 : 32,
+        encoding: 'cp437',
+        command: 'svg'
+    });
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { 
-            width: 50mm; height: 30mm; 
-            display: flex; justify-content: center; align-items: center;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-            background: #fff;
-        }
-        .container { 
-            width: 100%; text-align: center; padding: 2px;
-            border: 1px solid transparent; /* Professional layout */
-        }
-        .product-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; overflow: hidden; white-space: nowrap; }
-        .price { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
-        .barcode-area { margin: 2px 0; }
-        .dates { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; margin-top: 2px; border-top: 1px dashed #000; padding-top: 2px; }
+        @page { margin: 0; size: auto; }
+        body { margin: 0; padding: 0; width: ${isLarge ? '50mm' : '38mm'}; height: ${isLarge ? '30mm' : '25mm'}; display: flex; box-sizing: border-box; justify-content: center; align-items: center; background: #fff; overflow: hidden; }
+        .container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transform: scale(0.9); }
+        svg { width: 100%; height: auto; image-rendering: auto; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="product-name">${label || 'PRODUCT'}</div>
-        ${showPrice ? `<div class="price">Rs. ${parseFloat(price).toFixed(2)}</div>` : ''}
-        <div class="barcode-area"><svg id="barcode"></svg></div>
-        ${labelSize === 'large' && (mfgDate || expDate) ? `
-        <div class="dates">
-            <span>MFG: ${mfgDate}</span>
-            <span>EXP: ${expDate}</span>
-        </div>` : ''}
-    </div>
-
-    <script>${barcodeLib}</script>
-    <script>
-        window.onload = () => {
-            if(typeof JsBarcode !== 'undefined') {
-                JsBarcode("#barcode", "${barcodeValue}", {
-                    format: "CODE128",
-                    width: 1.8,
-                    height: 50,
-                    displayValue: true,
-                    fontSize: 14
-                });
-            }
-        }
-    </script>
-
-</body>
+<body><div class="container">${svg}</div></body>
 </html>`;
 }

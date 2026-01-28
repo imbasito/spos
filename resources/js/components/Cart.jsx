@@ -31,13 +31,37 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
     return (
         <>
             <div className="user-cart">
-                <div className="card">
+                <div className="card shadow-soft apple-card-refinement" style={{ borderRadius: 'var(--radius-md)', border: 'var(--apple-border)' }}>
                     <div className="card-body">
                         {carts.length === 0 ? (
-                            <div className="empty-state-container py-5">
-                                <i className="fas fa-shopping-cart fa-4x mb-3 text-muted" style={{ opacity: 0.2 }}></i>
-                                <h5 className="text-muted font-weight-bold">Cart is empty</h5>
-                                <p className="text-muted small">Select products to start an order</p>
+                            <div className="empty-state-container py-5 text-center animate__animated animate__fadeIn">
+                                {/* Bismillah Calligraphy SVG - Premium Apple Decoration */}
+                                <div className="bismillah-calligraphy mb-3 position-relative" style={{ height: '110px', opacity: 1, transform: 'scale(0.85)' }}>
+                                    {/* Subtle Crystalline Glow (Apple standard) */}
+                                    <div className="position-absolute" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '250px', height: '80px', background: 'radial-gradient(circle, rgba(128,0,0,0.03) 0%, transparent 70%)', zIndex: -1 }}></div>
+                                    
+                                    <svg viewBox="0 0 600 120" fill="var(--apple-accent)" xmlns="http://www.w3.org/2000/svg" style={{ height: '100%', width: 'auto' }}>
+                                        {/* Precision Geometric Decor (Apple style) */}
+                                        <g opacity="0.15">
+                                            <circle cx="50" cy="60" r="1.5" />
+                                            <circle cx="550" cy="60" r="1.5" />
+                                            <path d="M70,60 L120,60 M480,60 L530,60" stroke="var(--apple-accent)" stroke-width="0.5" />
+                                        </g>
+                                        
+                                        {/* Main Calligraphy */}
+                                        <text x="300" y="75" font-family="Traditional Arabic, Times New Roman, serif" font-size="68" text-anchor="middle" fill="var(--apple-accent)" font-weight="500" style={{ letterSpacing: '0.02em' }}>
+                                            بسم الله الرحمن الرحيم
+                                        </text>
+                                        
+                                        <path d="M220,100 Q300,92 380,100" fill="none" stroke="var(--apple-accent)" stroke-width="0.8" stroke-linecap="round" opacity="0.1" />
+                                    </svg>
+                                </div>
+
+
+
+
+                                <h5 className="text-apple-sub font-weight-bold" style={{ letterSpacing: '0.05em' }}>Your Cart is Ready</h5>
+                                <p className="text-apple-tiny">Scan or select products to begin a blessed transaction</p>
                             </div>
                         ) : (
                             <div className="responsive-table">
@@ -47,10 +71,11 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                             <th>Name</th>
                                             <th>Qty (kg/pcs)</th>
                                             <th></th>
-                                            <th>Price/Unit</th>
-                                            <th>Total</th>
+                                            <th>Price/Unit ({window.posSettings?.currencySymbol || 'Rs.'})</th>
+                                            <th>Total ({window.posSettings?.currencySymbol || 'Rs.'})</th>
                                         </tr>
                                     </thead>
+
                                     <tbody>
                                         {carts.map((item) => (
                                             <tr key={item.id}>

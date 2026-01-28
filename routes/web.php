@@ -111,6 +111,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('/refunds/create/{order}', [\App\Http\Controllers\Backend\RefundController::class, 'create'])->name('refunds.create');
     Route::post('/refunds', [\App\Http\Controllers\Backend\RefundController::class, 'store'])->name('refunds.store');
     Route::get('/refunds/{return}/receipt', [\App\Http\Controllers\Backend\RefundController::class, 'receipt'])->name('refunds.receipt');
+    Route::get('/refunds/{return}/details', [\App\Http\Controllers\Backend\RefundController::class, 'refundDetails'])->name('refunds.details'); // Professional JSON API
     
     // start pos
     Route::get('/get/products', [CartController::class, 'getProducts'])->name('getProducts');

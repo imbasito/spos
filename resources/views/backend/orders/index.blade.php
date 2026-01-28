@@ -264,7 +264,59 @@
       }
   }
 
-  function printReceiptFrame() {
+  async function printReceiptFrame() {
+      // 1. Electron Silent / Raw Print
+      if (window.electron && window.electron.printSilent) {
+          const frame = document.getElementById('receiptFrame');
+          const currentUrl = frame.src;
+          
+          // Extract Order ID to fetch JSON for Raw Command
+          const match = currentUrl.match(/pos-invoice\/(\d+)/);
+          if(match && match[1]) {
+              const orderId = match[1];
+              const toastId = Swal.fire({
+                  title: 'Printing...',
+                  didOpen: () => Swal.showLoading(),
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false
+              });
+
+              try {
+                  // Fetch Raw JSON Data
+                   const response = await fetch(`/admin/orders/receipt-details/${orderId}`);
+                   const jsonRes = await response.json();
+                   
+                   if(jsonRes.success && jsonRes.data) {
+                       // Fetch Raw JSON Data (Already fetched in jsonRes)
+                       await window.electron.printSilent(
+                           null, // No URL needed for Raw
+                           @json(readConfig('receipt_printer')), 
+                           null, 
+                           jsonRes.data // Pass the actual JSON data
+                       );
+                       Swal.fire({
+                           icon: 'success',
+                           title: 'Sent to Printer',
+                           toast: true,
+                           position: 'top-end',
+                           timer: 2000,
+                           showConfirmButton: false
+                       });
+                   }
+              } catch(e) {
+                  console.error("Raw Print Error", e);
+                  // Fallback to Iframe Print
+                  if (frame && frame.contentWindow) {
+                      frame.contentWindow.focus();
+                      frame.contentWindow.print();
+                  }
+              }
+              return;
+         }
+      }
+
+      // 2. Default Browser Print
       const frame = document.getElementById('receiptFrame');
       if (frame && frame.contentWindow) {
           frame.contentWindow.focus();
@@ -275,37 +327,110 @@
   window.addEventListener('message', function(e) {
       if(e.data === 'receipt-loaded') finalizeReceiptLoad();
       if(e.data === 'close-modal') $('#receiptModal').modal('hide');
+      if(e.data.action === 'print-raw-from-preview') printReceiptFrame();
   });
 </script>
 
-<!-- POS Receipt Modal: Premium Maroon Theme -->
-<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content shadow-lg" style="border-radius: 12px; overflow: hidden; border: none;">
-            <div class="modal-header text-white p-2 d-flex justify-content-between align-items-center" style="background: #800000;">
-                <h5 class="modal-title m-0 ml-2" style="font-size: 1.1rem; font-weight: 600;"><i class="fas fa-receipt mr-2"></i> Invoice Preview</h5>
-                <div class="d-flex align-items-center">
-                    <button type="button" class="btn btn-sm btn-light mr-2 font-weight-bold shadow-sm px-3" onclick="printReceiptFrame()">
-                        <i class="fas fa-print mr-1"></i> Print
+<!-- IMPROVED RECEIPT MODAL -->
+<div class="modal fade" id="receiptModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 420px;"> <!-- Matched to thermal width -->
+        <div class="modal-content shadow-lg" style="border: none; border-radius: 8px;">
+            
+            <!-- Title Bar with Buttons -->
+            <div class="modal-header bg-dark text-white p-2 d-flex justify-content-between align-items-center" style="border-bottom: 3px solid #800000;">
+                <h6 class="modal-title font-weight-bold m-0 pl-2">
+                    <i class="fas fa-receipt mr-1"></i> Receipt Preview
+                </h6>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-light font-weight-bold shadow-none" onclick="printReceiptFrame()" title="Print Receipt">
+                        <i class="fas fa-print text-dark"></i> Print
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger font-weight-bold shadow-sm px-3" style="background: #dc3545;" data-dismiss="modal">
-                        <i class="fas fa-times mr-1"></i> Close
+                    <button type="button" class="btn btn-danger font-weight-bold shadow-none" data-dismiss="modal" title="Close">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
-            <div class="modal-body p-0 position-relative" style="height: 650px; background: #fff;">
-                 <div id="receiptLoader" class="d-flex flex-column justify-content-center align-items-center w-100 h-100 position-absolute" 
-                      style="top:0; left:0; z-index:999; background:#fff;">
-                      <div class="spinner-border text-maroon" role="status" style="color: #800000; width: 3rem; height: 3rem; border-width: 0.25em;"></div>
-                      <span class="mt-3 font-weight-bold text-dark" style="font-size: 1.1rem;">Generating Receipt...</span>
-                 </div>
-                 <iframe id="receiptFrame" name="receiptFrame" src="about:blank" 
-                         style="width:100%; height:100%; border:none; display:block; visibility: hidden;" 
-                         scrolling="yes"></iframe>
+
+            <!-- Modal Body (Iframe) -->
+            <div class="modal-body p-0 position-relative" style="height: 600px; background: #525659;">
+                <!-- Loader -->
+                <div id="receiptLoader" class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: white; z-index: 10;">
+                    <div class="spinner-border text-maroon" role="status"></div>
+                    <div class="mt-2 font-weight-bold small text-muted">Loading Receipt...</div>
+                </div>
+
+                <!-- Preview Frame -->
+                <iframe id="receiptFrame" name="receiptFrame" src="about:blank" 
+                        style="width: 100%; height: 100%; border: none; display: block; background: white;"></iframe>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Global function to open Receipt Modal
+    window.openRefundReceipt = function(url) {
+        // Reset Modal State
+        $('#receiptLoader').show();
+        $('#receiptFrame').attr('src', 'about:blank'); // Clear previous
+        $('#receiptModal').modal('show');
+
+        // Load new URL with cache/bust
+        setTimeout(() => {
+            const frame = document.getElementById('receiptFrame');
+            frame.onload = () => { $('#receiptLoader').fadeOut('fast'); };
+            frame.src = url;
+        }, 200);
+    };
+
+    // Print Function (Calls backend for Raw Print)
+    window.printReceiptFrame = async function() {
+        const frame = document.getElementById('receiptFrame');
+        if (!frame || frame.src === 'about:blank') return;
+
+        // Visual Feedback
+        Swal.fire({
+            title: 'Printing...',
+            timer: 2000,
+            didOpen: () => Swal.showLoading(),
+            backdrop: `rgba(0,0,0,0.4)`
+        });
+
+        // 1. Try Electron Raw Print First
+        if (window.electron && window.electron.printSilent) {
+            try {
+                // Extract Return ID from URL to fetch JSON
+                // URL Format: .../admin/refunds/{id}/receipt
+                const match = frame.src.match(/refunds\/(\d+)\/receipt/);
+                if (match && match[1]) {
+                    const refundId = match[1];
+                    // Fetch JSON Data for Raw Gen
+                    const res = await fetch(`/admin/refunds/${refundId}/details`);
+                    const json = await res.json();
+                    
+                    if (json.success && json.data) {
+                        json.data.type = 'refund'; // Force type
+                        await window.electron.printSilent(
+                            null, 
+                            "POS80", // Default or user config
+                            null, 
+                            json.data
+                        );
+                        return; // Success
+                    }
+                }
+            } catch (e) {
+                console.error("Raw Print Failed, falling back to iframe:", e);
+            }
+        }
+
+        // 2. Fallback: Print Iframe contents (Browser Print)
+        if (frame.contentWindow) {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }
+    };
+</script>
 
 <!-- Refund Modal -->
 <div class="modal fade" id="refundModal" tabindex="-1" role="dialog">

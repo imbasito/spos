@@ -30,10 +30,6 @@ if (document.getElementById("barcode-root")) {
     barcodeRoot.render(<BarcodeGenerator />);
 }
 
-import PrinterStatus from './components/PrinterStatus';
-if (document.getElementById("hardware-monitor")) {
-    const hwmRoot = createRoot(document.getElementById("hardware-monitor"));
-    hwmRoot.render(<PrinterStatus />);
-}
+
 
 

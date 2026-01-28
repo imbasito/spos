@@ -5,7 +5,7 @@
 @section('content')
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title"><i class="fas fa-undo"></i> Refund History</h3>
+    <h3 class="card-title"><i class="fas fa-undo"></i> Refund History (V2)</h3>
   </div>
   <div class="card-body p-2 p-md-4 pt-0">
     <div class="row g-4">
@@ -27,101 +27,132 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
+  </div> {{-- Close main card-body --}}
+</div> {{-- Close main card --}}
 
-<!-- Refund Receipt Modal: Premium Maroon Theme -->
-<div class="modal fade" id="refundReceiptModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content shadow-lg" style="border-radius: 12px; overflow: hidden; border: none;">
-            <div class="modal-header text-white p-2 d-flex justify-content-between align-items-center" style="background: #800000;">
-                <h5 class="modal-title m-0 ml-2" style="font-size: 1.1rem; font-weight: 600;"><i class="fas fa-receipt mr-2"></i> Return Receipt</h5>
-                <div class="d-flex align-items-center">
-                    <button type="button" class="btn btn-sm btn-light mr-2 font-weight-bold shadow-sm px-3" onclick="printRefundFrame()">
-                        <i class="fas fa-print mr-1"></i> Print
+<!-- FRESH REFUND PREVIEW MODAL -->
+<div class="modal fade" id="refundPreviewModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">
+        <div class="modal-content shadow-lg border-0" style="border-radius: 8px;">
+            
+            <!-- Header: Title + Actions -->
+            <div class="modal-header bg-dark text-white p-2 d-flex justify-content-between align-items-center" style="border-bottom: 3px solid #800000;">
+                <h6 class="modal-title font-weight-bold ml-2">
+                    <i class="fas fa-receipt mr-1"></i> Receipt Preview
+                </h6>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-light font-weight-bold shadow-none" id="btnPrintRefund" title="Print Receipt">
+                        <i class="fas fa-print"></i> Print
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger font-weight-bold shadow-sm px-3" style="background: #dc3545;" data-dismiss="modal">
-                        <i class="fas fa-times mr-1"></i> Close
+                    <button type="button" class="btn btn-danger font-weight-bold shadow-none" data-dismiss="modal" title="Close">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
-            <div class="modal-body p-0 position-relative" style="height: 650px; background: #fff;">
-                 <!-- Guaranteed Loader -->
-                 <div id="receiptLoader" class="d-flex flex-column justify-content-center align-items-center w-100 h-100 position-absolute" 
-                      style="top:0; left:0; z-index:999; background:#fff;">
-                      <div class="spinner-border text-maroon" role="status" style="color: #800000; width: 3rem; height: 3rem; border-width: 0.25em;"></div>
-                      <span class="mt-3 font-weight-bold text-dark" style="font-size: 1.1rem;">Generating Receipt...</span>
-                 </div>
-                 
-                 <!-- Iframe: The native onload is the most robust way to detect completion -->
-                 <iframe id="refundReceiptFrame" name="refundReceiptFrame" src="about:blank" 
-                         style="width:100%; height:100%; border:none; display:block; visibility: hidden;" 
-                         scrolling="yes"></iframe>
+
+            <!-- Body: Iframe Container -->
+            <div class="modal-body p-0 position-relative" style="height: 550px; background: #e9ecef;">
+                <!-- Loader -->
+                <div id="refundLoader" class="position-absolute w-100 h-100 d-flex flex-column justify-content-center align-items-center" style="background: white; z-index: 10;">
+                    <div class="spinner-border text-maroon" role="status"></div>
+                    <div class="mt-2 text-muted small font-weight-bold">Loading Preview...</div>
+                </div>
+                
+                <!-- Iframe -->
+                <iframe id="refundFrame" name="refundFrame" src="about:blank" 
+                        style="width: 100%; height: 100%; border: none; display: block; background: white;"></iframe>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Force Modal on Top */
+    #refundPreviewModal { z-index: 1050 !important; }
+    .modal-backdrop { z-index: 1040 !important; }
+</style>
+
 @endsection
 
 @push('script')
 <script type="text/javascript">
   
-  // The ONLY function allowed to hide the loader
-  function finalizeReceiptLoad() {
-      const loader = document.getElementById('receiptLoader');
-      const frame = document.getElementById('refundReceiptFrame');
-      
-      console.log('Finalizing load...');
-      if (loader) loader.style.setProperty('display', 'none', 'important');
-      if (frame) {
-          frame.style.visibility = 'visible';
-          frame.style.display = 'block';
-      }
-  }
+  // 1. OPEN MODAL
+  window.openRevisedRefundReceipt = function(url) {
+      console.log("REVISED RECEIPT MODAL TRIGGERED:", url);
 
-  function openRefundReceipt(url) {
-      const frame = document.getElementById('refundReceiptFrame');
-      const loader = document.getElementById('receiptLoader');
-      
-      // 1. Instantly reset UI
-      loader.style.display = 'flex';
-      frame.style.visibility = 'hidden';
-      frame.src = 'about:blank';
-      
-      // 2. Open Modal
-      $('#refundReceiptModal').modal('show');
-      
-      // 3. Set standard load handler
-      frame.onload = function() {
-          // Only trigger if it's the real content, or wait a bit
-          if (frame.contentWindow.location.href !== "about:blank") {
-              setTimeout(finalizeReceiptLoad, 100);
+      // Show Modal & Loader
+      $('#refundLoader').show();
+      $('#refundFrame').attr('src', 'about:blank');
+      $('#refundPreviewModal').modal('show');
+
+      // Set Iframe Source (Blade View)
+      setTimeout(() => {
+          const frame = document.getElementById('refundFrame');
+          frame.onload = function() {
+              $('#refundLoader').fadeOut(200);
+          };
+          frame.src = url; 
+          
+          // Store ID for Printing
+          const match = url.match(/\/refunds\/(\d+)/);
+          if(match && match[1]) {
+              $('#btnPrintRefund').data('refund-id', match[1]);
           }
-      };
+      }, 300);
+  };
 
-      // 4. Trigger Load
-      const cacheBuster = url.indexOf('?') !== -1 ? '&_v=' : '?_v=';
-      frame.src = url + cacheBuster + Date.now();
+  // 2. PRINT LOGIC (Raw / Silent)
+  $('#btnPrintRefund').click(async function() {
+      const refundId = $(this).data('refund-id');
+      const frame = document.getElementById('refundFrame');
 
-      // 5. Hard Fail-Safe (2.5 seconds - guaranteed to hide)
-      setTimeout(finalizeReceiptLoad, 2500);
-  }
-
-  function printRefundFrame() {
-      const frame = document.getElementById('refundReceiptFrame');
-      if (frame && frame.contentWindow) {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
+      if (!refundId) {
+           // Fallback to Iframe Print if ID missing
+           if(frame.contentWindow) frame.contentWindow.print();
+           return;
       }
-  }
 
-  // Double-Redundancy Handshake
-  window.addEventListener('message', function(e) {
-      if(e.data === 'receipt-loaded') { 
-          finalizeReceiptLoad();
-      }
-      if(e.data === 'close-modal') { 
-          $('#refundReceiptModal').modal('hide'); 
+      // Visual Feedback
+      const btn = $(this);
+      const originalIcon = btn.html();
+      btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+      try {
+          // A. Fetch formatted JSON for Hardware
+          if (window.electron && window.electron.printSilent) {
+              const res = await fetch(`/admin/refunds/${refundId}/details`);
+              const json = await res.json();
+              
+              if (json.success && json.data) {
+                  json.data.type = 'refund'; // Enforce Type
+                  await window.electron.printSilent(null, "POS80", null, json.data);
+                  
+                  // Success Toast
+                  Swal.fire({
+                      icon: 'success', 
+                      title: 'Printed', 
+                      toast: true, 
+                      position: 'top-end', 
+                      showConfirmButton: false, 
+                      timer: 2000 
+                  });
+              } else {
+                  throw new Error("Invalid Data");
+              }
+          } else {
+              // B. Fallback to Browser Print
+              if(frame.contentWindow) {
+                  frame.contentWindow.focus();
+                  frame.contentWindow.print();
+              }
+          }
+      } catch (e) {
+          console.error("Print Error:", e);
+          // Last Resort
+          if(frame.contentWindow) frame.contentWindow.print();
+      } finally {
+          btn.prop('disabled', false).html(originalIcon);
       }
   });
 
@@ -140,11 +171,6 @@
         { data: 'action', name: 'action' },
       ],
       order: [[1, 'desc']]
-    });
-    
-    // Cleanup on modal close
-    $('#refundReceiptModal').on('hidden.bs.modal', function() {
-        document.getElementById('refundReceiptFrame').src = 'about:blank';
     });
   });
 </script>

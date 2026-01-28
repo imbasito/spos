@@ -5,15 +5,31 @@
    - Primary (Maroon): #800000
    - Primary Dark: #5C0000
    - Secondary (Golden): #E6B863
-   - Sidebar (Dark Chocolate): #4E342E
-   - Background (Cream): #FFFDF9
-   - Text (Coffee): #3E2723
-===================================================== */
+/* =========================================
+   SINYX PRO - MATURITY UPGRADE (APPLE STANDARD)
+   ========================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
+    /* TYPOGRAPHY (Inter) */
+    --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
+    
+    /* 8px GRID SYSTEM (Mathematical Harmony) */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    
+    /* PALETTE (Sinyx Pro) */
     --primary-color: #800000;
+    --primary-light: rgba(128, 0, 0, 0.08);
+    --text-dark: #111111; /* Extra Bold Data */
+    --text-meta: #666666; /* Light Meta Data */
+    --bg-glass: rgba(255, 255, 255, 0.7);
+    --border-subtle: rgba(0,0,0,0.06);
     --primary-dark: #5C0000;
-    --primary-light: #A52A2A;
     --secondary-color: #E6B863;
     --sidebar-color: #4E342E;
     --sidebar-dark: #2D1B18;
@@ -44,18 +60,16 @@
 
 /* ========= GLOBAL ========== */
 body {
-    font-family: 'Segoe UI', 'Roboto', sans-serif;
-    color: var(--text-color);
-    background-color: var(--background-color) !important;
+    font-family: var(--font-main);
+    color: var(--apple-gray-1);
+    background-color: var(--apple-bg) !important;
 }
 
+
 .content-wrapper {
-    background-color: var(--background-color) !important;
-    background-image: url('../assets/images/theme/mithai_pattern_subtle.png');
-    background-repeat: repeat;
-    background-size: 400px;
-    background-blend-mode: multiply;
+    background-color: var(--apple-bg) !important;
 }
+
 
 a {
     color: var(--primary-color) !important;
@@ -216,14 +230,10 @@ a:hover {
 .sidebar-dark-primary,
 .sidebar-light-lightblue,
 .sidebar {
-    background-color: rgba(78, 52, 46, 0.75) !important; /* Semi-transparent Chocolate */
-    background-image: url('../assets/images/theme/mithai_pattern_subtle.png') !important;
-    background-repeat: repeat !important;
-    background-size: 300px !important;
-    background-blend-mode: soft-light !important;
-    backdrop-filter: blur(15px); /* Static Blur for Glass Effect */
-    -webkit-backdrop-filter: blur(15px);
+    background-color: transparent !important;
 }
+
+
 
 .brand-link {
     background: rgba(0, 0, 0, 0.3) !important;
@@ -235,30 +245,119 @@ a:hover {
     font-weight: 700 !important;
 }
 
-/* Sidebar Nav Links */
+/* Sidebar Nav Links - Apple Standard */
 .nav-sidebar .nav-link,
 .nav-sidebar>.nav-item>.nav-link,
 .sidebar .nav-link {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #333 !important;
     background-color: transparent !important;
+    font-weight: 500 !important;
+    padding: 10px 16px !important;
+    margin-bottom: 4px !important;
+    border-radius: 12px !important;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
 
+/* Hover State - Subtle Gray Pill (More Visible) */
 .nav-sidebar .nav-link:hover,
 .nav-sidebar>.nav-item>.nav-link:hover,
-.sidebar .nav-link:hover,
-.nav-sidebar .nav-item.menu-open>.nav-link,
-.nav-sidebar .nav-link:focus {
-    background-color: rgba(230, 184, 99, 0.2) !important;
-    color: var(--secondary-color) !important;
+.sidebar .nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.08) !important; /* Increased from 0.04 */
+    color: #000 !important;
+    transform: scale(1.02);
 }
 
+/* Active State - Glassmorphism Pill (Not full row) */
 .nav-sidebar .nav-link.active,
-.nav-sidebar>.nav-item>.nav-link.active,
-.sidebar-dark-primary .nav-sidebar>.nav-item>.nav-link.active,
-[class*="sidebar-light-"] .nav-sidebar>.nav-item>.nav-link.active {
-    background-color: var(--primary-color) !important;
-    color: var(--white) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+.nav-sidebar>.nav-item>.nav-link.active {
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Nav Header - Modern Typography */
+.nav-header {
+    color: #888 !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.12em !important;
+    padding: 24px 16px 8px !important;
+    text-transform: uppercase !important;
+    opacity: 1 !important;
+}
+
+/* GPU Accelerated Scrolling & Border */
+.main-sidebar, .sidebar {
+    overflow-y: auto !important;
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 60px; /* Breathing room at bottom */
+    border-right: 1px solid rgba(0,0,0,0.1) !important; /* Visible Border */
+}
+
+/* Sidebar Hover Expansion Logic (AdminLTE Override) */
+
+/* 1. True Hidden Mode: When collapsed, hide completely (No Mini Bar) */
+.sidebar-mini.sidebar-collapse .main-sidebar {
+    width: 0 !important;
+    margin-left: 0 !important;
+    transform: translateX(0); /* Or -250px if you want slide effect, but 0 width is safer for layout */
+    overflow: hidden;
+}
+
+/* 2. Full Width Content: Remove margin when sidebar is hidden */
+.sidebar-mini.sidebar-collapse .content-wrapper,
+.sidebar-mini.sidebar-collapse .main-header, 
+.sidebar-mini.sidebar-collapse .main-footer {
+    margin-left: 0 !important;
+    transition: margin-left 0.3s ease-in-out;
+}
+
+/* 3. The Invisible Trigger: Hover zone on the left edge */
+.sidebar-hover-trigger {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 15px; /* Hot zone width */
+    height: 100%;
+    z-index: 9999;
+    display: none; /* Hidden by default */
+}
+
+/* Only show trigger when sidebar is collapsed */
+body.sidebar-collapse .sidebar-hover-trigger {
+    display: block;
+}
+
+/* 4. Expansion: When hovering the Trigger OR the Sidebar itself */
+/* Note: We use JS to handle the class toggle usually, but CSS :hover on trigger can force sidebar width */
+body.sidebar-collapse .sidebar-hover-trigger:hover ~ .wrapper .main-sidebar,
+.sidebar-mini.sidebar-collapse .main-sidebar:hover {
+    width: 250px !important;
+    box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+}
+
+/* Ensure texts reappear on hover */
+.sidebar-mini.sidebar-collapse .main-sidebar:hover .brand-text,
+.sidebar-mini.sidebar-collapse .main-sidebar:hover .nav-link p,
+.sidebar-mini.sidebar-collapse .main-sidebar:hover .user-panel > .info {
+    display: inline-block !important;
+    margin-left: 10px;
+    opacity: 1 !important;
+    visibility: visible !important;
+    animation: fadeIn 0.15s ease-in;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Hide Scrollbar (Clean Look) */
+.sidebar::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
 }
 
 .nav-header {
@@ -282,11 +381,12 @@ a:hover {
 
 /* ========= CARDS & TABLES ========== */
 .card {
-    border: none;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(62, 39, 35, 0.05);
+    border: var(--apple-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--apple-shadow-soft);
     background: var(--white);
 }
+
 
 .card-primary.card-outline {
     border-top: 3px solid var(--primary-color) !important;
@@ -304,16 +404,17 @@ a:hover {
 /* ========= POS GRID ========== */
 .product-card {
     background: var(--white);
-    border: 1px solid #F0F0F0;
-    border-radius: 10px;
-    transition: all 0.2s;
+    border: var(--apple-border);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .product-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: var(--apple-shadow-md);
     border-color: var(--secondary-color);
 }
+
 
 /* ========= SCROLLBAR ========== */
 ::-webkit-scrollbar {

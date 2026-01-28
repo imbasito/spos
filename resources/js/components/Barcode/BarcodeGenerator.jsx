@@ -140,6 +140,11 @@ export default function BarcodeGenerator() {
             await axios.post("/admin/barcode/store", {
                 barcode: barcodeValue,
                 label: label || null,
+                price: price || 0,
+                label_size: labelSize,
+                mfg_date: mfgDate || null,
+                exp_date: expDate || null,
+                show_price: showPrice
             });
             loadHistory(); // Refresh history
         } catch (error) {
@@ -163,13 +168,28 @@ export default function BarcodeGenerator() {
 
     // Reprint from history
     const handleReprint = async (item) => {
+        const result = await Swal.fire({
+            title: 'Reprint Tag?',
+            text: `Do you want to reprint the tag for "${item.label}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#800000',
+            confirmButtonText: 'Yes, Print',
+            cancelButtonText: 'Cancel'
+        });
+
+        if (!result.isConfirmed) return;
+
         const tagPrinter = window.posSettings?.tagPrinter;
         const barcodeData = {
             type: 'barcode',
             label: item.label,
             barcodeValue: item.barcode,
-            labelSize: 'small', // History reprints default to small or we could save size in DB
-            showPrice: false
+            labelSize: item.label_size || 'large',
+            showPrice: !!item.show_price,
+            price: item.price,
+            mfgDate: item.mfg_date,
+            expDate: item.exp_date
         };
 
         if (window.electron && window.electron.printSilent) {
@@ -194,11 +214,11 @@ export default function BarcodeGenerator() {
                     });
                 }
             } catch (e) {
-                const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}`;
+                const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}`;
                 fallbackPrint(url);
             }
         } else {
-            const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}`;
+            const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}`;
             fallbackPrint(url);
         }
     };
@@ -442,6 +462,8 @@ export default function BarcodeGenerator() {
                                     <thead className="bg-light">
                                         <tr>
                                             <th className="border-0 pl-4 py-3">Label</th>
+                                            <th className="border-0 py-3">Price</th>
+                                            <th className="border-0 py-3">Size</th>
                                             <th className="border-0 py-3">Barcode</th>
                                             <th className="border-0 py-3">Date</th>
                                             <th className="border-0 py-3 text-right pr-4" style={{ width: '120px' }}>Actions</th>
@@ -451,6 +473,12 @@ export default function BarcodeGenerator() {
                                         {history.map((item) => (
                                             <tr key={item.id} style={{ height: '60px' }}>
                                                 <td className="pl-4 align-middle font-weight-bold">{item.label || <span className="text-muted">-</span>}</td>
+                                                <td className="align-middle">Rs. {item.price || '0.00'}</td>
+                                                <td className="align-middle">
+                                                    <span className={`badge ${item.label_size === 'large' ? 'badge-primary' : 'badge-secondary'} border-radius-5`}>
+                                                        {item.label_size === 'large' ? 'Large' : 'Small'}
+                                                    </span>
+                                                </td>
                                                 <td className="align-middle"><code className="p-1 rounded bg-light border">{item.barcode}</code></td>
                                                 <td className="align-middle text-muted small">{formatDate(item.created_at)}</td>
                                                 <td className="text-right pr-4 align-middle">
