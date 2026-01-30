@@ -152,25 +152,37 @@ class BackupController extends Controller
                 return redirect()->back()->with('error', 'Backup file not found.');
             }
 
-            // --- SAFE RESTORE STRATEGY: RENAME EXISTING TABLES ---
-            // We cannot easily RENAME DATABASE in minimal permissions, so we rename TABLES.
-            $tables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
+            // --- SAFE RESTORE STRATEGY ---
             $dbName = config('database.connections.mysql.database');
+            
+            // 1. Disable Foreign Keys Globally
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            
+            $allTables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
             $tablesKey = "Tables_in_{$dbName}";
             
-            $renamedTables = [];
-            
-            \Illuminate\Support\Facades\DB::beginTransaction();
-            foreach ($tables as $table) {
-                $tableName = $table->$tablesKey;
-                // Skip already backed up tables if any
-                if (str_starts_with($tableName, 'bak_')) continue; 
+            // 2. Process All Tables
+            foreach ($allTables as $t) {
+                $tableName = $t->$tablesKey;
                 
+                // If it's already a backup table, ensure it's clean (just in case)
+                if (str_starts_with($tableName, 'bak_')) {
+                    $this->dropForeignKeys($tableName, $dbName);
+                    continue; 
+                }
+                
+                // If it's an ACTIVE table:
+                // A. Drop its Foreign Keys NOW (Free up the names)
+                $this->dropForeignKeys($tableName, $dbName);
+                
+                // B. Rename it to backup
                 $bakName = "bak_" . $tableName . "_" . time(); 
-                \Illuminate\Support\Facades\DB::statement("RENAME TABLE `{$tableName}` TO `{$bakName}`");
-                $renamedTables[] = $bakName;
+                try {
+                    \Illuminate\Support\Facades\DB::statement("RENAME TABLE `{$tableName}` TO `{$bakName}`");
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Failed to rename table {$tableName}: " . $e->getMessage());
+                }
             }
-            \Illuminate\Support\Facades\DB::commit();
             
             // --- EXECUTE RESTORE ---
             $dbUser = config('database.connections.mysql.username');
@@ -181,57 +193,60 @@ class BackupController extends Controller
             // Resolve Binary Path
             $basePath = base_path();
             $mysqlBin = $basePath . '\mysql\bin\mysql.exe';
-            if (!File::exists($mysqlBin)) {
-                $mysql = 'mysql';
-            } else {
-                $mysql = '"' . $mysqlBin . '"';
-            }
+            $mysql = File::exists($mysqlBin) ? '"' . $mysqlBin . '"' : 'mysql';
 
+            // Command with explicit Foreign Key suppression
             $passwordPart = $dbPass ? "--password=\"{$dbPass}\"" : "";
-            $restoreCommand = "{$mysql} --user=\"{$dbUser}\" {$passwordPart} --host=\"{$dbHost}\" --port=\"{$dbPort}\" --protocol=tcp \"{$dbName}\" < \"{$fullPath}\" 2>&1";
+            $restoreCommand = "{$mysql} --user=\"{$dbUser}\" {$passwordPart} --host=\"{$dbHost}\" --port=\"{$dbPort}\" --protocol=tcp --init-command=\"SET FOREIGN_KEY_CHECKS=0;\" \"{$dbName}\" < \"{$fullPath}\" 2>&1";
             
             $output = [];
             $resultCode = null;
             exec($restoreCommand, $output, $resultCode);
 
+            // Re-enable Foreign Keys
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
             if ($resultCode === 0) {
-                 // Restore Success: Verify and Clean Old
-                 // Ideally we keep 'bak_' tables for a while, or drop them. 
-                 // For "Solid" strategy, we keep them but maybe drop very old ones?
-                 // Let's drop them to save space as per standard "Restore" expectation, 
-                 // OR keep them and let user delete. 
-                 // User asked to "Rename... taake data recover kiya ja sakay".
-                 // We will leave them named 'bak_...'.
                  \Illuminate\Support\Facades\Cache::flush();
                 return redirect()->back()->with('success', "Restored! Previous data saved as 'bak_{table}_...'");
             } else {
-                // Restore Failed: Revert!
-                \Illuminate\Support\Facades\Log::error("Restore Failed, Reverting...");
-                
-                // Drop any partial new tables
-                $newTables = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
-                foreach ($newTables as $nt) {
-                    $t = $nt->$tablesKey;
-                    if (!str_starts_with($t, 'bak_')) {
-                        \Illuminate\Support\Facades\DB::statement("DROP TABLE IF EXISTS `{$t}`");
-                    }
-                }
-
-                // Rename back
-                foreach ($renamedTables as $bakName) {
-                    // bak_users_1234 -> users
-                    // Extract original name is hard if we appended timestamp.
-                    // But we constructed it as bak_NAME_TIME. 
-                    // Let's simplify: Just rename `bak_users` -> `users` (without time) for revert?
-                    // Complexity: Reverting exact previous state is hard if we renamed.
-                    // For now, allow manual recovery: The data IS SAFE in `bak_` tables.
-                }
-
-                return redirect()->back()->with('error', "Restore Failed! Your old data is safe in 'bak_' tables. Error: " . implode(" ", $output));
+                return redirect()->back()->with('error', "Restore Failed! Old data is safe in 'bak_' tables. Error: " . implode(" ", $output));
             }
 
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Critical Error: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper: Robustly drop foreign keys from a table
+     */
+    /**
+     * Helper: Robustly drop foreign keys from a table
+     */
+    private function dropForeignKeys($table, $dbName)
+    {
+        try {
+            // Use DATABASE() for reliability
+            $fks = \Illuminate\Support\Facades\DB::select("
+                SELECT CONSTRAINT_NAME 
+                FROM information_schema.TABLE_CONSTRAINTS 
+                WHERE TABLE_NAME = ? 
+                AND TABLE_SCHEMA = DATABASE() 
+                AND CONSTRAINT_TYPE = 'FOREIGN KEY'", [$table]);
+
+            \Illuminate\Support\Facades\Log::info("BackupRestore: Found " . count($fks) . " FKs for table {$table}");
+
+            foreach ($fks as $fk) {
+                try {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE `{$table}` DROP FOREIGN KEY `{$fk->CONSTRAINT_NAME}`");
+                    \Illuminate\Support\Facades\Log::info("BackupRestore: Dropped FK {$fk->CONSTRAINT_NAME} from {$table}");
+                } catch (\Exception $e) {
+                     \Illuminate\Support\Facades\Log::warning("BackupRestore: Failed to drop FK {$fk->CONSTRAINT_NAME} - " . $e->getMessage());
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("BackupRestore: Error listing FKs for {$table}: " . $e->getMessage());
         }
     }
 

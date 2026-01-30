@@ -21,9 +21,15 @@ class CartController extends Controller
                 ->latest('created_at')
                 ->get()
                 ->map(function ($item) {
-                    // Calculate row total for each item
-                    // Hybrid Precision: Round item totals to nearest cent
-                    $item->row_total = round($item->quantity * $item->product->discounted_price, 2);
+                    // Use price_override if set, otherwise fallback to product's discounted price
+                    $effectivePrice = $item->price_override ?? $item->product->discounted_price;
+                    
+                    // Use row_total_override if set (manual amount), otherwise calculate
+                    if ($item->row_total_override) {
+                         $item->row_total = (float)$item->row_total_override;
+                    } else {
+                         $item->row_total = round($item->quantity * $effectivePrice, 2);
+                    }
                     return $item;
                 });
             $total = $cartItems->sum('row_total');
@@ -155,8 +161,9 @@ class CartController extends Controller
                     return [
                         'product_id' => $item->product_id,
                         'name' => $item->product->name,
-                        'price' => $item->product->discounted_price,
+                        'price' => $item->price_override ?? $item->product->discounted_price,
                         'quantity' => $item->quantity,
+                        'price_override' => $item->price_override,
                     ];
                 });
 
@@ -182,7 +189,7 @@ class CartController extends Controller
         if ($cart->product->quantity <= 0) {
             return response()->json(['message' => 'Insufficient stock available'], 400);
         }
-        if ($cart->quantity == $cart->product->quantity) {
+        if ($cart->quantity >= $cart->product->quantity) {
             return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
         }
         $cart->quantity = $cart->quantity + 1;
@@ -264,7 +271,13 @@ class CartController extends Controller
         $cart->save();
         $this->syncJournal();
 
-        return response()->json(['message' => 'Quantity updated to ' . $newQuantity], 200);
+        $effectivePrice = $cart->price_override ?? $cart->product->discounted_price;
+        $newTotal = round($newQuantity * $effectivePrice, 2);
+
+        return response()->json([
+            'message' => 'Quantity updated to ' . $newQuantity,
+            'total' => $newTotal
+        ], 200);
 
     }
 
@@ -276,50 +289,41 @@ class CartController extends Controller
     public function updateByPrice(Request $request)
     {
         $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id',
-            'price' => 'required|numeric|min:1|max:9999999'
+            'id' => 'required|exists:pos_carts,id',
+            // 'price' here is actually the "Amount" (Total) from frontend
+            'price' => 'required|numeric|min:0', 
         ]);
 
-        $cart = PosCart::with('product')->findOrFail($request->id);
-        $desiredPrice = (float) $request->price;
-        $pricePerUnit = (float) $cart->product->discounted_price;
+        $cart = PosCart::where('user_id', auth()->id())->where('id', $request->id)->firstOrFail();
+        
+        // When user updates "Amount", we are setting the row_total_override
+        $cart->row_total_override = $request->price;
+        
+        // We do NOT change quantity or rate here. 
+        // This allows "Custom Amount" logic (e.g. Rate 100 * Qty 1 = 90 Total)
+        // implying an implicit discount or surcharge without changing base rate.
+        
+        $cart->save();
 
-        // Prevent division by zero
-        if ($pricePerUnit <= 0) {
-            return response()->json(['message' => 'Invalid product price'], 400);
-        }
+        return response()->json(['success' => true]);
+    }
 
-        // Calculate quantity: desired_price / price_per_unit
-        // Round UP to nearest 0.001 so total is always >= entered amount
-        $rawQuantity = $desiredPrice / $pricePerUnit;
-        $calculatedQuantity = ceil($rawQuantity * 1000) / 1000; // Round up to 3 decimals
 
-        // Minimum quantity check (at least 1 gram = 0.001 kg)
-        if ($calculatedQuantity < 0.001) {
-            return response()->json([
-                'message' => 'Amount too small. Minimum: Rs.' . ceil($pricePerUnit * 0.001)
-            ], 400);
-        }
+    /**
+     * Update price override (Rate)
+     */
+    public function updateRate(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:pos_carts,id',
+            'price' => 'required|numeric|min:0|max:9999999'
+        ]);
 
-        // Stock availability check
-        if ($calculatedQuantity > $cart->product->quantity) {
-            $maxPrice = round($cart->product->quantity * $pricePerUnit, 2);
-            return response()->json([
-                'message' => 'Insufficient stock. Max available: Rs.' . $maxPrice
-            ], 400);
-        }
-
-        $cart->quantity = $calculatedQuantity;
+        $cart = PosCart::findOrFail($request->id);
+        $cart->price_override = (float) $request->price;
         $cart->save();
         $this->syncJournal();
 
-
-        // Return both new quantity and calculated total for UI update
-        $newTotal = round($calculatedQuantity * $pricePerUnit, 2);
-        return response()->json([
-            'message' => 'Updated: ' . $calculatedQuantity . ' kg = Rs.' . $newTotal,
-            'quantity' => $calculatedQuantity,
-            'total' => $newTotal
-        ], 200);
+        return response()->json(['message' => 'Price override saved'], 200);
     }
 }

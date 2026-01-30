@@ -203,6 +203,25 @@
         const randomSku = Math.floor(100000000000 + Math.random() * 900000000000);
         $('#skuInput').val(randomSku);
     });
+
+    // Scanner Compatibility: Prevent Form Submit on Enter for SKU Field
+    // Instead, move focus to the Name field so user can keep typing.
+    $('#skuInput').on('keydown', function(e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault();
+            // Move focus to Name field (first required field usually)
+            $('[name="name"]').focus(); 
+            return false;
+        }
+    });
+
+    // Auto-focus SKU on load for quick scanning
+    setTimeout(() => {
+        $('#skuInput').focus();
+        // Ensure cursor is at end if there's value
+        const val = $('#skuInput').val();
+        $('#skuInput').val('').val(val);
+    }, 500);
   })
 </script>
 @endpush

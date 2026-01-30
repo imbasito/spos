@@ -37,6 +37,22 @@ class ProductController extends Controller
             $products = Product::with('unit')->select('products.*'); // Use Query Builder for true server-side pagination
             return DataTables::of($products)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Only search REAL columns
+                            $query->where(function ($q) use ($keyword) {
+                                $q->where('name', 'like', "%{$keyword}%")
+                                  ->orWhere('sku', 'like', "%{$keyword}%")
+                                  ->orWhere('barcode', 'like', "%{$keyword}%")
+                                  ->orWhere('description', 'like', "%{$keyword}%")
+                                  ->orWhere('status', 'like', "%{$keyword}%");
+                            });
+                        }
+                    }
+                }, true) 
+
                 ->addColumn('image', fn($data) => '<img src="' . asset('storage/' . $data->image) . '" loading="lazy" alt="' . $data->name . '" class="img-thumb img-fluid" onerror="this.onerror=null; this.src=\'' . asset('assets/images/no-image.png') . '\';" height="80" width="60" />')
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn(

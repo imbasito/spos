@@ -249,6 +249,37 @@ async function isPortOpen(port) {
     });
 }
 
+/**
+ * SINYX BRIDGE: REMOTE CONFIG
+ * Fetches printer and system settings directly from Laravel.
+ * Eliminates the need for local .env/json config for printer swaps.
+ */
+async function fetchRemoteConfig() {
+    return new Promise((resolve) => {
+        logger.log('Fetching Remote Configuration...');
+        const url = `http://127.0.0.1:${laravelPort}/api/printer-settings`;
+        
+        http.get(url, { headers: { 'Accept': 'application/json' } }, (res) => {
+            let body = '';
+            res.on('data', d => body += d);
+            res.on('end', () => {
+                try {
+                    const config = JSON.parse(body);
+                    global.posConfig = config; // Store globally for renderers
+                    logger.log(`Remote Config Loaded: ${config.receipt_printer || 'No Printer'}`);
+                    resolve(config);
+                } catch (e) {
+                    logger.error(`Failed to parse Remote Config: ${e.message}`);
+                    resolve(null);
+                }
+            });
+        }).on('error', (e) => {
+            logger.error(`Remote Config HTTP Error: ${e.message}`);
+            resolve(null);
+        });
+    });
+}
+
 async function startMySQL() {
     // 1. Check if MySQL is already running
     const isOpen = await isPortOpen(MYSQL_PORT);
@@ -302,6 +333,43 @@ function startLaravel(port) {
         const phpPath = path.join(basePath, 'php', 'php.exe');
         laravelServer = spawn(phpPath, ['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`], { cwd: basePath, windowsHide: true });
         resolve();
+    });
+}
+
+/**
+ * AUTO-MIGRATION ENGINE
+ * Ensures database schema is ALWAYS in sync with the current code.
+ * Runs 'php artisan migrate --force' silently on startup.
+ */
+function runMigrations() {
+    return new Promise((resolve) => {
+        logger.log('Checking for database migrations...');
+        const phpPath = path.join(basePath, 'php', 'php.exe');
+        const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
+            cwd: basePath, 
+            windowsHide: true,
+            env: { ...process.env, DB_PORT: MYSQL_PORT } // Ensure it uses the right port
+        });
+
+        migrateProcess.stdout.on('data', (data) => logger.log(`[MIGRATION]: ${data}`));
+        migrateProcess.stderr.on('data', (data) => logger.error(`[MIGRATION ERROR]: ${data}`));
+
+        migrateProcess.on('close', (code) => {
+            logger.log(`Migration process exited with code ${code}`);
+            
+            // --- NEW: Clear View Cache to ensure UI updates apply ---
+            logger.log('Clearing view cache...');
+            const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                cwd: basePath, 
+                windowsHide: true,
+                env: { ...process.env } 
+            });
+            
+            clearProcess.on('close', () => {
+                logger.log('View cache cleared.');
+                resolve();
+            });
+        });
     });
 }
 
@@ -384,13 +452,19 @@ async function triggerCashDrawer(printerName) {
 // ============================================
 function setupAutoUpdater() {
     autoUpdater.autoDownload = false;
-    ipcMain.on('updater:check', () => {
-        if (!app.isPackaged) return mainWindow.webContents.send('updater:status', 'latest');
-        autoUpdater.checkForUpdates().catch(err => mainWindow.webContents.send('updater:status', 'error', err.message));
-    });
     ipcMain.on('updater:download', () => autoUpdater.downloadUpdate());
     ipcMain.on('updater:install', () => { killProcesses(); autoUpdater.quitAndInstall(); });
     
+    // Hardened Updater Events
+    autoUpdater.on('update-available', (info) => mainWindow.webContents.send('updater:status', 'available', info.version));
+    autoUpdater.on('update-not-available', () => mainWindow.webContents.send('updater:status', 'latest'));
+    autoUpdater.on('error', (err) => mainWindow.webContents.send('updater:status', 'error', err.message));
+    autoUpdater.on('download-progress', (progress) => mainWindow.webContents.send('updater:progress', progress.percent));
+    autoUpdater.on('update-downloaded', () => mainWindow.webContents.send('updater:ready'));
+
+    // Config IPC
+    ipcMain.handle('config:get-remote', () => global.posConfig || null);
+
     // Diagnostic Log from Render
     ipcMain.on('log-from-render', (event, msg) => { console.log(`[RENDER LOG]: ${msg}`); });
 
@@ -399,13 +473,18 @@ function setupAutoUpdater() {
         const { url, printerName, htmlContent, jsonData } = options;
         console.log(`[PRINT REQUEST]: ${jsonData ? 'Headless JSON (ESC/POS)' : 'Legacy HTML'}`);
         
+        // --- AUTO-RESOLVE PRINTER (DRIVER MISMATCH FIX) ---
+        // Prevents silent failure if 'POS80' is missing but 'Thermal Printer' is default.
+        const targetPrinter = await resolvePrinter(printerName); 
+        console.log(`[PRINTER RESOLVED]: Requested "${printerName}" -> Using "${targetPrinter}"`);
+
         try {
             if (jsonData && jsonData.type === 'barcode') {
                 // PROFESSIONAL BARCODE PRINTING (RAW ESC/POS)
                 try {
                     const buffer = generateBarcodeESC(jsonData);
                     if (buffer) {
-                        console.log(`[RAW BARCODE]: Starting RAW print for ${jsonData.barcodeValue} on "${printerName}". Buffer length: ${buffer.length} bytes`);
+                        console.log(`[RAW BARCODE]: Starting RAW print for ${jsonData.barcodeValue} on "${targetPrinter}". Buffer length: ${buffer.length} bytes`);
                         
                         // ESC/POS Initialization (ESC @) + Existing Buffer + Line Feeds
                         const flushBuffer = Buffer.concat([
@@ -414,7 +493,7 @@ function setupAutoUpdater() {
                             Buffer.from([0x0A, 0x0A, 0x0A, 0x0A]) // 4 Line Feeds
                         ]);
 
-                        await PrinterTransport.printBuffer(printerName, flushBuffer);
+                        await PrinterTransport.printBuffer(targetPrinter, flushBuffer);
                         return { success: true };
                     } else {
                         throw new Error("Failed to generate ESC/POS buffer");
@@ -449,7 +528,7 @@ function setupAutoUpdater() {
                 try {
                     const rawGenerator = require('./services/RawReceiptGenerator');
                     const buffer = await rawGenerator.generate(jsonData);
-                    await PrinterTransport.printBuffer(printerName, buffer);
+                    await PrinterTransport.printBuffer(targetPrinter, buffer);
                     return { success: true };
                 } catch (rawError) {
                     console.error("[RAW PRINT FAILED]:", rawError);
@@ -476,7 +555,7 @@ function setupAutoUpdater() {
                     printWindow.webContents.print({ 
                         silent: true, 
                         printBackground: true, 
-                        deviceName: printerName,
+                        deviceName: targetPrinter,
                         margins: { marginType: 'none' }
                     }, (s, e) => s ? resolve() : reject(e));
                 });
@@ -534,6 +613,12 @@ async function startApp() {
         
         await checkDiskSpace(200);
         logger.cleanup(); // Self-healing: Cleanup old logs and temp data
+
+        // --- NEW: Clear Session Cache (Ensures Asset Freshness) ---
+        // Only clear HTTP cache, NOT storage (cookies/localstorage) to preserve Login Session
+        await session.defaultSession.clearCache();
+        // await session.defaultSession.clearStorageData(); // DISABLE THIS to fix "Login Every Time"
+
         updateSplashStatus('Starting...');
 
         await new Promise(r => setTimeout(r, 700));
@@ -559,6 +644,11 @@ async function startApp() {
 
 
         await waitForMySQL(MYSQL_PORT, 45000);
+        
+        // --- NEW: Perform Auto-Migrations ---
+        updateSplashStatus('Checking database integrity...');
+        await runMigrations();
+
         await waitForLaravel(laravelPort, 60000);
         
         updateSplashStatus('Establishing connection...');
@@ -566,8 +656,9 @@ async function startApp() {
 
         await new Promise(r => setTimeout(r, 700));
 
-
-
+        // --- NEW: Load Remote Configuration ---
+        updateSplashStatus('Syncing hardware profiles...');
+        await fetchRemoteConfig();
         
         updateSplashStatus('Finalizing...');
 
@@ -858,16 +949,24 @@ function generateBarcodeESC(data) {
     // 4. Barcode (NATIVE GS k)
     const h = isLarge ? 80 : 60;
     const w = isLarge ? 3 : 2;
+
     chunks.push(Buffer.from([
         0x1D, 0x68, h,       // Height
         0x1D, 0x77, w,       // Width
-        0x1D, 0x48, 0x02,    // HRI Below
+        0x1D, 0x48, 0x00,    // Disable HRI (We print manually)
         0x1D, 0x6B, 0x49, barcodeValue.length // GS k 73 (CODE128) + len
     ]));
     chunks.push(Buffer.from(barcodeValue));
-    chunks.push(Buffer.from("\n"));
+    
+    // 5. HUMAN READABLE TEXT (Manual Print for 100% Reliability)
+    chunks.push(Buffer.from([0x0A])); // LF
+    chunks.push(Buffer.from([0x1B, 0x61, 0x01])); // Center Align
+    // Select Font B (Smaller) or Standard
+    // chunks.push(Buffer.from([0x1B, 0x4D, 0x01])); 
+    chunks.push(Buffer.from(barcodeValue));
+    chunks.push(Buffer.from([0x0A])); // LF
 
-    // 5. Dates (Small)
+    // 6. Dates (Small)
     if (hasDates) {
         // Updated prefixes per user request (M -> MFG, E -> EXP)
         const mfg = mfgDate ? `MFG:${new Date(mfgDate).toLocaleDateString('en-GB')}` : '';
@@ -875,7 +974,7 @@ function generateBarcodeESC(data) {
         chunks.push(Buffer.from(`${mfg}   ${exp}\n`));
     }
 
-    // 6. Flush (Increased to 6 lines to clear cutter - User Verified)
+    // 7. Flush (Increased to 6 lines to clear cutter - User Verified)
     chunks.push(Buffer.from([0x1B, 0x64, 0x06])); 
     chunks.push(Buffer.from([0x1D, 0x56, 0x41, 0x00])); // GS V 65 0 (AutoCut if supported)
 
@@ -927,4 +1026,38 @@ function generateBarcodeHtmlFallback(data) {
 </head>
 <body><div class="container">${svg}</div></body>
 </html>`;
+}
+
+/**
+ * Resolves the printer name to a valid OS printer.
+ * If the requested name exists, it returns it.
+ * If not, it finds the System Default printer and returns that.
+ * This prevents silent failures when the Backend config doesn't match the Windows driver name.
+ */
+async function resolvePrinter(requestedName) {
+    try {
+        const printers = await mainWindow.webContents.getPrintersAsync();
+        
+        // 1. Exact Match?
+        const exactMatch = printers.find(p => p.name === requestedName);
+        if (exactMatch) return truncatePrinterName(exactMatch.name); // Using sanitized name
+
+        // 2. Fallback to Default
+        const defaultPrinter = printers.find(p => p.isDefault);
+        if (defaultPrinter) {
+            console.log(`[PRINTER FAILOVER]: Requested "${requestedName}" not found. Using Default "${defaultPrinter.name}"`);
+            return truncatePrinterName(defaultPrinter.name);
+        }
+
+        // 3. Last Resort: Return original (will likely fail, but we tried)
+        return requestedName;
+    } catch (e) {
+        console.error("Failed to resolve printers:", e);
+        return requestedName;
+    }
+}
+
+// Safety wrapper to handle any weird chars if needed (optional)
+function truncatePrinterName(name) {
+    return name; // Pass-through for now
 }

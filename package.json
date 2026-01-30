@@ -167,8 +167,7 @@
           ]
         }
       ],
-      "icon": "pos-icon.ico",
-      "requestedExecutionLevel": "requireAdministrator"
+      "icon": "pos-icon.ico"
     },
     "nsis": {
       "oneClick": false,

@@ -21,3 +21,5 @@ Route::get('/ping', function () {
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::get('/printer-settings', [\App\Http\Controllers\Backend\WebsiteSettingController::class, 'getPrinterSettings']);

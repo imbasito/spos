@@ -9,11 +9,18 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
     const [transactionId, setTransactionId] = useState('');
     const inputRef = useRef(null);
 
+    const [isReady, setIsReady] = useState(false);
+
     // Auto-focus input when modal opens and pre-fill total
     useEffect(() => {
         if (show) {
             setTimeout(() => inputRef.current?.focus(), 100);
             setPaidAmount(total); // Pre-fill with exact amount
+            
+            // Safety Buffer: Prevent "Double Enter" from checkout screen bypassing the modal
+            setIsReady(false);
+            const timer = setTimeout(() => setIsReady(true), 600); 
+            return () => clearTimeout(timer);
         }
     }, [show, total]);
 
@@ -27,7 +34,11 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
             if (e.key === 'Enter') {
                 e.preventDefault();
                 e.stopPropagation();
-                handleConfirm();
+                
+                // Only allow Confirm if the modal has been open for > 600ms
+                if (isReady) {
+                    handleConfirm();
+                }
             }
             if (e.key === 'F1') setPaymentMethod('cash');
             if (e.key === 'F2') setPaymentMethod('card');
@@ -36,7 +47,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [show, paidAmount, paymentMethod, transactionId]); 
+    }, [show, paidAmount, paymentMethod, transactionId, isReady]); 
 
     const handleConfirm = () => {
         // Validation: Check if input is empty string

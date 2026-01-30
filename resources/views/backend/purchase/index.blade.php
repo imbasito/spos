@@ -3,21 +3,32 @@
 @section('title', 'Purchase')
 
 @section('content')
-@section('content')
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
-    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
-      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
-        <h3 class="card-title font-weight-bold text-white mb-0">
-          <i class="fas fa-shopping-cart mr-2"></i> Purchase Records
-        </h3>
-        @can('purchase_create')
-        <a href="{{ route('backend.admin.purchase.create') }}" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon">
-          <i class="fas fa-plus-circle mr-1"></i> Add New Purchase
-        </a>
-        @endcan
+    <!-- Spotlight Search -->
+    <div class="card shadow-sm border-0 border-radius-15 mb-4 overflow-hidden">
+      <div class="card-body p-3">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <div class="input-group spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-right-0"><i class="fas fa-search text-maroon"></i></span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-left-0 apple-input" placeholder="Search supplier, purchase ID, or total..." autofocus>
+            </div>
+          </div>
+          <div class="col-md-6 text-right">
+            @can('purchase_create')
+            <a href="{{ route('backend.admin.purchase.create') }}" class="btn btn-apple-primary btn-apple px-4 shadow-sm font-weight-bold text-white">
+              <i class="fas fa-plus-circle mr-1"></i> Add New Purchase
+            </a>
+            @endcan
+          </div>
+        </div>
       </div>
+    </div>
 
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
       <div class="card-body p-0">
         <div class="table-responsive">
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
@@ -71,7 +82,6 @@
 </style>
 @endsection
 
-
 @push('script')
 <script type="text/javascript">
   $(function() {
@@ -84,18 +94,15 @@
         url: "{{ route('backend.admin.purchase.index') }}"
       },
       columns: [
-        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4' },
+        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4', orderable: false, searchable: false },
         { data: 'supplier', name: 'supplier', className: 'font-weight-bold' },
         { data: 'id', name: 'id' },
         { data: 'total', name: 'total' },
         { data: 'created_at', name: 'created_at' },
         { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' },
       ],
-      dom: '<"p-3 d-flex justify-content-between align-items-center"lf>t<"p-3 d-flex justify-content-between align-items-center"ip>',
+      dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',
       language: {
-        search: "_INPUT_",
-        searchPlaceholder: "Search Purchases...",
-        lengthMenu: "_MENU_ per page",
         paginate: {
           previous: '<i class="fas fa-chevron-left"></i>',
           next: '<i class="fas fa-chevron-right"></i>'
@@ -103,8 +110,9 @@
       }
     });
 
-    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
-    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
+    $('#quickSearchInput').on('keyup input', function() {
+        table.search(this.value).draw();
+    });
   });
 </script>
 @endpush

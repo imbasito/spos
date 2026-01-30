@@ -3,20 +3,32 @@
 @section('title', 'categories')
 
 @section('content')
-<div class="row">
+<div class="row animate__animated animate__fadeIn">
   <div class="col-12">
-    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
-      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
-        <h3 class="card-title font-weight-bold text-white mb-0">
-          <i class="fas fa-tags mr-2"></i> Category Manager
-        </h3>
-        @can('category_create')
-        <a href="{{ route('backend.admin.categories.create') }}" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon">
-          <i class="fas fa-plus-circle mr-1"></i> Add New Category
-        </a>
-        @endcan
+    <!-- Spotlight Search -->
+    <div class="card shadow-sm border-0 border-radius-15 mb-4 overflow-hidden">
+      <div class="card-body p-3">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <div class="input-group spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-right-0"><i class="fas fa-search text-maroon"></i></span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-left-0 apple-input" placeholder="Search category name..." autofocus>
+            </div>
+          </div>
+          <div class="col-md-6 text-right">
+            @can('category_create')
+            <a href="{{ route('backend.admin.categories.create') }}" class="btn btn-apple-primary btn-apple px-4 shadow-sm font-weight-bold text-white">
+              <i class="fas fa-plus-circle mr-1"></i> Add New Category
+            </a>
+            @endcan
+          </div>
+        </div>
       </div>
+    </div>
 
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
       <div class="card-body p-0">
         <div class="table-responsive">
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
@@ -86,17 +98,14 @@
         url: "{{ route('backend.admin.categories.index') }}"
       },
       columns: [
-        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4' },
+        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4', orderable: false, searchable: false },
         { data: 'image', name: 'image', orderable: false, searchable: false },
         { data: 'name', name: 'name', className: 'font-weight-bold' },
         { data: 'status', name: 'status' },
         { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' },
       ],
-      dom: '<"p-3 d-flex justify-content-between align-items-center"lf>t<"p-3 d-flex justify-content-between align-items-center"ip>',
+      dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',
       language: {
-        search: "_INPUT_",
-        searchPlaceholder: "Search Categories...",
-        lengthMenu: "_MENU_ per page",
         paginate: {
           previous: '<i class="fas fa-chevron-left"></i>',
           next: '<i class="fas fa-chevron-right"></i>'
@@ -104,8 +113,9 @@
       }
     });
 
-    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
-    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
+    $('#quickSearchInput').on('keyup input', function() {
+        table.search(this.value).draw();
+    });
   });
 </script>
 @endpush

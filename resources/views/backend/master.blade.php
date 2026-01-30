@@ -57,6 +57,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    {{-- APPLE DESIGN SYSTEM (Core) --}}
+    <link rel="stylesheet" href="{{ asset('css/design-system.css') }}?v={{ time() }}">
+
 
 
 
@@ -177,12 +180,13 @@
             display: block;
         }
 
-        /* ========= POS APP SHELL (Fixed Layout) ========== */
+        /* ========= POS APP SHELL (Apple Layout) ========== */
         .pos-app-container {
             height: calc(100vh - 57px);
             overflow: hidden;
             display: flex;
-            zoom: 0.9; /* Fixed 90% Zoom for Desktop Experience */
+            background-color: var(--system-gray-6);
+            zoom: 0.95; /* Premium Sharpness */
         }
 
         /* Prevent page-level scroll when POS is active */
@@ -319,9 +323,13 @@
             -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
             border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
             box-shadow: none !important;
-            width: 250px !important;
             transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1) !important;
             overflow-x: hidden !important;
+        }
+        /* Only force 250px when NOT collapsed (or when hovering if mini) */
+        body:not(.sidebar-collapse) .main-sidebar,
+        body.sidebar-mini.sidebar-collapse .main-sidebar:hover {
+            width: 250px !important;
         }
 
         .main-sidebar::before {
@@ -453,9 +461,9 @@
                 if (isPos) {
                     document.body.classList.add('pos-focus-mode');
                     document.body.classList.add('sidebar-collapse');
-                } else {
-                    document.body.classList.remove('sidebar-collapse');
-                }
+                } 
+                // Don't force-open on other pages; let AdminLTE remember state or default
+                // else { document.body.classList.remove('sidebar-collapse'); }
 
                 // High-Performance Proximity Detector
                 const trigger = document.querySelector('.sidebar-hover-trigger');
@@ -696,6 +704,8 @@
 
 
     <script>
+
+
         // FORCE UNREGISTER to fix caching issues for new menu items
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(function(registrations) {

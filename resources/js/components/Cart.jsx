@@ -6,7 +6,7 @@ import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
 import playSound from "../utils/playSound";
 
-export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, onDecrement, onDelete, onUpdateQty, onUpdatePrice }) {
+export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, onDecrement, onDelete, onUpdateQty, onUpdatePrice, onUpdateRate }) {
     
     // Direct quantity update wrapper
     function handleQtyChange(id, newQuantity) {
@@ -26,6 +26,15 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
             return;
         }
         onUpdatePrice(id, price);
+    }
+
+    function handleRateChange(id, newRate) {
+        const rate = parseFloat(newRate);
+        if (isNaN(rate) || rate < 0) {
+            toast.error("Enter valid price");
+            return;
+        }
+        onUpdateRate(id, rate);
     }
 
     return (
@@ -65,96 +74,94 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                             </div>
                         ) : (
                             <div className="responsive-table">
-                                <table className="table table-striped">
-                                    <thead>
+                                <table className="table apple-table mb-0">
+                                    <thead style={{ background: 'var(--system-gray-6)' }}>
                                         <tr className="text-center">
-                                            <th>Name</th>
-                                            <th>Qty (kg/pcs)</th>
-                                            <th></th>
-                                            <th>Price/Unit ({window.posSettings?.currencySymbol || 'Rs.'})</th>
-                                            <th>Total ({window.posSettings?.currencySymbol || 'Rs.'})</th>
+                                            <th className="border-0 py-3" style={{ fontSize: '0.75rem', color: '#8e8e93', textTransform: 'uppercase' }}>Item Name</th>
+                                            <th className="border-0 py-3" style={{ fontSize: '0.75rem', color: '#8e8e93', textTransform: 'uppercase' }}>Weight/Qty</th>
+                                            <th className="border-0 py-3" style={{ fontSize: '0.75rem', color: '#8e8e93', textTransform: 'uppercase' }}>Disc</th>
+                                            <th className="border-0 py-3"></th>
+                                            <th className="border-0 py-3" style={{ fontSize: '0.75rem', color: '#8e8e93', textTransform: 'uppercase' }}>Rate</th>
+                                            <th className="border-0 py-3" style={{ fontSize: '0.75rem', color: '#8e8e93', textTransform: 'uppercase' }}>Amount</th>
                                         </tr>
                                     </thead>
 
                                     <tbody>
                                         {carts.map((item) => (
-                                            <tr key={item.id}>
-                                                <td>{item.product.name}</td>
-                                                <td className="d-flex align-items-center">
-                                                    <button
-                                                        className="btn btn-warning btn-sm"
-                                                        onClick={() =>
-                                                            onDecrement(item.id)
-                                                        }
-                                                    >
-                                                        <i className="fas fa-minus"></i>
-                                                    </button>
-                                                    <input
-                                                        key={`qty-${item.id}-${item.quantity}`}
-                                                        type="number"
-                                                        className="form-control form-control-sm qty ml-1 mr-1"
-                                                        defaultValue={item.quantity}
-                                                        step="0.001"
-                                                        min="0.001"
-                                                        style={{ width: '80px' }}
-                                                        onBlur={(e) => {
-                                                            if (e.target.value !== String(item.quantity)) {
-                                                                handleQtyChange(item.id, e.target.value);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.target.blur();
-                                                            }
-                                                        }}
-                                                    />
-                                                    <button
-                                                        className="btn btn-success btn-sm"
-                                                        onClick={() =>
-                                                            onIncrement(item.id)
-                                                        }
-                                                    >
-                                                        <i className="fas fa-plus "></i>
-                                                    </button>
+                                            <tr key={item.id} className="align-middle" style={{ transition: 'background 0.2s' }}>
+                                                <td className="py-3 font-weight-bold" style={{ color: '#1d1d1f' }}>{item.product.name}</td>
+                                                <td className="py-3">
+                                                    <div className="d-flex align-items-center justify-content-center">
+                                                        <button
+                                                            className="btn btn-sm btn-light shadow-none"
+                                                            style={{ borderRadius: '15px', width: '28px', height: '28px', padding: 0, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={() => onDecrement(item.id)}
+                                                        >
+                                                            <span style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: '0' }}>-</span>
+                                                        </button>
+                                                        <input
+                                                            key={`qty-${item.id}-${item.quantity}`}
+                                                            type="number"
+                                                            className="form-control form-control-sm text-center mx-2"
+                                                            defaultValue={item.quantity}
+                                                            step="0.001"
+                                                            style={{ width: '70px', borderRadius: '8px', border: '1px solid #eee', fontWeight: '700' }}
+                                                            onBlur={(e) => handleQtyChange(item.id, e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                                                        />
+                                                        <button
+                                                            className="btn btn-sm btn-light shadow-none"
+                                                            style={{ borderRadius: '15px', width: '28px', height: '28px', padding: 0, border: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={() => onIncrement(item.id)}
+                                                        >
+                                                            <span style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: '0' }}>+</span>
+                                                        </button>
+                                                    </div>
                                                 </td>
-                                                <td>
+                                                <td className="py-3 text-center">
+                                                    {parseFloat(item.product.discount || 0) > 0 ? (
+                                                        <span className="badge badge-success-light" style={{ background: 'rgba(52,199,89,0.1)', color: '#34c759', padding: '6px 10px', borderRadius: '12px', fontSize: '14px', fontWeight: '800' }}>
+                                                            -{item.product.discount_type === 'percentage' ? `${parseFloat(item.product.discount)}%` : `${parseFloat(item.product.discount)}`}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-3">
                                                     <button
-                                                        className="btn btn-danger btn-sm mr-3"
+                                                        className="btn btn-sm text-danger shadow-none"
                                                         onClick={() => onDelete(item.id)}
-                                                        title="Remove Item"
+                                                        style={{ borderRadius: '20px', background: 'rgba(255,59,48,0.05)' }}
                                                     >
-                                                        <i className="fas fa-trash "></i>
+                                                        <i className="fas fa-trash-alt small"></i>
                                                     </button>
                                                 </td>
-                                                <td className="text-right">
-                                                    {parseFloat(item.product.discounted_price).toFixed(2)}
-                                                    {item.product.price > item.product.discounted_price && (
-                                                        <>
-                                                            <br />
-                                                            <del>{parseFloat(item.product.price).toFixed(2)}</del>
-                                                        </>
-                                                    )}
+                                                <td className="py-3 text-right">
+                                                    <input
+                                                        key={`rate-${item.id}-${item.product.discounted_price}`}
+                                                        type="number"
+                                                        className="form-control form-control-sm text-right no-spinner"
+                                                        defaultValue={parseFloat(item.product.discounted_price).toFixed(2)}
+                                                        style={{ 
+                                                            width: '85px', display: 'inline-block', borderRadius: '8px', 
+                                                            border: '1px solid #f0f0f5', fontWeight: '600', color: '#1d1d1f',
+                                                            backgroundColor: '#fafafa'
+                                                        }}
+                                                        onBlur={(e) => handleRateChange(item.id, e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                                                    />
                                                 </td>
-                                                <td className="text-right">
+                                                <td className="py-3 text-right">
                                                     <input
                                                         key={`total-${item.id}-${item.row_total}`}
                                                         type="number"
                                                         className="form-control form-control-sm text-right no-spinner"
                                                         defaultValue={parseFloat(item.row_total).toFixed(2)}
-                                                        step="any"
-                                                        min="0"
-                                                        style={{ width: '90px', display: 'inline-block' }}
-                                                        title="Enter Rs. amount"
-                                                        onBlur={(e) => {
-                                                            if (e.target.value !== String(item.row_total)) {
-                                                                handlePriceChange(item.id, e.target.value);
-                                                            }
+                                                        style={{ 
+                                                            width: '85px', display: 'inline-block', borderRadius: '8px', 
+                                                            border: '1px solid #777', fontWeight: '800', color: 'var(--primary-color)',
+                                                            backgroundColor: '#fff'
                                                         }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.target.blur();
-                                                            }
-                                                        }}
+                                                        onBlur={(e) => handlePriceChange(item.id, e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                                                     />
                                                 </td>
                                             </tr>

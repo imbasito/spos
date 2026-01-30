@@ -18,6 +18,11 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        // Enforce strict Dashboard access control
+        if (!auth()->user()->hasRole('Admin')) {
+            return redirect()->route('cart.index');
+        }
+
         $orders = Order::get();
         // Calculate totals
         $data = [

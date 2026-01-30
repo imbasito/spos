@@ -10,7 +10,9 @@ axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken;
 export default function BarcodeGenerator() {
     const [label, setLabel] = useState("");
     const [barcodeValue, setBarcodeValue] = useState("");
-    const [mfgDate, setMfgDate] = useState("");
+    
+    // Default MFG Date to Today
+    const [mfgDate, setMfgDate] = useState(new Date().toISOString().split('T')[0]);
     const [expDate, setExpDate] = useState("");
     const [labelSize, setLabelSize] = useState("large");
     const [showPrice, setShowPrice] = useState(false);
@@ -99,7 +101,10 @@ export default function BarcodeGenerator() {
 
             try {
                 // Pass raw data to main.cjs for professional generation
-                const res = await window.electron.printSilent(null, tagPrinter, null, barcodeData);
+                // Ensure displayValue (digits) are shown
+                const rawPayload = { ...barcodeData, displayValue: true };
+                
+                const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
                 
                 if (res.success) {
                     Swal.fire({
@@ -202,7 +207,10 @@ export default function BarcodeGenerator() {
             });
 
             try {
-                const res = await window.electron.printSilent(null, tagPrinter, null, barcodeData);
+                // Pass raw data for consistent printing
+                const rawPayload = { ...barcodeData, displayValue: true };
+                
+                const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
                 if (res.success) {
                     Swal.fire({
                         icon: 'success',

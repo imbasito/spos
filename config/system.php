@@ -43,7 +43,7 @@
   'auto_fractional_discount' => '0',
   'backup_path' => '',
   'auto_backup' => 'disabled',
-  'last_backup_date' => '2026-01-26 12:40:54',
+  'last_backup_date' => '2026-01-29 12:40:52',
   'license_key' => 'MPOS-eyJzaG9wIjoiYmciLCJleHBpcnkiOiIyMDI3LTAxLTI3IiwibWFjaGluZSI6IkFOWSIsImNyZWF0ZWQiOiIyMDI2LTAxLTI3In0=-1AE19D5F',
   'licensed_to' => 'bg',
   'receipt_printer' => 'POS80',

@@ -123,6 +123,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::put('/cart/empty', [CartController::class, 'empty']);
     Route::get('/cart/check-journal', [CartController::class, 'checkJournal']);
     Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
+    Route::put('/cart/update-rate', [CartController::class, 'updateRate']);
 
     Route::put('/cart/update-by-price', [CartController::class, 'updateByPrice']);
     Route::put('/order/create', [OrderController::class, 'store']);

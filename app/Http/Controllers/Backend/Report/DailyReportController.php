@@ -13,8 +13,19 @@ class DailyReportController extends Controller
 {
     public function index()
     {
+        // History Data
         $closings = DailyClosing::latest()->paginate(20);
-        return view('backend.reports.daily.index', compact('closings'));
+
+        // Current Session Data for Modal
+        $lastClosing = DailyClosing::latest('closed_at')->first();
+        $startTime = $lastClosing ? $lastClosing->closed_at : now()->startOfDay();
+
+        $totalOrders = Order::where('created_at', '>=', $startTime)->count();
+        $totalSales = Order::where('created_at', '>=', $startTime)->sum('total');
+        $totalReturns = ProductReturn::where('created_at', '>=', $startTime)->sum('total_refund');
+        $systemCash = $totalSales - $totalReturns;
+
+        return view('backend.reports.daily.index', compact('closings', 'totalOrders', 'totalSales', 'totalReturns', 'systemCash'));
     }
 
     public function create()

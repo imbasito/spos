@@ -50,6 +50,9 @@ $route = request()->route()->getName();
                     <p>Brands</p>
                 </a>
             </li>
+            @endif
+
+            @can('unit_view')
             <li class="nav-item">
                 <a href="{{route('backend.admin.units.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.units.*']) ? 'active' : '' }}">
@@ -57,7 +60,7 @@ $route = request()->route()->getName();
                     <p>Units</p>
                 </a>
             </li>
-            @endif
+            @endcan
 
             @if (auth()->user()->hasAnyPermission(['customer_view','supplier_view']))
             <li class="nav-item">
@@ -83,9 +86,9 @@ $route = request()->route()->getName();
 
             @can('sale_view')
             <li class="nav-item">
-                <a href="{{route('backend.admin.orders.index')}}"
-                    class="nav-link {{ request()->routeIs(['backend.admin.orders.*']) ? 'active' : '' }}">
-                    <i class="fas fa-receipt nav-icon"></i>
+                <a href="{{ route('backend.admin.orders.index') }}"
+                    class="nav-link {{ request()->is('admin/orders*') ? 'active' : '' }}">
+                    <i class="fas fa-file-invoice nav-icon"></i>
                     <p>Sales</p>
                 </a>
             </li>
@@ -118,7 +121,7 @@ $route = request()->route()->getName();
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{{route('backend.admin.report.daily.closing')}}"
+                <a href="{{route('backend.admin.report.daily.history')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.report.daily.*']) ? 'active' : '' }}">
                     <i class="fas fa-file-invoice-dollar nav-icon"></i>
                     <p>Closing</p>
@@ -203,11 +206,15 @@ $route = request()->route()->getName();
 </div>
 
 <script>
-    /* Event Delegation for 4GB RAM Efficiency */
-    document.getElementById('apple-sidebar-nav').addEventListener('click', function(e) {
+    /* Focal Cursor Reveal Tracking */
+    document.getElementById('apple-sidebar-nav').addEventListener('mousemove', function(e) {
         const link = e.target.closest('.nav-link');
-        if (link && !link.classList.contains('active')) {
-            // Optional: Add a high-performance slide effect or loading bar trigger here
+        if (link) {
+            const rect = link.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            link.style.setProperty('--x', `${x}px`);
+            link.style.setProperty('--y', `${y}px`);
         }
     });
 

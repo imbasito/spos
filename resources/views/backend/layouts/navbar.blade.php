@@ -15,12 +15,10 @@
     <!-- Right navbar links -->
     <ul class="navbar-nav ml-auto align-items-center">
 
-
-
         @can('sale_create')
-        <li class="nav-item dropdown">
-            <a class="nav-link btn bg-gradient-maroon text-white" href="{{route('backend.admin.cart.index')}}">
-                <i class="fas fa-cart-plus"> POS</i>
+        <li class="nav-item dropdown mr-2">
+            <a class="nav-link btn-apple-primary px-3 py-1 text-white d-flex align-items-center justify-content-center" href="{{route('backend.admin.cart.index')}}" style="border-radius: 20px; font-size: 0.85rem; letter-spacing: 0.5px; color: #ffffff !important; background-color: #800000 !important; font-weight: bold; min-width: 80px; height: 32px;">
+                <i class="fas fa-cart-plus mr-1 text-white"></i> POS
             </a>
         </li>
         @endcan

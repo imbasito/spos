@@ -1,259 +1,221 @@
-/**
- * Sinyx POS: Apple-Standard Design System
- * Focus: Rules, Consistency, and Premium Depth.
- */
-
 :root {
-    /* --- COLOR PALETTE (Natural Mutes) --- */
-    --apple-gray-1: #1d1d1f;      /* Apple Standard Deep Text */
-    --apple-gray-2: #424245;      /* Apple Standard Subtext */
-    --apple-gray-3: #86868b;      /* Muted focus */
-    --apple-gray-4: #f5f5f7;      /* System Gray 6 (Dimmed) */
-    --apple-bg: #e5e5ea;          /* Standard Apple Dim Background (More comfortable) */
-    --apple-accent: #800000;      /* Pure Maroon */
-    --pastel-bg: #f2f2f7;         /* Dimmer Sidebar Background */
-
+    /* Apple Palette (Light Mode) */
+    --system-background: #ffffff;
+    --system-secondary-background: #F2F2F7;
+    --system-tertiary-background: #FFFFFF;
+    --system-grouped-background: #F2F2F7;
+    --system-secondary-grouped-background: #FFFFFF;
     
-    /* --- SPACING GRID (Rules, not guesses) --- */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
+    --system-gray: #8E8E93;
+    --system-gray-2: #AEAEB2;
+    --system-gray-3: #C7C7CC;
+    --system-gray-4: #D1D1D6;
+    --system-gray-5: #E5E5EA;
+    --system-gray-6: #F2F2F7;
 
-    /* --- SHADOWS (Ambient Occlusion - 0% Performance Cost) --- */
-    --apple-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.04);
-    --apple-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.06);
-    --apple-shadow-deep: 0 15px 45px rgba(0, 0, 0, 0.1);
+    --system-blue: #007AFF;
+    --system-green: #34C759;
+    --system-indigo: #5856D6;
+    --system-orange: #FF9500;
+    --system-pink: #FF2D55;
+    --system-purple: #AF52DE;
+    --system-red: #FF3B30;
+    --system-teal: #5AC8FA;
+    --system-yellow: #FFCC00;
+
+    /* Theme Primary (Maroon) Refined for Eye Strain */
+    --primary-color: #800000;
+    --primary-color-light: #A01010;
+    --primary-color-dim: rgba(128, 0, 0, 0.08);
     
-    /* --- BORDERS & CORNERS --- */
-    --radius-sm: 8px;
-    --radius-md: 14px;
-    --radius-lg: 24px;
-    --apple-border: 1px solid rgba(0, 0, 0, 0.05);
-
-    /* --- TYPOGRAPHY (Windows Native - 0MB RAM Cost) --- */
-    --font-main: -apple-system, 'Segoe UI Variable Display', 'Segoe UI', 'Inter', sans-serif;
+    /* Dynamics */
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 12px 24px rgba(0, 0, 0, 0.12);
+    --border-radius-apple: 12px;
+    --glass-effect: saturate(180%) blur(20px);
 }
 
-/* --- Global Consistency Rules --- */
+/* Base Overrides */
 body {
-    font-family: var(--font-main);
-    background-color: var(--apple-bg);
-    color: var(--apple-gray-1);
+    background-color: var(--system-gray-6) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    color: #1d1d1f;
     -webkit-font-smoothing: antialiased;
 }
 
-
-/* Rounded Cards by Default */
-.card {
-    border-radius: var(--radius-md);
-    border: var(--apple-border);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* Softer shadow for dim mode */
-    background: #ffffff;
-    overflow: hidden;
+/* Apple-style Card */
+.apple-card {
+    background: var(--system-background);
+    border-radius: var(--border-radius-apple);
+    border: 1px solid rgba(0,0,0,0.05);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-/* Glass Utility */
-.glass-effect {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-blur);
-    -webkit-backdrop-filter: var(--glass-blur);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+.apple-card:hover {
+    box-shadow: var(--card-shadow-hover);
 }
 
-/* Typography Hierarchy Helpers */
-.text-apple-main { color: var(--apple-gray-1); }
-.text-apple-sub { color: var(--apple-gray-2); font-size: 0.9em; }
-.text-apple-tiny { color: var(--apple-gray-3); font-size: 0.8em; }
+/* Glassmorphism sidebar */
+.glass-sidebar {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: var(--glass-effect) !important;
+    -webkit-backdrop-filter: var(--glass-effect) !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
 
+/* Buttons */
 .btn-apple {
-    border-radius: var(--radius-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-weight: 600;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
 }
 
-.btn-apple:hover {
+.btn-apple-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none !important;
+}
+
+.btn-apple-primary:hover {
+    background-color: var(--primary-color-light);
     transform: translateY(-1px);
-    box-shadow: var(--apple-shadow-soft);
+    box-shadow: 0 4px 12px rgba(128, 0, 0, 0.3);
 }
 
-/* ============================================================ 
-   APPLE-STANDARD SIDEBAR RECONSTRUCTION (HIGH PERFORMANCE)
-   ============================================================ */
+/* Scrollbars */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
 
-/* Hover Trigger Area */
-.sidebar-hover-trigger {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 20px; /* Wider proximity trigger */
-    height: 100vh;
-    z-index: 1039; /* Just below sidebar but above content */
+::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.main-sidebar {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    height: 100vh !important;
-    width: 260px !important;
-    background: #ffffff !important; /* Pure Solid White - No Glass */
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: none !important;
-    z-index: 1050 !important;
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    will-change: transform;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden !important;
-    transform: translateX(0);
+::-webkit-scrollbar-thumb {
+    background: var(--system-gray-4);
+    border-radius: 10px;
 }
 
-.main-sidebar::after {
-    display: none !important;
+::-webkit-scrollbar-thumb:hover {
+    background: var(--system-gray-2);
 }
 
-/* Binary State: Fully Hidden and Detached */
-.sidebar-collapse .main-sidebar {
-    transform: translateX(-100%) !important;
+/* Typography */
+h1, h2, h3, h4, .font-apple {
+    font-weight: 600;
+    letter-spacing: -0.022em;
 }
 
-/* Hover Reveal Physics */
-.sidebar-hover-trigger:hover ~ .main-sidebar,
-.main-sidebar:hover {
-    transform: translateX(0) !important;
-    box-shadow: 20px 0 50px rgba(0,0,0,0.05) !important;
+/* Fix Sidebar Active State Branding */
+.nav-pills .nav-link.active, 
+.nav-pills .show > .nav-link,
+.nav-sidebar > .nav-item > .nav-link.active {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 6px rgba(128, 0, 0, 0.4) !important;
 }
 
-/* Ensure no glass effects during reveal/slide */
-.sidebar-collapse .main-sidebar,
-.sidebar-open .main-sidebar,
-.main-sidebar:hover {
-    background: #ffffff !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+/* Ensure text and icons inside active links are white */
+.nav-pills .nav-link.active i,
+.nav-pills .nav-link.active p {
+    color: #ffffff !important;
 }
 
-
-/* Logo Area - Absolute Cleanliness */
-.brand-link, .main-sidebar .brand-link {
-    background: transparent !important;
-    border: none !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
-    padding: 30px 10px 20px !important;
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: none !important;
-    height: auto !important;
-    min-height: 160px;
+/* Sidebar Hover State */
+.nav-pills .nav-link:hover:not(.active) {
+    background-color: var(--primary-color-dim) !important;
+    color: var(--primary-color) !important;
 }
 
-.brand-link img.brand-image-refined {
-    width: 85px !important;
-    height: auto !important;
-    border-radius: 12px !important;
-    background: #fff !important;
-    padding: 6px !important;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
-    margin-bottom: 15px !important;
+/* Specific POS Navbar/Color Conflict Fix */
+.nav-link.btn-apple-primary[href*="admin/cart"],
+.btn-apple-primary.nav-link {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
 }
 
-.brand-text {
-    color: var(--apple-gray-1) !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.05em !important;
-    text-transform: uppercase;
-    opacity: 0.6;
-    margin: 0 !important;
-    text-align: center;
+.nav-link.btn-apple-primary[href*="admin/cart"] i,
+.nav-link.btn-apple-primary[href*="admin/cart"] p {
+    color: #ffffff !important;
 }
 
 
-/* Navigation Items - Contrast & Spacing Fix */
-.nav-sidebar .nav-item {
-    margin: 4px 12px !important; /* Spacing for pills */
-    width: calc(100% - 24px) !important;
+/* Sidebar Color - Low Contrast Background but Brand Active State */
+.main-sidebar, .main-sidebar::before {
+    background-color: #f4f5f7 !important; /* Slightly more neutral low-strain background */
+    border-right: 1px solid rgba(0,0,0,0.08) !important;
 }
 
-.nav-sidebar .nav-link {
-    border-radius: 10px !important;
-    padding: 10px 16px !important;
-    color: #3a3a3c !important; /* High contrast for unselected */
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+/* Sidebar Text */
+[class*="sidebar-dark-"] .nav-sidebar > .nav-item > .nav-link {
+    color: #3a3a3c !important; /* Visible dark gray text */
 }
 
-.nav-sidebar .nav-link:hover {
-    background: rgba(0, 0, 0, 0.04) !important;
-    color: #000 !important;
-}
-
-.nav-sidebar .nav-item > .nav-link.active,
-.sidebar-light-lightblue .nav-sidebar > .nav-item > .nav-link.active,
-aside.main-sidebar .nav-link.active {
-    background-color: #800000 !important;
-    background: #800000 !important;
+/* Fixed Selective Tab Color (Maroon) */
+#apple-sidebar-nav .nav-link.active {
+    background-color: var(--primary-color) !important;
     color: #ffffff !important;
     box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25) !important;
-    font-weight: 600 !important;
+    border: none !important;
 }
 
-.nav-sidebar .nav-icon {
-    color: inherit !important;
-    font-size: 1.1rem !important;
-    margin-right: 12px !important;
-    opacity: 0.9;
+#apple-sidebar-nav .nav-link.active i,
+#apple-sidebar-nav .nav-link.active p {
+    color: #ffffff !important;
 }
 
-.nav-header {
-    padding: 20px 24px 8px !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
+/* Fixed Hover Color (Light Maroon Tint) */
+#apple-sidebar-nav .nav-link:hover:not(.active) {
+    background-color: rgba(128, 0, 0, 0.05) !important;
+    color: var(--primary-color) !important;
+}
+
+/* Sidebar Header */
+.nav-sidebar .nav-header {
+    background-color: transparent !important;
     color: #8e8e93 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em;
+    padding: 1.5rem 1rem 0.5rem 1.5rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
 }
 
-/* Clean Sidebar Scrollbar */
-.sidebar::-webkit-scrollbar { width: 0px !important; }
-
-/* Content Wrapper adjustment */
-/* Content & Header Smooth Shifts (Static fallback) */
-.main-header, .content-wrapper, .main-footer {
-    margin-left: 260px !important;
-    transition: margin-left 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+/* Sidebar Cursor Reveal - FIXED */
+#apple-sidebar-nav .nav-link {
     position: relative;
+    overflow: hidden; /* Critical for spotlight clipping */
+    transition: all 0.2s ease;
+    border-radius: 10px !important;
+    margin: 4px 12px !important;
     z-index: 1;
 }
 
-/* Binary State: Handle Shifts when collapsed */
-body.sidebar-collapse .main-header,
-body.sidebar-collapse .content-wrapper,
-body.sidebar-collapse .main-footer {
-    margin-left: 0 !important;
+/* Enhanced Reveal Spotlight */
+#apple-sidebar-nav .nav-link::before {
+    content: '';
+    position: absolute;
+    top: var(--y, 50%);
+    left: var(--x, 50%);
+    width: 0;
+    height: 0;
+    background: radial-gradient(circle, rgba(128, 0, 0, 0.2) 0%, transparent 70%);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.4s cubic-bezier(0.1, 0.7, 1.0, 0.1), height 0.4s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+    z-index: -1; /* Behind text */
+    pointer-events: none;
 }
 
-/* Hide legacy AdminLTE noise WITHOUT hiding the sidebar itself */
-.main-sidebar::before {
-    display: none !important;
+#apple-sidebar-nav .nav-link:hover::before {
+    width: 280px;
+    height: 280px;
 }
 
-/* Reset AdminLTE background layers to transparent */
-.sidebar-dark-primary, .sidebar-light-primary, .sidebar-light-lightblue {
-    background: transparent !important;
+#apple-sidebar-nav .nav-link i,
+#apple-sidebar-nav .nav-link p {
+    position: relative;
+    z-index: 1;
 }
-
-
-
-

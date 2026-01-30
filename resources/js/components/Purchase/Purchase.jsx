@@ -24,10 +24,11 @@ export default function Purchase() {
     useEffect(() => {
         const searchParams = new URLSearchParams(window.location.search);
         const barcodeParam = searchParams.get("barcode");
+        const searchParam = searchParams.get("search");
         const purchase_id = searchParams.get("purchase_id");
-        if (barcodeParam) {
-            setSearchTerm(barcodeParam);
-            setBarcode(barcodeParam);
+        if (barcodeParam || searchParam) {
+            setSearchTerm(barcodeParam || searchParam);
+            if (barcodeParam) setBarcode(barcodeParam);
         }
         if (purchase_id) {
             setPurchaseId(purchase_id);

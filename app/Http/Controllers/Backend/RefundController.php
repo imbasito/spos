@@ -41,7 +41,7 @@ class RefundController extends Controller
                 ->toJson();
         }
 
-        return view('backend.refunds.index_v3');
+        return view('backend.refunds.index_v5');
     }
 
     /**

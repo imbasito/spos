@@ -21,10 +21,27 @@ class PurchaseController extends Controller
 
         abort_if(!auth()->user()->can('purchase_view'), 403);
         if ($request->ajax()) {
-            $purchases = Purchase::with('supplier')->latest()->get(); // Use collection for robust search
+            $purchases = Purchase::with('supplier', 'items.product')->latest(); // Use Query Builder
             return DataTables::of($purchases)
                 ->addIndexColumn()
-                ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            $query->where(function ($q) use ($keyword) {
+                                $q->where('id', 'like', "%{$keyword}%")
+                                  ->orWhereHas('supplier', function($sub) use ($keyword) {
+                                      $sub->where('name', 'like', "%{$keyword}%");
+                                  })
+                                  ->orWhereHas('items.product', function($sub) use ($keyword) {
+                                      $sub->where('name', 'like', "%{$keyword}%")
+                                         ->orWhere('sku', 'like', "%{$keyword}%")
+                                         ->orWhere('barcode', 'like', "%{$keyword}%");
+                                  });
+                            });
+                        }
+                    }
+                }, true)
                 ->addColumn('supplier', fn($data) => $data->supplier->name)
                 ->addColumn('id', function ($data) {
                     return '#' . $data->id;

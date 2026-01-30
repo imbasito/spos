@@ -145,4 +145,19 @@ class WebsiteSettingController extends Controller
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'printer-settings'])
             ->with('success', $msg);
     }
+
+    /**
+     * API Endpoint for Electron to fetch remote printer configurations.
+     */
+    public function getPrinterSettings()
+    {
+        return response()->json([
+            'receipt_printer' => readConfig('receipt_printer'),
+            'tag_printer' => readConfig('tag_printer'),
+            'receipt_cpl' => readConfig('receipt_cpl', 42),
+            'currency_symbol' => readConfig('currency_symbol', 'Rs.'),
+            'site_name' => readConfig('site_name'),
+            'address' => readConfig('address'),
+        ]);
+    }
 }

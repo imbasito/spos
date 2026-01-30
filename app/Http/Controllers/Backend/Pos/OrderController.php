@@ -28,11 +28,27 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            $orders = Order::with('customer')->orderBy('id', 'desc'); 
+            $orders = Order::with('customer', 'products.product')->orderBy('id', 'desc'); 
 
 
             return DataTables::of($orders)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            $query->where(function ($q) use ($keyword) {
+                                $q->where('id', 'like', "%{$keyword}%")
+                                  ->orWhere('total', 'like', "%{$keyword}%")
+                                  ->orWhere('status', 'like', "%{$keyword}%")
+                                  ->orWhereHas('customer', function($sub) use ($keyword) {
+                                      $sub->where('name', 'like', "%{$keyword}%");
+                                  });
+                            });
+                        }
+                    }
+                }, true)
+
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
                 ->addColumn('customer', fn($data) => $data->customer->name ?? '-')
                 ->addColumn('item', fn($data) => $data->total_item)
@@ -89,6 +105,11 @@ class OrderController extends Controller
             'paid' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|string|in:cash,card,online',
             'transaction_id' => 'nullable|string|max:255',
+            'items' => 'nullable|array',
+            'items.*.id' => 'required|exists:products,id',
+            'items.*.qty' => 'required|numeric|min:0.001',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.row_total' => 'required|numeric|min:0',
         ]);
 
         try {
