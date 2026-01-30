@@ -49,15 +49,16 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [show, paidAmount, paymentMethod, transactionId, isReady]); 
 
+    const [confirming, setConfirming] = useState(false);
+
     const handleConfirm = () => {
+        if (confirming) return;
+
         // Validation: Check if input is empty string
         if (paidAmount === '' || paidAmount === null || paidAmount === undefined) {
-             const input = document.querySelector('input[type="number"]'); // Gross logic but works for focused input
+             const input = document.querySelector('input[type="number"]'); 
              if(input) input.focus();
              
-             // Show Toast using SweetAlert mixin or standard Alert, or just focus.
-             // User requested: "textfield chota sa notification dikae k enter amount"
-             // Using HTML5 validation reportValidity or custom toast.
              Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -69,6 +70,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
              return;
         }
 
+        setConfirming(true);
         const cleanPaid = parseFloat(paidAmount || 0);
         onConfirm({ 
             paid: cleanPaid, 

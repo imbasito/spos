@@ -1,3 +1,12 @@
+/**
+ * PosMain.jsx - Professional POS Interface
+ * Last Updated: 2026-01-30 - Scanner V9 Global Fix
+ * 
+ * Key Features:
+ * - Global barcode scanner (works regardless of focus)
+ * - Speed-based scanner detection (<80ms = scanner)
+ * - Visual feedback when scanning
+ */
 import React, { useEffect, useState, useCallback, useMemo, useRef, memo } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -85,7 +94,7 @@ const ContextMenu = ({ x, y, onAction, onClose, product }) => {
 // Memoized ProductCard component (Apple-Style)
 const ProductCard = memo(({ product, onClick, onContextMenu, baseUrl }) => (
     <div
-        onClick={() => onClick(product.id)}
+        onClick={() => onClick({ product })}
         onContextMenu={(e) => onContextMenu(e, product)}
         className="col-6 col-md-4 col-xl-3 mb-4 px-2"
         style={{ cursor: "pointer" }}
@@ -99,7 +108,7 @@ const ProductCard = memo(({ product, onClick, onContextMenu, baseUrl }) => (
                 }}>
                     <span className={`pos-availability-dot ${product.quantity <= 0 ? 'out-of-stock' : ''}`} 
                           style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#34c759', marginRight: '5px' }}></span>
-                    {product.quantity > 0 ? `${product.quantity} In Stock` : `Sold Out`}
+                    {product.quantity > 0 ? `${parseFloat(product.quantity).toFixed(2)} In Stock` : `Sold Out`}
                 </div>
                 <img
                     src={`${baseUrl}/storage/${product.image}`}
@@ -218,37 +227,22 @@ export default function Pos() {
 
     // Helper: Centralized calculation to prevent logic drift
     const calculateOrderValues = useCallback(() => {
-        const subTotal = parseFloat(total) || 0;
-        const manual = parseFloat(manualDiscount) || 0;
+        const totalNetItems = carts.reduce((acc, item) => 
+            acc + (parseFloat(item.row_total) || 0), 0);
         
-        // Sum of net amounts in the cart
-        const totalNetItems = carts.reduce((acc, item) => acc + (parseFloat(item.row_total) || 0), 0);
+        const beforeRounding = Math.max(0, totalNetItems - manualDiscount);
         
-        // Final Total before rounding
-        const beforeRounding = Math.max(0, totalNetItems - manual);
-
-        // Calculate Rounding on the resulting net
+        // Fractional Rounding (if enabled)
         let roundDisc = 0;
         if (autoRound && beforeRounding > 0) {
-            const rawDiff = beforeRounding - Math.floor(beforeRounding);
-            if (rawDiff > 0) {
-                roundDisc = parseFloat(rawDiff.toFixed(2));
-            }
+            roundDisc = beforeRounding - Math.floor(beforeRounding);
         }
-
-        const finalTotal = parseFloat((beforeRounding - roundDisc).toFixed(2));
         
-        // Manual + Rounding aggregate
-        const totalExplicitDiscount = parseFloat((manual + roundDisc).toFixed(2));
-
         return {
-            subTotal: totalNetItems,
-            manualDiscount: manual,
-            roundingDiscount: roundDisc,
-            finalTotal,
-            finalDiscount: totalExplicitDiscount 
+            finalTotal: beforeRounding - roundDisc,
+            finalDiscount: manualDiscount + roundDisc
         };
-    }, [carts, total, manualDiscount, autoRound]);
+    }, [carts, manualDiscount, autoRound]);
 
     // Recalculate Final Total & Rounding using helper
     useEffect(() => {
@@ -257,11 +251,13 @@ export default function Pos() {
     }, [calculateOrderValues]);
 
     // Fetch Products (Optimized with Caching and Pre-fetching)
-    const getProducts = useCallback(async (search = "", page = 1, isPreFetch = false) => {
+    const getProducts = useCallback(async (search = "", page = 1, isPreFetch = false, forceRefresh = false) => {
         if (!isPreFetch) setLoading(true);
         try {
             const cacheKey = `${search}_${page}`;
-            if (productCache[cacheKey] && !isPreFetch) {
+            
+            // NUKE LOGIC: If forceRefresh is true, skip the cache check entirely
+            if (!forceRefresh && productCache[cacheKey] && !isPreFetch) {
                 setProducts(prev => page === 1 ? productCache[cacheKey] : [...prev, ...productCache[cacheKey]]);
                 if (!isPreFetch) setLoading(false);
                 return;
@@ -529,111 +525,250 @@ export default function Pos() {
     };
 
 
-    // 1. Add Product (Unified Professional Protocol)
-    const addProductToCart = useCallback((input) => {
-        if (isProcessing.current) return; // Guard against rapid multi-firing
-
-        try {
-            let product;
-            if (input && typeof input === 'object' && input.hasOwnProperty('id')) {
-                product = input;
-            } else {
-                product = (products || []).find(p => p.id == input); 
-            }
-            
-            if(!product) return;
-            const id = product.id; 
-
-            // Visual feedback: Start sound
-            playSound(SuccessSound);
-            isProcessing.current = true;
-
-            // Simple, Robust, Unified Logic: Post -> Refresh
-            // This is the "Working Manual Logic" translated for both Clicks & Scans
-            axios.post("/admin/cart", { id })
-                .then((res) => {
-                    // Refresh cart state from server - Single Source of Truth
-                    getCarts(); 
-                    toast.success("Added to cart");
-                })
-                .catch((err) => {
-                    playSound(WarningSound);
-                    toast.error(err.response?.data?.message || "Error adding item");
-                })
-                .finally(() => {
-                    isProcessing.current = false;
-                });
-
-        } catch (e) { 
-            console.error("AddToCart Protected:", e); 
-            isProcessing.current = false;
+    // 1. Universal Add Product (Professional Protocol)
+    const addProductToCart = useCallback((params) => {
+        // params can be:
+        // 1. { product: Object } - from clicking a product card
+        // 2. { id: number } - direct ID
+        // 3. { barcode: string } - from scanner
+        const { id, barcode, product: directProduct } = params;
+        
+        // Clean and validate inputs
+        const cleanBarcode = (barcode && typeof barcode === 'string') ? barcode.trim() : null;
+        const cleanId = (id !== undefined && id !== null) ? parseInt(id) : null;
+        
+        // If we have a direct product object, use its ID
+        const productId = directProduct?.id || cleanId;
+        
+        // VALIDATION: Must have either product, id, or barcode
+        if (!productId && !cleanBarcode) {
+            console.warn("addProductToCart: No valid identifier", { params, productId, cleanBarcode });
+            playSound(WarningSound);
+            toast.error("Unable to add product - no identifier");
+            return;
         }
-    }, [products, getCarts]);
+        
+        // Find product locally for Optimistic UI
+        const product = directProduct || products.find(p => 
+            (productId && p.id == productId) || 
+            (cleanBarcode && (p.sku === cleanBarcode || p.barcode === cleanBarcode))
+        );
+        
+        // Play Sound 
+        playSound(SuccessSound);
+
+        // Optimistic UI Block
+        if (product) {
+            const existingItemIndex = carts.findIndex(c => c.product_id === product.id);
+            const tempId = existingItemIndex >= 0 ? carts[existingItemIndex].id : `opt-${Date.now()}`;
+            
+            let newCarts = [...carts];
+            if (existingItemIndex >= 0) {
+                const item = { ...newCarts[existingItemIndex] };
+                item.quantity = parseFloat(item.quantity) + 1;
+                item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
+                newCarts[existingItemIndex] = item;
+            } else {
+                const newItem = {
+                    id: tempId,
+                    product_id: product.id,
+                    quantity: 1,
+                    row_total: product.discounted_price,
+                    product: product
+                };
+                newCarts = [newItem, ...carts];
+            }
+            setCarts(newCarts);
+            setTotal(calculateCartTotal(newCarts));
+        }
+
+        // Server Sync (Reliable & Professional)
+        // Priority: productId (from direct product or cleaned id) > cleanBarcode
+        let postData = {};
+        if (productId) {
+            postData.id = productId;
+        } else if (cleanBarcode) {
+            postData.barcode = cleanBarcode;
+        }
+
+        // Safety check (should never happen due to validation above)
+        if (!postData.id && !postData.barcode) {
+            console.error("UniversalSync: No valid data to send", { productId, cleanBarcode });
+            return;
+        }
+
+        axios.post("/admin/cart", postData)
+            .then((res) => {
+                // If it was a new item, refresh state to get real DB data (ID, product details, etc.)
+                if (res.data?.cart) {
+                    toast.success(res.data.message || "Item Added", { duration: 1000 });
+                }
+                getCarts(); // Consistent refresh
+            })
+            .catch((err) => {
+                playSound(WarningSound);
+                const msg = err.response?.data?.message || "Scan/Add Failed";
+                toast.error(msg);
+                // getCarts(); // Rollback if needed
+            });
+    }, [carts, products, calculateCartTotal, getCarts]);
 
     // ==========================================
-    // GLOBAL SCANNER LOGIC (Robust V8)
+    // GLOBAL SCANNER LOGIC (Professional V9)
+    // Key Features:
+    // 1. Works regardless of focus (truly global)
+    // 2. Detects scanner by keystroke speed (< 80ms = scanner)
+    // 3. Increased buffer timeout (400ms) for slower USB scanners
+    // 4. Visual feedback when scanner is detected
+    // 5. Supports both buffer capture and input fallback
     // ==========================================
+
+    const [scannerActive, setScannerActive] = useState(false);
+    const scannerTimeoutRef = useRef(null);
+    const consecutiveFastKeys = useRef(0);
 
     useEffect(() => {
-        const handleGlobalKeyDown = (e) => {
+        const handleUnifiedKeyDown = (e) => {
+            const currentTime = Date.now();
+            const timeDiff = currentTime - lastKeyTime.current;
+            lastKeyTime.current = currentTime;
+
+            // Skip if payment modal is open (user is typing payment details)
             if (showPaymentModal) return;
 
-            if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) {
-                e.preventDefault(); 
+            // 1. HOTKEYS (Always work, highest priority)
+            if (e.key === 'F2') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                searchInputRef.current?.focus();
+                searchInputRef.current?.select();
+                return;
+            }
+            if (e.key === 'F10') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                handleCheckoutClick();
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setShowPaymentModal(false);
+                setShowReceiptModal(false);
+                // Also clear any partial scan
+                scanBuffer.current = "";
+                setScannerActive(false);
+                return;
+            }
+            // Ctrl+Backspace or Ctrl+Delete: Clear cart
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
+                e.preventDefault();
+                if (carts.length > 0) {
+                    cartEmpty();
+                }
                 return;
             }
 
-            const now = Date.now();
-            const timeDiff = now - lastKeyTime.current;
-            lastKeyTime.current = now;
+            // 2. SCANNER DETECTION (Speed-based, focus-independent)
+            const target = e.target;
+            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+            const isSearchInput = target.id === 'product-search-input' || target.classList.contains('allow-scanner');
+            
+            // Check if user is editing cart fields (quantity, rate, amount inputs in cart table)
+            const isCartInput = isInput && (
+                target.closest('.user-cart') || 
+                target.closest('.apple-table') ||
+                target.classList.contains('form-control-sm')
+            ) && !isSearchInput;
+            
+            // Track consecutive fast keystrokes to detect scanner
+            if (timeDiff < 80) {
+                consecutiveFastKeys.current++;
+            } else {
+                consecutiveFastKeys.current = 0;
+            }
+            
+            // Scanner detected: 3+ consecutive fast keys
+            const isScannerInput = consecutiveFastKeys.current >= 2 || timeDiff < 50;
+            
+            // Show visual feedback when scanner is detected
+            if (isScannerInput && !scannerActive) {
+                setScannerActive(true);
+            }
+            
+            // Clear scanner indicator after 600ms of no input
+            if (scannerTimeoutRef.current) clearTimeout(scannerTimeoutRef.current);
+            scannerTimeoutRef.current = setTimeout(() => {
+                setScannerActive(false);
+                consecutiveFastKeys.current = 0;
+            }, 600);
 
-            if (timeDiff > 500) {
+            // 3. ENTER KEY: Process scan or manual search
+            if (e.key === 'Enter') {
+                // IMPORTANT: If user is in a cart input field (qty/rate/amount), 
+                // let the input's native handler work (blur to save)
+                if (isCartInput && !isScannerInput) {
+                    // Don't intercept - let the input handle Enter naturally
+                    // The input's onKeyDown will blur() which triggers onBlur to save
+                    return;
+                }
+                
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                const bufferCode = scanBuffer.current.trim();
+                const inputCode = searchInputRef.current?.value?.trim() || '';
+                
+                // Priority 1: Buffer code (scanner captured it globally)
+                // Priority 2: Search input value (manual entry or fallback)
+                const code = bufferCode.length >= 3 ? bufferCode : inputCode;
+                
+                if (code.length >= 3) {
+                    // Process the barcode/search
+                    addProductToCart({ barcode: code });
+                    
+                    // Clear everything
+                    scanBuffer.current = "";
+                    if (searchInputRef.current) {
+                        searchInputRef.current.value = "";
+                    }
+                    setSearchQuery("");
+                    setScannerActive(false);
+                    consecutiveFastKeys.current = 0;
+                    
+                    // Refocus search for next scan
+                    setTimeout(() => searchInputRef.current?.focus(), 50);
+                }
+                
                 scanBuffer.current = "";
+                return;
             }
 
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopImmediatePropagation(); // SHIELD: Prevent "Enter" from leaking to buttons/modals
+            // 4. CHARACTER INPUT: Build buffer
+            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                // Buffer timeout: 400ms (accommodates slower USB scanners)
+                if (timeDiff > 400) {
+                    scanBuffer.current = e.key;
+                } else {
+                    scanBuffer.current += e.key;
+                }
                 
-                if (isProcessing.current) return;
-
-                let scannedCode = scanBuffer.current.trim();
-                if ((!scannedCode || scannedCode.length < 2) && searchInputRef.current) {
-                    scannedCode = searchInputRef.current.value.trim();
+                // If scanner input detected and typing into non-search input, 
+                // prevent character from appearing there (redirect to buffer only)
+                if (isScannerInput && isInput && !isSearchInput) {
+                    e.preventDefault();
+                    e.stopPropagation();
                 }
-
-                if (scannedCode.length > 2) { 
-                    const product = products.find(p => 
-                        p.sku?.toLowerCase() === scannedCode.toLowerCase() || 
-                        p.barcode?.toLowerCase() === scannedCode.toLowerCase()
-                    );
-                    
-                    if (product) {
-                        e.preventDefault(); 
-                        e.stopPropagation();
-                        
-                        addProductToCart(product); 
-                        
-                        setSearchQuery("");
-                        scanBuffer.current = ""; 
-                        
-                        if(searchInputRef.current) {
-                            searchInputRef.current.value = "";
-                            searchInputRef.current.focus();
-                        }
-
-                        return;
-                    }
-                }
-                scanBuffer.current = ""; 
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { 
-                scanBuffer.current += e.key;
             }
         };
 
-        window.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
-        return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true });
-    }, [products, showPaymentModal, addProductToCart]); 
+        // Use capture phase to intercept before any other handlers
+        window.addEventListener('keydown', handleUnifiedKeyDown, { capture: true });
+        return () => {
+            window.removeEventListener('keydown', handleUnifiedKeyDown, { capture: true });
+            if (scannerTimeoutRef.current) clearTimeout(scannerTimeoutRef.current);
+        };
+    }, [showPaymentModal, showReceiptModal, addProductToCart, carts.length]); 
 
     // 2. Increment (Unified Server-First)
     const handleIncrement = (cartId) => {
@@ -699,32 +834,15 @@ export default function Pos() {
     };
 
     // 6. Update By Price (Optimistic)
-    const handleUpdateByPrice = (cartId, targetPrice) => {
-        const index = carts.findIndex(c => c.id === cartId);
-        if(index < 0) return;
+    const handleUpdateByPrice = (cartId, targetTotal) => {
+        const item = carts.find(c => c.id === cartId);
+        if (!item) return;
+
+        // Formula: NewQty = TargetTotal / Rate
+        const rate = parseFloat(item.product.discounted_price);
+        const newQty = (parseFloat(targetTotal) / rate).toFixed(3);
         
-        const prevCarts = [...carts];
-        const prevTotal = total;
-        
-        const newCarts = [...carts];
-        const item = { ...newCarts[index] };
-        
-        // Optimization: Use Original Price if it's weight-based to calculate Qty correctly
-        const unitPrice = parseFloat(item.product.price) || 0;
-        
-        if(unitPrice <= 0) return;
-        
-        item.row_total = parseFloat(targetPrice).toFixed(2);
-        item.quantity = (parseFloat(targetPrice) / unitPrice).toFixed(3);
-        newCarts[index] = item;
-        
-        updateCartOptimistically(newCarts);
-        
-        axios.put("/admin/cart/update-by-price", { id: cartId, price: targetPrice }).catch(err => {
-            setCarts(prevCarts);
-            setTotal(prevTotal);
-            toast.error(err.response?.data?.message || "Update failed");
-        });
+        handleUpdateQuantity(cartId, newQty);
     };
 
     // 7. Update Rate (Unified Server-First)
@@ -810,6 +928,9 @@ export default function Pos() {
             setManualDiscount('');
             setAutoRound(false);
             setCartUpdated(!cartUpdated);
+            
+            // CRITICAL FIX: Clear local product cache so stock quantities refresh immediately
+            setProductCache({}); 
 
             // Show Receipt
             const orderId = res.data?.order?.id;
@@ -840,10 +961,11 @@ export default function Pos() {
                 // setShowReceiptModal(true);
             }
             
-            // Refresh Products (stock update)
+            // Refresh Products (stock update) from server
+            // NUKE: Force refresh by ignoring local cache after payment success
+            getProducts(searchQuery, 1, false, true); 
             
-            // Refresh Products (stock update)
-            getProducts(debouncedSearch, currentPage);
+            playSound(SuccessSound);
             toast.success(`Order #${orderId} Created Successfully!`);
 
         }).catch(err => {
@@ -913,70 +1035,89 @@ export default function Pos() {
 
     // Hotkeys Ref
 
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            // F2: Focus Search
-            if (e.key === 'F2') {
-                e.preventDefault();
-                searchInputRef.current?.focus();
-            }
-
-            // F10: Pay (Standard POS key)
-            if (e.key === 'F10') {
-                e.preventDefault();
-                handleCheckoutClick();
-            }
-            
-            // Esc: Close Modals
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                setShowPaymentModal(false);
-                setShowReceiptModal(false);
-            }
-
-            if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
-                e.preventDefault();
-                cartEmpty();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [total, customerId, showPaymentModal, showReceiptModal]);
+    // Unified Hotkey Listener removed in favor of Unified Capture Listener above
 
     // Render
     return (
         <ErrorBoundary>
         <div className="pos-app-container">
             <Toaster position="top-right" containerStyle={{ zIndex: 99999 }} />
+            {/* Scanner Active Indicator - Global Overlay */}
+            {scannerActive && (
+                <div className="scanner-active-indicator" style={{
+                    position: 'fixed',
+                    top: '10px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'linear-gradient(135deg, #34c759 0%, #30d158 100%)',
+                    color: '#fff',
+                    padding: '8px 20px',
+                    borderRadius: '20px',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    zIndex: 100000,
+                    boxShadow: '0 4px 20px rgba(52, 199, 89, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    animation: 'scannerPulse 0.3s ease-out'
+                }}>
+                    <i className="fas fa-barcode"></i>
+                    <span>Scanner Active</span>
+                    <div style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        animation: 'scannerBlink 0.5s infinite'
+                    }}></div>
+                </div>
+            )}
+            <style>{`
+                @keyframes scannerPulse {
+                    from { transform: translateX(-50%) scale(0.9); opacity: 0; }
+                    to { transform: translateX(-50%) scale(1); opacity: 1; }
+                }
+                @keyframes scannerBlink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                }
+            `}</style>
             {/* LEFT PANEL: PRODUCTS */}
             <div className="pos-left-panel d-flex flex-column border-right bg-white">
                 {/* Header / Search */}
                 <div className="p-3 border-bottom shadow-sm bg-light">
                     <div className="d-flex align-items-center justify-content-between">
                         <div className="d-flex align-items-center flex-grow-1 mr-3">
-                            <div className="input-group apple-input-group shadow-none" style={{ background: '#f5f5f7', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                            <div className="input-group apple-input-group shadow-none" style={{ 
+                                background: scannerActive ? 'rgba(52, 199, 89, 0.1)' : '#f5f5f7', 
+                                borderRadius: '12px', 
+                                border: scannerActive ? '2px solid #34c759' : '1px solid rgba(0,0,0,0.05)', 
+                                overflow: 'hidden',
+                                transition: 'all 0.2s ease'
+                            }}>
                                 <div className="input-group-prepend">
-                                    <span className="input-group-text bg-transparent border-0 pr-0" style={{ fontSize: '0.8rem', color: '#8e8e93', fontWeight: 'bold' }}><i className="fas fa-search"></i></span>
+                                    <span className="input-group-text bg-transparent border-0 pr-0" style={{ 
+                                        fontSize: '0.8rem', 
+                                        color: scannerActive ? '#34c759' : '#8e8e93', 
+                                        fontWeight: 'bold' 
+                                    }}>
+                                        <i className={scannerActive ? "fas fa-barcode" : "fas fa-search"}></i>
+                                    </span>
                                 </div>
                                 <input 
                                     id="product-search-input"
                                     type="text" 
-                                    className="form-control border-0 bg-transparent font-weight-bold" 
+                                    className="form-control border-0 bg-transparent font-weight-bold allow-scanner" 
                                     style={{ fontSize: '1.2rem', color: '#1d1d1f', boxShadow: 'none' }}
-                                    placeholder="Scan Barcode or Search (F2)..."
+                                    placeholder={scannerActive ? "Scanning..." : "Scan Barcode or Search (F2)..."}
                                     value={searchQuery}
                                     ref={searchInputRef}
                                     autoComplete="off"
                                     autoFocus={true}
                                     onBlur={(e) => {
-                                        // AGGRESSIVE REFOCUS (Fix for Scanner Alt-Key Focus stealing)
-                                        // NEW: Only refocus if we didn't click on another functional element (relatedTarget is null)
-                                        if (!e.relatedTarget && !showPaymentModal && !showReceiptModal && !contextMenu) {
-                                            setTimeout(() => {
-                                                searchInputRef.current?.focus();
-                                            }, 150);
-                                        }
+                                        // RELAXED FOCUS: Don't steal focus aggressively anymore
+                                        // The new Global Listener handles "Frictionless Entry" from anywhere.
                                     }}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />

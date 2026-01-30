@@ -219,8 +219,10 @@ export default function Pos() {
             lastKeyTime.current = now;
 
             // Reset buffer if gap is too large (increased to 200ms for slower scanners)
-            if (timeDiff > 200) {
-                scanBuffer.current = "";
+            if (timeDiff > 300) {
+                scanBuffer.current = e.key;  // Reset buffer
+            } else {
+                scanBuffer.current += e.key; // Append
             }
 
             if (e.key === 'Enter') {

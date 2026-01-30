@@ -107,7 +107,17 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                             step="0.001"
                                                             style={{ width: '60px', borderRadius: '8px', border: '1px solid #eee', fontWeight: '700' }}
                                                             onBlur={(e) => handleQtyChange(item.id, e.target.value)}
-                                                            onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    e.target.blur();
+                                                                }
+                                                                if (e.key === 'Escape') {
+                                                                    e.preventDefault();
+                                                                    e.target.value = item.quantity;
+                                                                    e.target.blur();
+                                                                }
+                                                            }}
                                                         />
                                                         <button
                                                             className="btn btn-sm btn-light shadow-none"
@@ -146,7 +156,17 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                             backgroundColor: '#fafafa'
                                                         }}
                                                         onBlur={(e) => handleRateChange(item.id, e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                e.target.blur();
+                                                            }
+                                                            if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                e.target.value = parseFloat(item.product.discounted_price).toFixed(2);
+                                                                e.target.blur();
+                                                            }
+                                                        }}
                                                     />
                                                 </td>
                                                 <td className="py-3 text-right">
@@ -161,7 +181,17 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                             backgroundColor: '#fff'
                                                         }}
                                                         onBlur={(e) => handlePriceChange(item.id, e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                e.target.blur();
+                                                            }
+                                                            if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                e.target.value = parseFloat(item.row_total).toFixed(2);
+                                                                e.target.blur();
+                                                            }
+                                                        }}
                                                     />
                                                 </td>
                                             </tr>

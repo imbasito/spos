@@ -23,13 +23,7 @@ class CartController extends Controller
                 ->map(function ($item) {
                     // Use price_override if set, otherwise fallback to product's discounted price
                     $effectivePrice = $item->price_override ?? $item->product->discounted_price;
-                    
-                    // Use row_total_override if set (manual amount), otherwise calculate
-                    if ($item->row_total_override) {
-                         $item->row_total = (float)$item->row_total_override;
-                    } else {
-                         $item->row_total = round($item->quantity * $effectivePrice, 2);
-                    }
+                    $item->row_total = $item->row_total_override ?? round($item->quantity * $effectivePrice, 2);
                     return $item;
                 });
             $total = $cartItems->sum('row_total');
@@ -103,15 +97,65 @@ class CartController extends Controller
 
     public function store(Request $request)
     {
-        // Validate request input
-        $request->validate([
-            'id' => 'required|exists:products,id',
+        // DEBUG: Log all incoming data to diagnose "id is required" issue
+        \Log::info('CartController@store called', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'all_input' => $request->all(),
+            'raw_content' => $request->getContent()
         ]);
+        
+        // Get the raw input values
+        $inputId = $request->input('id');
+        $inputBarcode = $request->input('barcode');
+        
+        // Clean and validate - be flexible with input types
+        $cleanId = null;
+        $cleanBarcode = null;
+        
+        if ($inputId !== null && $inputId !== '') {
+            $cleanId = is_numeric($inputId) ? (int)$inputId : null;
+        }
+        
+        if ($inputBarcode !== null && $inputBarcode !== '') {
+            $cleanBarcode = trim((string)$inputBarcode);
+            if (strlen($cleanBarcode) === 0) {
+                $cleanBarcode = null;
+            }
+        }
+        
+        // Must have at least one valid identifier
+        if ($cleanId === null && $cleanBarcode === null) {
+            return response()->json([
+                'message' => 'Please scan a barcode or select a product'
+            ], 422);
+        }
 
-        $product_id = $request->id;
+        // Find the product
+        $product = null;
+        
+        if ($cleanBarcode) {
+            // Check both SKU and Barcode columns for maximum professional compatibility
+            $product = Product::where('sku', $cleanBarcode)
+                             ->orWhere('barcode', $cleanBarcode)
+                             ->first();
+                             
+            if (!$product) {
+                return response()->json([
+                    'message' => 'Product not found for barcode: ' . $cleanBarcode
+                ], 404);
+            }
+        } else {
+            $product = Product::find($cleanId);
+            
+            if (!$product) {
+                return response()->json([
+                    'message' => 'Product not found with ID: ' . $cleanId
+                ], 404);
+            }
+        }
 
-        // Fetch the product
-        $product = Product::find($product_id);
+        $product_id = $product->id;
 
         // Check if the product is active and has sufficient stock
         if (!$product->status) {
@@ -181,6 +225,9 @@ class CartController extends Controller
 
     public function increment(Request $request)
     {
+        // DEBUG: Log incoming data
+        \Log::info('CartController@increment called', ['input' => $request->all()]);
+        
         $request->validate([
             'id' => 'required|integer|exists:pos_carts,id'
         ]);
@@ -193,6 +240,8 @@ class CartController extends Controller
             return response()->json(['message' => 'Cannot add more, stock limit reached'], 400);
         }
         $cart->quantity = $cart->quantity + 1;
+        // Clear manual amount override when quantity changes
+        $cart->row_total_override = null;
         $cart->save();
         $this->syncJournal();
         return response()->json(['message' => 'Cart Updated successfully'], 200);
@@ -200,6 +249,9 @@ class CartController extends Controller
     }
     public function decrement(Request $request)
     {
+        // DEBUG: Log incoming data
+        \Log::info('CartController@decrement called', ['input' => $request->all()]);
+        
         $request->validate([
             'id' => 'required|integer|exists:pos_carts,id'
         ]);
@@ -208,6 +260,8 @@ class CartController extends Controller
             return response()->json(['message' => 'Quantity cannot be less than 1.'], 400);
         }
         $cart->quantity = $cart->quantity - 1;
+        // Clear manual amount override when quantity changes
+        $cart->row_total_override = null;
         $cart->save();
         $this->syncJournal();
         return response()->json(['message' => 'Cart Updated successfully'], 200);
@@ -268,6 +322,9 @@ class CartController extends Controller
         }
 
         $cart->quantity = $newQuantity;
+        // IMPORTANT: Clear row_total_override when quantity changes
+        // This ensures the total is recalculated based on new quantity
+        $cart->row_total_override = null;
         $cart->save();
         $this->syncJournal();
 

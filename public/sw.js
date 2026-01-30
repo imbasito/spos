@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spos-cache-v1';
+const CACHE_NAME = 'spos-cache-v2-scanner-fix';
 const urlsToCache = [
   '/admin',
   '/css/custom-style.css',
