@@ -102,10 +102,10 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                         <input
                                                             key={`qty-${item.id}-${item.quantity}`}
                                                             type="number"
-                                                            className="form-control form-control-sm text-center mx-2"
+                                                            className="form-control form-control-sm text-center mx-1 px-1"
                                                             defaultValue={item.quantity}
                                                             step="0.001"
-                                                            style={{ width: '70px', borderRadius: '8px', border: '1px solid #eee', fontWeight: '700' }}
+                                                            style={{ width: '60px', borderRadius: '8px', border: '1px solid #eee', fontWeight: '700' }}
                                                             onBlur={(e) => handleQtyChange(item.id, e.target.value)}
                                                             onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
                                                         />
@@ -141,7 +141,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                         className="form-control form-control-sm text-right no-spinner"
                                                         defaultValue={parseFloat(item.product.discounted_price).toFixed(2)}
                                                         style={{ 
-                                                            width: '85px', display: 'inline-block', borderRadius: '8px', 
+                                                            width: '100%', maxWidth: '85px', minWidth: '60px', display: 'inline-block', borderRadius: '8px', 
                                                             border: '1px solid #f0f0f5', fontWeight: '600', color: '#1d1d1f',
                                                             backgroundColor: '#fafafa'
                                                         }}
@@ -156,7 +156,7 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                         className="form-control form-control-sm text-right no-spinner"
                                                         defaultValue={parseFloat(item.row_total).toFixed(2)}
                                                         style={{ 
-                                                            width: '85px', display: 'inline-block', borderRadius: '8px', 
+                                                            width: '100%', maxWidth: '90px', minWidth: '70px', display: 'inline-block', borderRadius: '8px', 
                                                             border: '1px solid #777', fontWeight: '800', color: 'var(--primary-color)',
                                                             backgroundColor: '#fff'
                                                         }}

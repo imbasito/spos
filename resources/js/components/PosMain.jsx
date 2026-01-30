@@ -195,86 +195,20 @@ export default function Pos() {
     const [productCache, setProductCache] = useState({}); // Simple memory cache for Instant-On
 
     // Derived values
+    const isProcessing = useRef(false);
+    const pendingDeletions = useRef(new Set()); 
+    const scanBuffer = useRef("");
+    const lastKeyTime = useRef(0);
+    const searchInputRef = useRef(null);
+    const audioRef = useRef(null);
+
+    // Derived values
     const fullDomainWithPort = useMemo(() =>
         `${protocol}//${hostname}${port ? `:${port}` : ""}`,
         [protocol, hostname, port]
     );
 
-    // ==========================================
-    // GLOBAL SCANNER LOGIC (Professional POS)
-    // Hybrid Strategy: Buffer (Fast) + Input Fallback (Slow/Reliable)
-    // ==========================================
-    const scanBuffer = useRef("");
-    const lastKeyTime = useRef(0);
-    // VERIFICATION MARKER
-    console.log("ANTIGRAVITY_BUILD_VERIFICATION_ACTIVE");
-    
-    useEffect(() => {
-        const handleGlobalKeyDown = (e) => {
-            // Ignore if sensitive modal is open (like Payment)
-            if (showPaymentModal) return;
-
-            const now = Date.now();
-            const timeDiff = now - lastKeyTime.current;
-            lastKeyTime.current = now;
-
-            // Reset buffer if gap is too large (increased to 200ms for slower scanners)
-            if (timeDiff > 200) {
-                scanBuffer.current = "";
-            }
-
-            if (e.key === 'Enter') {
-                // STRATEGY 1: Check Buffer
-                let scannedCode = scanBuffer.current.trim();
-                
-                // STRATEGY 2: Fallback to Input Value (If Buffer was reset/empty)
-                if ((!scannedCode || scannedCode.length < 3) && searchInputRef.current) {
-                    scannedCode = searchInputRef.current.value.trim();
-                }
-
-                if (scannedCode.length > 2) { 
-                    // Check logic
-                    const product = products.find(p => 
-                        p.sku?.toLowerCase() === scannedCode.toLowerCase() || 
-                        p.barcode?.toLowerCase() === scannedCode.toLowerCase()
-                    );
-                    
-                    if (product) {
-                        e.preventDefault(); // Stop form submits
-                        e.stopPropagation();
-                        
-                        addProductToCart(product.id);
-                        
-                        // HYPER-AGGRESSIVE CLEARING
-                        // 1. Clear State
-                        setSearchQuery("");
-                        // 2. Clear DOM
-                        if(searchInputRef.current) {
-                            searchInputRef.current.value = "";
-                            searchInputRef.current.focus();
-                        }
-                        // 3. Clear Buffer
-                        scanBuffer.current = ""; 
-                        
-                        // 4. Double-tap Clear (Async) to beat React race conditions
-                        setTimeout(() => {
-                             setSearchQuery("");
-                             if(searchInputRef.current) searchInputRef.current.value = "";
-                        }, 50);
-
-                        return;
-                    }
-                }
-                scanBuffer.current = ""; // Reset on Enter anyway
-            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { 
-                // Printable characters only
-                scanBuffer.current += e.key;
-            }
-        };
-
-        window.addEventListener('keydown', handleGlobalKeyDown);
-        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-    }, [products, showPaymentModal]); 
+    // (Global Scanner Logic moved below addProductToCart to avoid TDZ)
     
     // Normal Manual Search (Fallback - Prevent Default Only)
     const handleSearchKeyDown = (e) => {
@@ -359,7 +293,7 @@ export default function Pos() {
                 setProducts(productsData.data);
 
                 if (productsData.data.length === 1 && isBarcode) {
-                   addProductToCart(productsData.data[0].id);
+                   addProductToCart(productsData.data[0]); // Pass Full Object
                    setSearchQuery(''); 
                 } else if (productsData.data.length === 0 && isBarcode) {
                     playSound(WarningSound);
@@ -594,178 +528,174 @@ export default function Pos() {
         }, 0);
     };
 
-    const updateCartOptimistically = (newCarts) => {
-        setCarts(newCarts);
-        setTotal(calculateCartTotal(newCarts));
-    };
 
-    // 1. Add Product (Optimistic)
-    const addProductToCart = useCallback((id) => {
-        const product = products.find(p => p.id === id);
-        if(!product) return;
+    // 1. Add Product (Unified Professional Protocol)
+    const addProductToCart = useCallback((input) => {
+        if (isProcessing.current) return; // Guard against rapid multi-firing
 
-        const existingItemIndex = carts.findIndex(c => c.product_id === id);
-        const prevCarts = [...carts];
-        const prevTotal = total;
-
-        let newCarts = [...carts];
-
-        if(existingItemIndex >= 0) {
-            // Increment existing
-            const item = { ...newCarts[existingItemIndex] };
-            if(parseFloat(item.quantity) >= parseFloat(product.quantity)) {
-                playSound(WarningSound);
-                toast.error(`Only ${product.quantity} units available in stock`);
-                return;
+        try {
+            let product;
+            if (input && typeof input === 'object' && input.hasOwnProperty('id')) {
+                product = input;
+            } else {
+                product = (products || []).find(p => p.id == input); 
             }
-
-            item.quantity = parseFloat(item.quantity) + 1;
-            item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
-            newCarts[existingItemIndex] = item;
-            updateCartOptimistically(newCarts);
-            playSound(SuccessSound);
-        } else {
-            // Add new with temporary ID
-            const tempId = `temp-${Date.now()}`;
-            const newItem = {
-                id: tempId,
-                product_id: product.id,
-                quantity: 1,
-                row_total: product.discounted_price,
-                product: product
-            };
-            newCarts = [newItem, ...carts];
-            updateCartOptimistically(newCarts);
-            playSound(SuccessSound);
             
-            // Sync with server and replace tempId
+            if(!product) return;
+            const id = product.id; 
+
+            // Visual feedback: Start sound
+            playSound(SuccessSound);
+            isProcessing.current = true;
+
+            // Simple, Robust, Unified Logic: Post -> Refresh
+            // This is the "Working Manual Logic" translated for both Clicks & Scans
             axios.post("/admin/cart", { id })
                 .then((res) => {
-                    const realItem = res.data.cart; // Assuming backend returns the new cart item
-                    if (realItem) {
-                        // Ensure row_total is set correctly from backend, or fallback to calculation
-                        if (!realItem.row_total) {
-                            realItem.row_total = (parseFloat(realItem.quantity) * parseFloat(realItem.product.discounted_price)).toFixed(2);
-                        }
-                        
-                        setCarts(currentCarts => 
-                            currentCarts.map(item => item.id === tempId ? realItem : item)
-                        );
-                    } else {
-                        setCartUpdated(prev => !prev);
-                    }
+                    // Refresh cart state from server - Single Source of Truth
+                    getCarts(); 
                     toast.success("Added to cart");
                 })
                 .catch((err) => {
-                    setCarts(prevCarts);
-                    setTotal(prevTotal);
                     playSound(WarningSound);
                     toast.error(err.response?.data?.message || "Error adding item");
+                })
+                .finally(() => {
+                    isProcessing.current = false;
                 });
-            return;
+
+        } catch (e) { 
+            console.error("AddToCart Protected:", e); 
+            isProcessing.current = false;
         }
+    }, [products, getCarts]);
 
-        // Server Sync for existing item
-        axios.post("/admin/cart", { id })
-            .catch((err) => {
-                setCarts(prevCarts);
-                setTotal(prevTotal);
-                playSound(WarningSound);
-                toast.error(err.response?.data?.message || "Sync Error");
-            });
+    // ==========================================
+    // GLOBAL SCANNER LOGIC (Robust V8)
+    // ==========================================
 
-    }, [carts, products, total]);
+    useEffect(() => {
+        const handleGlobalKeyDown = (e) => {
+            if (showPaymentModal) return;
 
-    // 2. Increment (Optimistic)
+            if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) {
+                e.preventDefault(); 
+                return;
+            }
+
+            const now = Date.now();
+            const timeDiff = now - lastKeyTime.current;
+            lastKeyTime.current = now;
+
+            if (timeDiff > 500) {
+                scanBuffer.current = "";
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopImmediatePropagation(); // SHIELD: Prevent "Enter" from leaking to buttons/modals
+                
+                if (isProcessing.current) return;
+
+                let scannedCode = scanBuffer.current.trim();
+                if ((!scannedCode || scannedCode.length < 2) && searchInputRef.current) {
+                    scannedCode = searchInputRef.current.value.trim();
+                }
+
+                if (scannedCode.length > 2) { 
+                    const product = products.find(p => 
+                        p.sku?.toLowerCase() === scannedCode.toLowerCase() || 
+                        p.barcode?.toLowerCase() === scannedCode.toLowerCase()
+                    );
+                    
+                    if (product) {
+                        e.preventDefault(); 
+                        e.stopPropagation();
+                        
+                        addProductToCart(product); 
+                        
+                        setSearchQuery("");
+                        scanBuffer.current = ""; 
+                        
+                        if(searchInputRef.current) {
+                            searchInputRef.current.value = "";
+                            searchInputRef.current.focus();
+                        }
+
+                        return;
+                    }
+                }
+                scanBuffer.current = ""; 
+            } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { 
+                scanBuffer.current += e.key;
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true });
+    }, [products, showPaymentModal, addProductToCart]); 
+
+    // 2. Increment (Unified Server-First)
     const handleIncrement = (cartId) => {
-        const index = carts.findIndex(c => c.id === cartId);
-        if(index < 0) return;
-
-        const item = { ...carts[index] };
-        if(item.product.quantity > 0 && parseFloat(item.quantity) >= parseFloat(item.product.quantity)) {
-             toast.error(`Only ${item.product.quantity} units available`);
-             return;
-        }
-
-        const prevCarts = [...carts];
-        const prevTotal = total;
-
-        const newCarts = [...carts];
-        item.quantity = parseFloat(item.quantity) + 1;
-        item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
-        newCarts[index] = item;
+        if (isProcessing.current) return;
+        isProcessing.current = true;
         
-        updateCartOptimistically(newCarts);
-
-        axios.put("/admin/cart/increment", { id: cartId }).catch(err => {
-            setCarts(prevCarts);
-            setTotal(prevTotal);
-            toast.error("Sync failed");
-        });
+        axios.put("/admin/cart/increment", { id: cartId })
+            .then(() => {
+                getCarts();
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Increment failed");
+            })
+            .finally(() => {
+                isProcessing.current = false;
+            });
     };
 
-    // 3. Decrement (Optimistic)
+    // 3. Decrement (Unified Server-First)
     const handleDecrement = (cartId) => {
-        const index = carts.findIndex(c => c.id === cartId);
-        if(index < 0) return;
+        if (isProcessing.current) return;
+        isProcessing.current = true;
 
-        const item = { ...carts[index] };
-        if(item.quantity <= 1) return; // Use delete for 0
-
-        const prevCarts = [...carts];
-        const prevTotal = total;
-
-        const newCarts = [...carts];
-        item.quantity = parseFloat(item.quantity) - 1;
-        item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
-        newCarts[index] = item;
-        
-        updateCartOptimistically(newCarts);
-
-        axios.put("/admin/cart/decrement", { id: cartId }).catch(err => {
-             setCarts(prevCarts);
-             setTotal(prevTotal);
-             toast.error("Sync failed");
-        });
+        axios.put("/admin/cart/decrement", { id: cartId })
+            .then(() => {
+                getCarts();
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Decrement failed");
+            })
+            .finally(() => {
+                isProcessing.current = false;
+            });
     };
 
-    // 4. Remove (Optimistic)
+    // 4. Remove (Simplified)
     const handleRemove = (cartId) => {
-         const prevCarts = [...carts];
-         const prevTotal = total;
-         
-         const newCarts = carts.filter(c => c.id !== cartId);
-         updateCartOptimistically(newCarts);
-         playSound(WarningSound); // Delete sound
-
-         axios.put("/admin/cart/delete", { id: cartId }).catch(err => {
-             setCarts(prevCarts);
-             setTotal(prevTotal);
-             toast.error("Delete failed");
-         });
+          axios.put("/admin/cart/delete", { id: cartId })
+            .then(() => {
+                getCarts();
+                playSound(WarningSound);
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Delete failed");
+            });
     };
     
-    // 5. Update Quantity (Direct)
+    // 5. Update Quantity (Unified Server-First)
     const handleUpdateQuantity = (cartId, qty) => {
-        const index = carts.findIndex(c => c.id === cartId);
-        if(index < 0) return;
-        
-        const prevCarts = [...carts];
-        const prevTotal = total;
-        
-        const newCarts = [...carts];
-        const item = { ...newCarts[index] };
-        item.quantity = parseFloat(qty);
-        item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
-        newCarts[index] = item;
-        
-        updateCartOptimistically(newCarts);
-        
-        axios.put("/admin/cart/update-quantity", { id: cartId, quantity: qty }).catch(err => {
-            setCarts(prevCarts);
-            setTotal(prevTotal);
-            toast.error(err.response?.data?.message || "Update failed");
-        });
+        if (isProcessing.current) return;
+        isProcessing.current = true;
+
+        axios.put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
+            .then(() => {
+                getCarts();
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Update failed");
+            })
+            .finally(() => {
+                isProcessing.current = false;
+            });
     };
 
     // 6. Update By Price (Optimistic)
@@ -797,45 +727,21 @@ export default function Pos() {
         });
     };
 
-    // 7. Update Rate (Price Override)
+    // 7. Update Rate (Unified Server-First)
     const handleUpdateRate = (cartId, newRate) => {
-        const index = carts.findIndex(c => c.id === cartId);
-        if(index < 0) return;
+        if (isProcessing.current) return;
+        isProcessing.current = true;
 
-        const prevCarts = [...carts];
-        const prevTotal = total;
-
-        const newCarts = [...carts];
-        const item = { ...newCarts[index] };
-        
-        // Note: This only overrides the ORIGINAL PRICE for the row total calculation.
-        // If there's a discount, it might need to stay or be cleared.
-        // User said: "showing the price as the original price and amount when the discount applied"
-        // This implies the 'Rate' is the base.
-        
-        const rate = parseFloat(newRate);
-        if(isNaN(rate) || rate < 0) return;
-
-        // Apply same discount logic if it exists? 
-        // For simplicity, if they override the rate, we keep the existing "Amount" behavior.
-        // If they want to override the base price, the product resource stores it.
-        // We need a way to tell the backend about this override.
-        // Since pos_carts doesn't have a price column, we'll use a hack or add the column.
-        // User said "leave this feature" regarding the column, so we'll just handle it in UI/Calculation
-        // but it won't persist across refreshes without the column.
-        
-        item.product = { ...item.product, price: rate };
-        item.row_total = (rate * item.quantity).toFixed(2); // Default to no discount if rate is manual?
-        // Actually, let's keep it simple: Rate * Qty = Amount.
-        
-        newCarts[index] = item;
-        updateCartOptimistically(newCarts);
-        
-        axios.put("/admin/cart/update-rate", { id: cartId, price: newRate }).catch(err => {
-            setCarts(prevCarts);
-            setTotal(prevTotal);
-            toast.error(err.response?.data?.message || "Price sync failed");
-        });
+        axios.put("/admin/cart/update-rate", { id: cartId, price: newRate })
+            .then(() => {
+                getCarts();
+            })
+            .catch(err => {
+                toast.error(err.response?.data?.message || "Rate update failed");
+            })
+            .finally(() => {
+                isProcessing.current = false;
+            });
     };
 
     function cartEmpty() {
@@ -1007,8 +913,6 @@ export default function Pos() {
 
     // Hotkeys Ref
 
-    const searchInputRef = useRef(null);
-
     useEffect(() => {
         const handleKeyDown = (e) => {
             // F2: Focus Search
@@ -1064,6 +968,16 @@ export default function Pos() {
                                     value={searchQuery}
                                     ref={searchInputRef}
                                     autoComplete="off"
+                                    autoFocus={true}
+                                    onBlur={(e) => {
+                                        // AGGRESSIVE REFOCUS (Fix for Scanner Alt-Key Focus stealing)
+                                        // NEW: Only refocus if we didn't click on another functional element (relatedTarget is null)
+                                        if (!e.relatedTarget && !showPaymentModal && !showReceiptModal && !contextMenu) {
+                                            setTimeout(() => {
+                                                searchInputRef.current?.focus();
+                                            }, 150);
+                                        }
+                                    }}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>

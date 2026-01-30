@@ -115,6 +115,11 @@ class OrderController extends Controller
         try {
             $order = $this->orderService->createOrder($data, auth()->id());
             
+            // Clear product cache to ensure stock quantities refresh immediately in POS
+            for ($i = 1; $i <= 10; $i++) {
+                \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+            }
+
             // Clear journal on successful sale
             $path = storage_path('app/current_sale.journal');
             if (\Illuminate\Support\Facades\File::exists($path)) {

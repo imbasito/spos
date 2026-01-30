@@ -1,7 +1,6 @@
-// import './bootstrap';
 import '../css/app.css';
 import React from 'react'
-import Pos from "./components/Pos";
+import Pos from "./components/PosMain.jsx";
 import Purchase from './components/Purchase/Purchase';
 import { createRoot } from 'react-dom/client';
 // export default function app() {

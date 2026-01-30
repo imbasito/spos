@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner isolation Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        #log { border: 1px solid #333; height: 300px; overflow-y: scroll; padding: 10px; margin-top: 10px; background: #111; }
+        .success { color: #0f0; }
+        .buffer { color: #ff0; }
+        .input { color: #0ff; }
+    </style>
+</head>
+<body>
+    <h1>Scanner Isolation Test (Hybrid Logic)</h1>
+    <p>Focus anywhere and scan. Do NOT click the box.</p>
+    <input type="text" id="dummyInput" placeholder="Dummy Input (Don't focus)" style="opacity: 0.5;">
+    <div id="status">BUFFER: <span id="bufferDisplay"></span></div>
+    <div id="log"></div>
+
+    <script>
+        const logEl = document.getElementById('log');
+        const bufferDisplay = document.getElementById('bufferDisplay');
+        const dummyInput = document.getElementById('dummyInput');
+        
+        let scanBuffer = "";
+        let lastKeyTime = 0;
+
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            div.className = type;
+            logEl.prepend(div);
+        }
+
+        // RELAXED TIMING: 500ms (User reported ~254ms gaps)
+        const TIMEOUT_MS = 500; 
+
+        window.addEventListener('keydown', (e) => {
+            const now = Date.now();
+            const timeDiff = now - lastKeyTime;
+            lastKeyTime = now;
+
+            // IGNORE Control, Shift, Alt (scanners sometimes send these)
+            if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+                log(`Ignored Modifier: ${e.key}`, 'buffer');
+                return;
+            }
+
+            if (timeDiff > TIMEOUT_MS) {
+                if (scanBuffer.length > 0) {
+                     log(`--- RESET (Gap ${timeDiff}ms > ${TIMEOUT_MS}ms) ---`, 'buffer');
+                }
+                scanBuffer = "";
+            }
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                let source = "BUFFER";
+                let code = scanBuffer.trim();
+
+                // Strategy 2: Fallback (Dom Value) - ONLY if buffer failed
+                if ((!code || code.length < 2) && document.activeElement === dummyInput) {
+                    code = dummyInput.value.trim();
+                    source = "INPUT FALLBACK";
+                }
+
+                if (code.length > 2) {
+                    log(`✅ SUCCESS [${source}]: ${code}`, 'success');
+                    dummyInput.value = "";
+                } else {
+                    log(`❌ FAILED (Buffer Empty/Short). Input Val: '${dummyInput.value}'`, 'buffer');
+                }
+                
+                scanBuffer = "";
+                bufferDisplay.textContent = "";
+            } else if (e.key.length === 1) {
+                scanBuffer += e.key;
+                bufferDisplay.textContent = scanBuffer;
+                log(`Key: ${e.key} (${timeDiff}ms)`, 'buffer');
+            }
+        });
+    </script>
+</body>
+</html>

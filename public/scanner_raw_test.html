@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Scanner Event Logger</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; font-family: monospace; }
+        #log { height: 400px; overflow-y: scroll; border: 1px solid #ccc; background: #f8f9fa; padding: 10px; font-size: 12px; }
+        .event-row { border-bottom: 1px solid #eee; padding: 2px 0; }
+        .highlight { background-color: #e8f5e9; font-weight: bold; }
+        .focus-lost { background-color: #ffebee; color: red; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h3>🚨 Raw Scanner Event Logger</h3>
+        <p class="text-muted">No logic. Just listening. Scan multiple items quickly.</p>
+        
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card p-2 bg-light">
+                <h6>🛡️ Fix Prototypes (Enable to Test)</h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="fixBlockMod" onchange="updateConfig()">
+                    <label class="form-check-label" for="fixBlockMod">1. Block Modifiers (Alt/Ctrl)</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="fixAutoRefocus" onchange="updateConfig()">
+                    <label class="form-check-label" for="fixAutoRefocus">2. Aggressive Re-Focus</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="fixPreventDefault" checked onchange="updateConfig()">
+                    <label class="form-check-label" for="fixPreventDefault">3. Prevent Enter Default</label>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <label>Test Input (Focus here):</label>
+            <input type="text" id="testInput" class="form-control form-control-lg mb-2" placeholder="Scan here..." autocomplete="off">
+            <div class="d-flex justify-content-between">
+                <span id="focusStatus" class="badge bg-danger p-2 fs-6">NOT FOCUSED</span>
+                <button class="btn btn-warning btn-sm" onclick="clearLog()">Clear Log</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        const logEl = document.getElementById('log');
+        const inputEl = document.getElementById('testInput');
+        const focusStatus = document.getElementById('focusStatus');
+        let starTime = Date.now();
+        
+        let config = {
+            blockMod: false,
+            autoRefocus: false,
+            preventEnter: true
+        };
+
+        function updateConfig() {
+            config.blockMod = document.getElementById('fixBlockMod').checked;
+            config.autoRefocus = document.getElementById('fixAutoRefocus').checked;
+            config.preventEnter = document.getElementById('fixPreventDefault').checked;
+            log(`⚙️ Config Updated: BlockMod=${config.blockMod}, Refocus=${config.autoRefocus}`, 'highlight');
+            inputEl.focus();
+        }
+
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            const time = Date.now() - starTime;
+            div.className = `event-row ${type}`;
+            div.innerHTML = `<span class="text-muted">[${time}ms]</span> ${msg}`;
+            logEl.prepend(div);
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+            starTime = Date.now();
+            log("Log cleared", "highlight");
+            inputEl.focus();
+        }
+
+        // 1. Monitor Focus
+        inputEl.addEventListener('focus', () => {
+            focusStatus.textContent = "✅ FOCUSED (READY)";
+            focusStatus.className = "badge bg-success p-2 fs-6";
+            log("Input FOCUSED", "highlight");
+        });
+
+        inputEl.addEventListener('blur', (e) => {
+            if (config.autoRefocus) {
+                log("⚠️ LOST FOCUS -> Aggressive Re-Focus Triggered!", "highlight");
+                setTimeout(() => inputEl.focus(), 0);
+                return;
+            }
+            focusStatus.textContent = "❌ LOST FOCUS";
+            focusStatus.className = "badge bg-danger p-2 fs-6";
+            log("Input LOST FOCUS", "focus-lost");
+        });
+
+        // 2. Monitor Input Events
+        inputEl.addEventListener('change', (e) => {
+            log(`💾 CHANGE EVENT. Value: "${e.target.value}"`, "highlight");
+        });
+
+        // 3. Monitor Key Events (Global & Local)
+        const handleKey = (e, source) => {
+            // FIX 1: Block Modifiers
+            if (config.blockMod && ['Control', 'Alt', 'Meta', 'Shift'].includes(e.key)) {
+                e.preventDefault();
+                e.stopPropagation();
+                log(`🛡️ BLOCKED Modifier (${e.key})`, 'highlight');
+                return false;
+            }
+
+            if (e.key === 'Enter') {
+                if(config.preventEnter) e.preventDefault();
+                log(`↵ ENTER (${source}). Value: "${inputEl.value}"`, "highlight");
+                
+                // Simulate "Add"
+                if(inputEl.value.trim().length > 0) {
+                     setTimeout(() => {
+                        log(`🛒 Processed Item: ${inputEl.value}`);
+                        inputEl.value = "";
+                     }, 10);
+                }
+            } else {
+                // Log non-printable char details
+                if(e.key.length > 1) log(`⌨️ ${source} Key: "${e.key}"`);
+            }
+        };
+
+        inputEl.addEventListener('keydown', (e) => handleKey(e, "INPUT"));
+        window.addEventListener('keydown', (e) => {
+            if(document.activeElement !== inputEl) {
+                handleKey(e, "GLOBAL");
+            }
+        });
+
+        // Auto-focus on load
+        window.onload = () => {
+            updateConfig();
+            setTimeout(() => inputEl.focus(), 100);
+        };
+
+    </script>
+</body>
+</html>

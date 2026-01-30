@@ -950,13 +950,19 @@ function generateBarcodeESC(data) {
     const h = isLarge ? 80 : 60;
     const w = isLarge ? 3 : 2;
 
+    // CODE 128 (GS k 73) requires a Start Code.
+    // We use Code Set B ({B) for standard alphanumeric/digits.
+    // { = 0x7B, B = 0x42.
+    const codeSetB = "{B";
+    const payload = codeSetB + barcodeValue;
+
     chunks.push(Buffer.from([
         0x1D, 0x68, h,       // Height
         0x1D, 0x77, w,       // Width
         0x1D, 0x48, 0x00,    // Disable HRI (We print manually)
-        0x1D, 0x6B, 0x49, barcodeValue.length // GS k 73 (CODE128) + len
+        0x1D, 0x6B, 0x49, payload.length // GS k 73 (CODE128) + len
     ]));
-    chunks.push(Buffer.from(barcodeValue));
+    chunks.push(Buffer.from(payload));
     
     // 5. HUMAN READABLE TEXT (Manual Print for 100% Reliability)
     chunks.push(Buffer.from([0x0A])); // LF
