@@ -75,5 +75,12 @@ class CurrencySeeder extends Seeder
                 $currency
             );
         }
+        
+        // Set Pakistani Rupee as default currency
+        $pkr = Currency::where('code', 'PKR')->first();
+        if ($pkr) {
+            Currency::where('id', '!=', $pkr->id)->update(['is_default' => false]);
+            $pkr->update(['is_default' => true]);
+        }
     }
 }

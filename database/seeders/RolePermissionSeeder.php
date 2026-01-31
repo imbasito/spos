@@ -145,6 +145,7 @@ class RolePermissionSeeder extends Seeder
             'sale_update',
             'customer_view',
             'customer_create',
+            'customer_sales',
             'product_create',
             'product_view',
             'product_update',
@@ -152,6 +153,7 @@ class RolePermissionSeeder extends Seeder
             'product_import',
             'refund_create',
             'refund_view',
+            'refund_delete',
         ];
 
         $salesPermissions = [
@@ -159,7 +161,9 @@ class RolePermissionSeeder extends Seeder
             'sale_create',
             'sale_view',
             'customer_view',
+            'customer_create',
             'product_view',
+            'refund_view',
         ];
 
         foreach ($cashierPermissions as $permissionName) {

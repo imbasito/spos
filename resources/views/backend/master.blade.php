@@ -363,6 +363,16 @@
                 50% { width: 30%; margin-left: 35%; }
                 100% { width: 0%; margin-left: 100%; }
             }
+            
+            /* Sidebar Glass Effect on Hover */
+            .main-sidebar {
+                transition: all 0.3s ease;
+            }
+            .main-sidebar:hover {
+                backdrop-filter: blur(20px);
+                background: rgba(255, 255, 255, 0.95) !important;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            }
         </style>
         <script>
             // Show loading bar on page navigation
@@ -376,11 +386,43 @@
             window.addEventListener('load', function() {
                 document.getElementById('page-loading-bar').style.display = 'none';
             });
+            
+            // Global Keyboard Shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+B: Toggle Sidebar
+                if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                    e.preventDefault();
+                    document.body.classList.toggle('sidebar-collapse');
+                    localStorage.setItem('apple_sidebar_collapsed', document.body.classList.contains('sidebar-collapse'));
+                }
+                
+                // Ctrl+K: Open Spotlight Search
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('sinyx-spotlight').style.display = 'flex';
+                    setTimeout(() => document.getElementById('spotlight-input').focus(), 100);
+                }
+            });
+            
+            // Spotlight trigger button click
+            document.addEventListener('DOMContentLoaded', function() {
+                const spotlightTrigger = document.getElementById('spotlight-trigger');
+                if (spotlightTrigger) {
+                    spotlightTrigger.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        document.getElementById('sinyx-spotlight').style.display = 'flex';
+                        setTimeout(() => document.getElementById('spotlight-input').focus(), 100);
+                    });
+                }
+            });
         </script>
 
         <!-- Navbar -->
         @include('backend.layouts.navbar')
         <!-- /.navbar -->
+        
+        <!-- Spotlight Search -->
+        @include('components.spotlight')
 
         <!-- Main Sidebar Container -->
         <aside class="main-sidebar elevation-4 sidebar-light-lightblue">

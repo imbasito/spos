@@ -41,7 +41,7 @@
                 </div>
             </div>
             <div class="col-md-3 text-right">
-                <button type="button" class="btn btn-apple-primary btn-apple px-4 py-3 shadow-sm h-100 w-100" data-toggle="modal" data-target="#newClosingModal">
+                <button type="button" class="btn px-4 py-3 shadow-sm h-100 w-100" style="background-color: #800000; color: white; font-weight: 600; border-radius: 8px; border: none;" data-toggle="modal" data-target="#newClosingModal">
                     <i class="fas fa-cash-register mr-2"></i> Close Register Now
                 </button>
             </div>

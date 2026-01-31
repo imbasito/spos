@@ -2,14 +2,29 @@
     <!-- Left navbar links -->
     <ul class="navbar-nav">
         <li class="nav-item">
-            <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+            <a class="nav-link" data-widget="pushmenu" href="#" role="button" title="Toggle Sidebar (Ctrl+B)"><i class="fas fa-bars"></i></a>
         </li>
-        {{-- <li class="nav-item d-none d-sm-inline-block">
-            <a href="index3.html" class="nav-link">Home</a>
-        </li> --}}
-        {{-- <li class="nav-item d-none d-sm-inline-block">
-            <a href="#" class="nav-link">Contact</a>
-        </li> --}}
+        <!-- Quick Access Tabs -->
+        @can('sale_view')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.orders.index') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-shopping-bag mr-1"></i>Sales</a>
+        </li>
+        @endcan
+        @can('product_view')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.products.index') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-box mr-1"></i>Products</a>
+        </li>
+        @endcan
+        @can('purchase_view')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.purchase.index') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-truck mr-1"></i>Purchases</a>
+        </li>
+        @endcan
+        @can('reports_summary')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.report.daily.history') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-cash-register mr-1"></i>Closing</a>
+        </li>
+        @endcan
     </ul>
 
     <!-- Right navbar links -->
@@ -49,6 +64,11 @@
                 <a href="#" class="dropdown-item dropdown-footer">See All Notifications</a>
             </div>
         </li> -->
+        <li class="nav-item">
+            <a class="nav-link" href="#" role="button" id="spotlight-trigger" title="Spotlight Search (Ctrl+K)">
+                <i class="fas fa-search"></i>
+            </a>
+        </li>
         <li class="nav-item">
             <a class="nav-link" data-widget="fullscreen" href="#" role="button" title="Toggle Fullscreen">
                 <i class="fas fa-expand-arrows-alt"></i>

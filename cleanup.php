@@ -69,4 +69,21 @@ foreach ($dirsToEnsure as $dir) {
 echo "Clearing application cache...\n";
 @shell_exec('php artisan optimize:clear');
 
+// 6. Reset Database (remove test data)
+$dbPath = $root . '/database/database.sqlite';
+if (file_exists($dbPath)) {
+    unlink($dbPath);
+    echo "Deleted test database: database.sqlite\n";
+    // Create fresh empty database
+    touch($dbPath);
+    echo "Created fresh database.sqlite\n";
+}
+
+// 7. Clear MySQL data folder (if exists in dev)
+$mysqlDataPath = $root . '/mysql/data';
+if (is_dir($mysqlDataPath)) {
+    echo "MySQL data folder exists - will be freshly initialized on first run\n";
+}
+
 echo "--- Sanitization Complete ---\n";
+echo "Ready for production build.\n";
