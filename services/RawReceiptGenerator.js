@@ -125,12 +125,39 @@ class RawReceiptGenerator {
 
         // 4. Totals (Center aligned block)
         if (data.type === 'refund') {
-            encoder = encoder.line(this.twoColumn("Refund Total:", total.toString(), width)).newline()
+            // Calculate refund total for THIS transaction
+            const refundTotal = items.reduce((sum, item) => {
+                const total = parseFloat(item.total.replace(/,/g, '')) || 0;
+                return sum + total;
+            }, 0);
+            
+            encoder = encoder.line(this.twoColumn("Refund Total:", this.formatValue(refundTotal), width))
+                             .newline()
                              .line("-".repeat(width))
-                             .bold(true).line("ORDER SUMMARY (ADJUSTED)")
-                             .bold(false).line(this.twoColumn("Original Total:", data.order_summary.original_total, width))
-                             .line(this.twoColumn("Total Refunded:", data.order_summary.total_refunded, width))
-                             .bold(true).line(this.twoColumn("Adjusted Total:", data.order_summary.adjusted_total, width)).bold(false);
+                             .bold(true).line("TRANSACTION SUMMARY").bold(false)
+                             .line(this.twoColumn("Original Order Total:", data.order_summary.original_total, width))
+                             .bold(true).line(this.twoColumn("TOTAL REFUND", "-" + data.order_summary.total_refunded, width)).bold(false)
+                             .line("-".repeat(width))
+                             .bold(true).line(this.twoColumn("ADJUSTED TOTAL", data.order_summary.adjusted_total, width)).bold(false);
+            
+            // Show customer due if exists
+            if (data.order_summary.customer_due && parseFloat(data.order_summary.customer_due.replace(/,/g, '')) > 0) {
+                encoder = encoder.line(this.twoColumn("Customer Due:", data.order_summary.customer_due, width));
+            }
+            
+            // Cash Back Logic (matches Blade template)
+            encoder = encoder.newline().line("-".repeat(width)).newline();
+            const currentDue = parseFloat(data.order_summary.customer_due.replace(/,/g, '')) || 0;
+            const totalRefunded = parseFloat(data.order_summary.total_refunded.replace(/,/g, '')) || 0;
+            
+            if (currentDue <= 0 && totalRefunded > 0) {
+                // No debt remaining = cash was returned
+                encoder = encoder.raw([0x1B, 0x61, 0x01]) // Center
+                                 .bold(true).size(1, 1)
+                                 .text("CASH RETURNED: " + this.formatValue(totalRefunded))
+                                 .size(1, 1).bold(false)
+                                 .newline();
+            }
         } else {
             encoder = encoder.line(this.twoColumn("Gross Total:", sub_total.toString(), width));
             const discVal = discount ? parseFloat(discount) : 0;
