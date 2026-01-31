@@ -34,7 +34,6 @@ class RolePermissionSeeder extends Seeder
             'customer_delete',
             'customer_sales',
             //supplier
-
             'supplier_view',
             'supplier_create',
             'supplier_update',
@@ -65,6 +64,10 @@ class RolePermissionSeeder extends Seeder
             'sale_view',
             'sale_update',
             'sale_delete',
+            //refunds (returns)
+            'refund_create',
+            'refund_view',
+            'refund_delete',
             //purchase
             'purchase_create',
             'purchase_view',
@@ -92,7 +95,6 @@ class RolePermissionSeeder extends Seeder
             'user_update',
             'user_delete',
             'user_suspend',
-
             //setting
             'website_settings',
             'contact_settings',
@@ -102,7 +104,6 @@ class RolePermissionSeeder extends Seeder
             'notification_settings',
             'website_status_settings',
             'invoice_settings',
-
         ];
         $admin = Role::where('name', 'Admin')->first();
         for ($i = 0; $i < count($permissions); $i++) {
@@ -138,22 +139,27 @@ class RolePermissionSeeder extends Seeder
         // Optionally, assign permissions to the cashier and sales_associate roles
         // You can customize these permissions as needed
         $cashierPermissions = [
+            'dashboard_view',
             'sale_create',
             'sale_view',
+            'sale_update',
             'customer_view',
+            'customer_create',
             'product_create',
             'product_view',
             'product_update',
             'product_delete',
             'product_import',
-            'product_purchase',
+            'refund_create',
+            'refund_view',
         ];
 
         $salesPermissions = [
-            //sale
+            'dashboard_view',
             'sale_create',
             'sale_view',
-            'sale_edit',
+            'customer_view',
+            'product_view',
         ];
 
         foreach ($cashierPermissions as $permissionName) {
