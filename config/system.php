@@ -44,8 +44,8 @@
   'backup_path' => '',
   'auto_backup' => 'disabled',
   'last_backup_date' => '2026-01-29 12:40:52',
-  'license_key' => 'MPOS-eyJzaG9wIjoiYmciLCJleHBpcnkiOiIyMDI3LTAxLTMwIiwibWFjaGluZSI6IkU4MEEwNzAyRDMxNCIsImNyZWF0ZWQiOiIyMDI2LTAxLTMxIn0=-7129E2EA',
-  'licensed_to' => 'bg',
+  'license_key' => '',
+  'licensed_to' => '',
   'receipt_printer' => 'POS80',
   'tag_printer' => 'POS80',
 );
