@@ -1,0 +1,617 @@
+/**
+ * POS System Design Tokens
+ * Centralized design variables for consistent styling
+ * 
+ * Usage: Import this in your main CSS file or reference these values
+ * when replacing inline styles with class-based styling.
+ */
+
+:root {
+    /* Color System - Apple-inspired */
+    --pos-primary: #800000;          /* Maroon brand color */
+    --pos-primary-light: #a00000;
+    --pos-primary-dark: #600000;
+    
+    --pos-success: #34c759;          /* iOS Green */
+    --pos-warning: #ff9500;          /* iOS Orange */
+    --pos-danger: #ff3b30;           /* iOS Red */
+    --pos-info: #007aff;             /* iOS Blue */
+    
+    --pos-text-primary: #1d1d1f;     /* Near black */
+    --pos-text-secondary: #8e8e93;   /* Gray */
+    --pos-text-tertiary: #c7c7cc;    /* Light gray */
+    
+    --pos-bg-primary: #ffffff;
+    --pos-bg-secondary: #f2f2f7;     /* iOS System Gray 6 */
+    --pos-bg-tertiary: #e5e5ea;      /* iOS System Gray 5 */
+    
+    /* Spacing Scale */
+    --pos-space-xs: 4px;
+    --pos-space-sm: 8px;
+    --pos-space-md: 16px;
+    --pos-space-lg: 24px;
+    --pos-space-xl: 32px;
+    
+    /* Border Radius */
+    --pos-radius-sm: 8px;
+    --pos-radius-md: 12px;
+    --pos-radius-lg: 16px;
+    --pos-radius-xl: 20px;
+    --pos-radius-full: 9999px;
+    
+    /* Shadows - Apple-style layered shadows */
+    --pos-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --pos-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --pos-shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.15);
+    
+    /* Animation */
+    --pos-transition-fast: 0.15s ease;
+    --pos-transition-normal: 0.3s ease;
+    --pos-transition-slow: 0.5s ease;
+    
+    /* Typography */
+    --pos-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --pos-font-size-xs: 0.65rem;
+    --pos-font-size-sm: 0.75rem;
+    --pos-font-size-base: 0.9rem;
+    --pos-font-size-lg: 1rem;
+    --pos-font-size-xl: 1.2rem;
+    --pos-font-size-2xl: 1.5rem;
+    --pos-font-size-3xl: 2rem;
+}
+
+/* ===========================================
+   POS Component Styles
+   =========================================== */
+
+/* Scanner Active Indicator */
+.pos-scanner-indicator {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--pos-success) 0%, #30d158 100%);
+    color: white;
+    padding: var(--pos-space-sm) var(--pos-space-lg);
+    border-radius: var(--pos-radius-xl);
+    font-size: var(--pos-font-size-sm);
+    font-weight: 700;
+    z-index: 100000;
+    box-shadow: 0 4px 20px rgba(52, 199, 89, 0.4);
+    display: flex;
+    align-items: center;
+    gap: var(--pos-space-sm);
+}
+
+/* Product Card */
+.pos-product-card {
+    cursor: pointer;
+    transition: transform var(--pos-transition-fast), box-shadow var(--pos-transition-fast);
+}
+
+.pos-product-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--pos-shadow-md);
+}
+
+.pos-product-card.out-of-stock {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+}
+
+.pos-product-card .pos-product-img {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 15px;
+}
+
+.pos-product-card:hover .pos-product-img {
+    transform: scale(1.08);
+}
+
+/* Availability Badge */
+.pos-availability-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border-radius: var(--pos-radius-xl);
+    padding: 2px 10px;
+    font-size: var(--pos-font-size-xs);
+}
+
+.pos-availability-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--pos-success);
+    margin-right: 5px;
+}
+
+.pos-availability-dot.out-of-stock {
+    background: var(--pos-danger);
+}
+
+/* Product Name */
+.pos-product-name {
+    font-size: var(--pos-font-size-base);
+    font-weight: 600;
+    color: var(--pos-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Product Price */
+.pos-product-price {
+    font-size: var(--pos-font-size-lg);
+    font-weight: 700;
+    color: var(--pos-primary);
+}
+
+.pos-product-price .original-price {
+    text-decoration: line-through;
+    font-size: var(--pos-font-size-sm);
+    font-weight: normal;
+    color: var(--pos-text-secondary);
+    margin-right: 4px;
+}
+
+/* Discount Badge */
+.pos-discount-badge {
+    font-size: var(--pos-font-size-xs);
+    background: rgba(52, 199, 89, 0.1);
+    color: var(--pos-success);
+    padding: 4px 8px;
+    border-radius: var(--pos-radius-sm);
+    font-weight: 600;
+}
+
+/* Context Menu */
+.pos-context-menu {
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: var(--pos-radius-md);
+    min-width: 220px;
+    padding: 6px 0;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: var(--pos-shadow-lg);
+    animation: contextMenuFade 0.15s ease-out;
+    transform-origin: 0 0;
+}
+
+@keyframes contextMenuFade {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.pos-context-menu .context-item {
+    font-size: var(--pos-font-size-base);
+    font-weight: 500;
+    color: var(--pos-text-primary);
+    transition: background var(--pos-transition-fast);
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.pos-context-menu .context-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.pos-context-menu .context-item i {
+    font-size: var(--pos-font-size-sm);
+    opacity: 0.8;
+    margin-right: var(--pos-space-md);
+}
+
+/* Skeleton Loader */
+.pos-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.5s infinite;
+    border-radius: var(--pos-radius-sm);
+}
+
+@keyframes skeletonShimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Apple-style Card */
+.pos-apple-card {
+    background: var(--pos-bg-primary);
+    border-radius: var(--pos-radius-md);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: var(--pos-shadow-sm);
+    transition: box-shadow var(--pos-transition-fast), transform var(--pos-transition-fast);
+    overflow: hidden;
+}
+
+.pos-apple-card:hover {
+    box-shadow: var(--pos-shadow-md);
+}
+
+/* Button Styles */
+.pos-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pos-space-sm);
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    border-radius: var(--pos-radius-sm);
+    font-weight: 600;
+    font-size: var(--pos-font-size-base);
+    transition: all var(--pos-transition-fast);
+    border: none;
+    cursor: pointer;
+}
+
+.pos-btn-primary {
+    background: var(--pos-primary);
+    color: white;
+}
+
+.pos-btn-primary:hover {
+    background: var(--pos-primary-light);
+}
+
+.pos-btn-success {
+    background: var(--pos-success);
+    color: white;
+}
+
+.pos-btn-outline {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: var(--pos-text-primary);
+}
+
+.pos-btn-outline:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Input Styles */
+.pos-input {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--pos-radius-sm);
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    font-size: var(--pos-font-size-base);
+    transition: border-color var(--pos-transition-fast), box-shadow var(--pos-transition-fast);
+}
+
+.pos-input:focus {
+    outline: none;
+    border-color: var(--pos-primary);
+    box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.1);
+}
+
+/* No Spinner for Number Inputs */
+.pos-input.no-spinner::-webkit-outer-spin-button,
+.pos-input.no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.pos-input.no-spinner[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Cart Table */
+.pos-cart-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pos-cart-table th {
+    background: var(--pos-bg-secondary);
+    font-size: var(--pos-font-size-xs);
+    color: var(--pos-text-secondary);
+    text-transform: uppercase;
+    padding: var(--pos-space-md);
+    border: none;
+}
+
+.pos-cart-table td {
+    padding: var(--pos-space-md);
+    vertical-align: middle;
+    transition: background var(--pos-transition-fast);
+}
+
+.pos-cart-table tr:hover td {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* Quantity Controls */
+.pos-qty-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--pos-transition-fast);
+}
+
+.pos-qty-btn:hover {
+    background: var(--pos-bg-secondary);
+}
+
+.pos-qty-input {
+    width: 60px;
+    text-align: center;
+    font-weight: 700;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--pos-radius-sm);
+}
+
+/* Total Display */
+.pos-total-display {
+    background: linear-gradient(135deg, var(--pos-primary) 0%, var(--pos-primary-dark) 100%);
+    color: white;
+    padding: var(--pos-space-md);
+    border-radius: var(--pos-radius-md);
+    box-shadow: var(--pos-shadow-md);
+}
+
+.pos-total-label {
+    font-size: var(--pos-font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+.pos-total-amount {
+    font-size: var(--pos-font-size-3xl);
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+/* Utility Classes */
+.pos-text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pos-glass-effect {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+/* Empty State */
+.pos-empty-state {
+    text-align: center;
+    padding: var(--pos-space-xl);
+}
+
+.pos-empty-state h5 {
+    font-weight: 600;
+    color: var(--pos-text-secondary);
+    letter-spacing: 0.05em;
+}
+
+.pos-empty-state p {
+    font-size: var(--pos-font-size-sm);
+    color: var(--pos-text-tertiary);
+}
+
+/* ===========================================
+   Touch-Friendly Button Sizes
+   Minimum 44px touch target per Apple HIG / WCAG
+   =========================================== */
+
+/* POS Action Buttons - Large touch targets */
+.pos-btn {
+    min-height: 48px;
+    min-width: 48px;
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    font-size: var(--pos-font-size-base);
+    font-weight: 600;
+    border-radius: var(--pos-radius-md);
+    transition: all var(--pos-transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pos-space-sm);
+    cursor: pointer;
+    border: none;
+    outline: none;
+    touch-action: manipulation; /* Prevent zoom on double-tap */
+}
+
+.pos-btn:active {
+    transform: scale(0.97);
+}
+
+/* Primary Action Button (Pay, Checkout) */
+.pos-btn-primary {
+    background: linear-gradient(135deg, var(--pos-primary) 0%, var(--pos-primary-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(128, 0, 0, 0.3);
+}
+
+.pos-btn-primary:hover {
+    box-shadow: 0 6px 20px rgba(128, 0, 0, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Success Button */
+.pos-btn-success {
+    background: linear-gradient(135deg, var(--pos-success) 0%, #30d158 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(52, 199, 89, 0.3);
+}
+
+/* Danger Button */
+.pos-btn-danger {
+    background: linear-gradient(135deg, var(--pos-danger) 0%, #ff453a 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 59, 48, 0.3);
+}
+
+/* Outline Button */
+.pos-btn-outline {
+    background: transparent;
+    border: 2px solid var(--pos-primary);
+    color: var(--pos-primary);
+}
+
+.pos-btn-outline:hover {
+    background: var(--pos-primary);
+    color: white;
+}
+
+/* Large Button Variant */
+.pos-btn-lg {
+    min-height: 56px;
+    min-width: 56px;
+    padding: var(--pos-space-md) var(--pos-space-lg);
+    font-size: var(--pos-font-size-lg);
+}
+
+/* Extra Large Button (for main actions like PAY) */
+.pos-btn-xl {
+    min-height: 64px;
+    padding: var(--pos-space-lg) var(--pos-space-xl);
+    font-size: var(--pos-font-size-xl);
+    font-weight: 700;
+}
+
+/* Small Button (still meets 44px minimum) */
+.pos-btn-sm {
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--pos-space-xs) var(--pos-space-sm);
+    font-size: var(--pos-font-size-sm);
+}
+
+/* Icon-Only Button */
+.pos-btn-icon {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: var(--pos-radius-full);
+}
+
+.pos-btn-icon.pos-btn-sm {
+    width: 44px;
+    height: 44px;
+}
+
+.pos-btn-icon.pos-btn-lg {
+    width: 56px;
+    height: 56px;
+}
+
+/* Quantity Control Buttons (Cart) */
+.pos-qty-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--pos-radius-sm);
+    font-size: var(--pos-font-size-lg);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--pos-transition-fast);
+    touch-action: manipulation;
+}
+
+.pos-qty-btn:active {
+    transform: scale(0.92);
+}
+
+.pos-qty-decrease {
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--pos-danger);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+}
+
+.pos-qty-decrease:hover {
+    background: rgba(255, 59, 48, 0.2);
+}
+
+.pos-qty-increase {
+    background: rgba(52, 199, 89, 0.1);
+    color: var(--pos-success);
+    border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.pos-qty-increase:hover {
+    background: rgba(52, 199, 89, 0.2);
+}
+
+/* Numpad Buttons */
+.pos-numpad-btn {
+    width: 64px;
+    height: 56px;
+    font-size: var(--pos-font-size-xl);
+    font-weight: 600;
+    border-radius: var(--pos-radius-md);
+    background: var(--pos-bg-secondary);
+    color: var(--pos-text-primary);
+    border: none;
+    cursor: pointer;
+    transition: all var(--pos-transition-fast);
+    touch-action: manipulation;
+}
+
+.pos-numpad-btn:hover {
+    background: var(--pos-bg-tertiary);
+}
+
+.pos-numpad-btn:active {
+    transform: scale(0.95);
+    background: var(--pos-primary);
+    color: white;
+}
+
+/* Action Row Buttons (Clear, Hold, etc.) */
+.pos-action-btn {
+    min-height: 48px;
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    font-size: var(--pos-font-size-sm);
+    font-weight: 600;
+    border-radius: var(--pos-radius-sm);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--pos-space-xs);
+    cursor: pointer;
+    transition: all var(--pos-transition-fast);
+    touch-action: manipulation;
+}
+
+/* Category Pills */
+.pos-category-pill {
+    min-height: 44px;
+    padding: var(--pos-space-sm) var(--pos-space-md);
+    font-size: var(--pos-font-size-sm);
+    font-weight: 600;
+    border-radius: var(--pos-radius-xl);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all var(--pos-transition-fast);
+    touch-action: manipulation;
+}
+
+.pos-category-pill:active {
+    transform: scale(0.95);
+}
+
+.pos-category-pill.active {
+    background: var(--pos-primary);
+    color: white;
+}
+
