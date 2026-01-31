@@ -346,7 +346,7 @@ function startLaravel(port) {
  * Runs 'php artisan migrate --force' silently on startup.
  */
 function runMigrations() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         logger.log('Checking for database migrations...');
         const phpPath = path.join(basePath, 'php', 'php.exe');
         const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
@@ -355,23 +355,69 @@ function runMigrations() {
             env: { ...process.env, DB_PORT: MYSQL_PORT } // Ensure it uses the right port
         });
 
-        migrateProcess.stdout.on('data', (data) => logger.log(`[MIGRATION]: ${data}`));
-        migrateProcess.stderr.on('data', (data) => logger.error(`[MIGRATION ERROR]: ${data}`));
+        let migrationOutput = '';
+        let migrationErrors = '';
+
+        migrateProcess.stdout.on('data', (data) => {
+            migrationOutput += data.toString();
+            logger.log(`[MIGRATION]: ${data}`);
+        });
+        
+        migrateProcess.stderr.on('data', (data) => {
+            migrationErrors += data.toString();
+            logger.error(`[MIGRATION ERROR]: ${data}`);
+        });
 
         migrateProcess.on('close', (code) => {
             logger.log(`Migration process exited with code ${code}`);
             
-            // --- NEW: Clear View Cache to ensure UI updates apply ---
-            logger.log('Clearing view cache...');
-            const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+            // Check for critical migration errors
+            if (code !== 0 && migrationErrors && !migrationErrors.includes('Nothing to migrate')) {
+                logger.error('Critical migration error detected. Cannot proceed.');
+                reject(new Error('Migration failed'));
+                return;
+            }
+            
+            // --- NEW: Run Database Seeder to ensure core data exists ---
+            logger.log('Seeding core data...');
+            const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {
                 cwd: basePath, 
                 windowsHide: true,
-                env: { ...process.env } 
+                env: { ...process.env, DB_PORT: MYSQL_PORT }
             });
             
-            clearProcess.on('close', () => {
-                logger.log('View cache cleared.');
-                resolve();
+            let seederErrors = '';
+            
+            seedProcess.stdout.on('data', (data) => logger.log(`[SEEDER]: ${data}`));
+            seedProcess.stderr.on('data', (data) => {
+                // Ignore PHP deprecation warnings during seeding
+                const msg = data.toString();
+                if (!msg.includes('Deprecated') && !msg.includes('deprecated')) {
+                    seederErrors += msg;
+                    logger.error(`[SEEDER ERROR]: ${data}`);
+                }
+            });
+            
+            seedProcess.on('close', (seedCode) => {
+                logger.log(`Seeder process exited with code ${seedCode}`);
+                
+                // Seeder errors are non-critical - just log them
+                if (seedCode !== 0 && seederErrors) {
+                    logger.warn('Seeder reported issues, but continuing startup...');
+                }
+                
+                // --- Clear View Cache to ensure UI updates apply ---
+                logger.log('Clearing view cache...');
+                const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                    cwd: basePath, 
+                    windowsHide: true,
+                    env: { ...process.env } 
+                });
+                
+                clearProcess.on('close', () => {
+                    logger.log('View cache cleared.');
+                    resolve();
+                });
             });
         });
     });
@@ -648,6 +694,7 @@ async function startApp() {
 
 
         await waitForMySQL(MYSQL_PORT, 45000);
+        logger.log('MySQL connection confirmed - proceeding with migrations');
         
         // --- NEW: Perform Auto-Migrations ---
         updateSplashStatus('Checking database integrity...');
@@ -675,7 +722,19 @@ async function startApp() {
         setupAutoUpdater();
         createMainWindow();
     } catch (error) {
-        logger.error('Startup error: ' + error.message);
+        logger.error('CRITICAL STARTUP ERROR: ' + error.message);
+        logger.error('Stack trace: ' + error.stack);
+        
+        // Show error dialog to user
+        const { dialog } = require('electron');
+        if (splashWindow) {
+            dialog.showErrorBox(
+                'Startup Failed',
+                `The application encountered a critical error during startup:\n\n${error.message}\n\nPlease check the logs at: ${path.join(app.getPath('userData'), 'app.log')}`
+            );
+        }
+        
+        killProcesses();
         app.quit();
     }
 }

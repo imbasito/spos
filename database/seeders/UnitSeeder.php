@@ -14,43 +14,19 @@ class UnitSeeder extends Seeder
     public function run(): void
     {
         $units = [
-            [
-                'title' => 'Piece',
-                'short_name' => 'pcs',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'title' => 'Kilogram',
-                'short_name' => 'kg',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'title' => 'Liter',
-                'short_name' => 'L',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'title' => 'Meter',
-                'short_name' => 'm',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'title' => 'Dozen',
-                'short_name' => 'dz',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'title' => 'Box',
-                'short_name' => 'box',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
+            ['title' => 'Piece', 'short_name' => 'pcs'],
+            ['title' => 'Kilogram', 'short_name' => 'kg'],
+            ['title' => 'Liter', 'short_name' => 'L'],
+            ['title' => 'Meter', 'short_name' => 'm'],
+            ['title' => 'Dozen', 'short_name' => 'dz'],
+            ['title' => 'Box', 'short_name' => 'box'],
         ];
-        Unit::insert($units);
+
+        foreach ($units as $unit) {
+            Unit::firstOrCreate(
+                ['short_name' => $unit['short_name']],
+                ['title' => $unit['title']]
+            );
+        }
     }
 }

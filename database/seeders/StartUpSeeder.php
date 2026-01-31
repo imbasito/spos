@@ -17,23 +17,36 @@ class StartUpSeeder extends Seeder
      */
     public function run(): void
     {
+        // Create or retrieve admin user
+        $user = User::firstOrCreate(
+            ['email' => 'admin@spos.com'],
+            [
+                'name' => 'Administrator',
+                'password' => bcrypt('admin123'),
+                'username' => 'admin'
+            ]
+        );
 
-        $user = User::create([
-            'name' => 'Administrator',
-            'email' => 'admin@spos.com',
-            'password' => bcrypt('admin123'),
-            'username' => 'admin'
-        ]);
-        Customer::create([
-            'name' => "Walking Customer",
-            'phone' => "012345678",
-        ]);
-        Supplier::create([
-            'name' => "Own Supplier",
-            'phone' => "012345678",
-        ]);
-        $role = Role::create(['name' => 'Admin']);
-        $user->syncRoles($role);
+        // Create or retrieve walking customer
+        Customer::firstOrCreate(
+            ['phone' => '012345678'],
+            ['name' => 'Walking Customer']
+        );
+
+        // Create or retrieve own supplier
+        Supplier::firstOrCreate(
+            ['phone' => '012345678'],
+            ['name' => 'Own Supplier']
+        );
+
+        // Create or retrieve admin role
+        $role = Role::firstOrCreate(['name' => 'Admin']);
+        
+        // Ensure user has admin role
+        if (!$user->hasRole('Admin')) {
+            $user->syncRoles($role);
+        }
+
         $this->call([
             UnitSeeder::class,
             CurrencySeeder::class,

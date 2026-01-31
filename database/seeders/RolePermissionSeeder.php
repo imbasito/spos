@@ -112,18 +112,22 @@ class RolePermissionSeeder extends Seeder
         }
 
         // Create users and assign roles
-        $cashierUser = User::create([
-            'name' => 'Cashier',
-            'email' => 'cashier@spos.com',
-            'password' => bcrypt('cashier123'),
-            'username' => 'cashier',
-        ]);
-        $salesUser = User::create([
-            'name' => 'Sales',
-            'email' => 'sales@spos.com',
-            'password' => bcrypt('sales123'),
-            'username' => 'sales',
-        ]);
+        $cashierUser = User::firstOrCreate(
+            ['email' => 'cashier@spos.com'],
+            [
+                'name' => 'Cashier',
+                'password' => bcrypt('cashier123'),
+                'username' => 'cashier',
+            ]
+        );
+        $salesUser = User::firstOrCreate(
+            ['email' => 'sales@spos.com'],
+            [
+                'name' => 'Sales',
+                'password' => bcrypt('sales123'),
+                'username' => 'sales',
+            ]
+        );
         // Assign roles to users
         $cashierRole = Role::where('name', 'cashier')->first();
         $salesRole = Role::where('name', 'sales_associate')->first();
