@@ -16,6 +16,7 @@ class CheckLicense
         'license.activate.show',
         'license.activate.public',
         'frontend.home',
+        'login',  // Login handles its own activation check
     ];
 
     /**

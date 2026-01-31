@@ -8,7 +8,7 @@
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
       <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center" style="border-bottom: none;">
         <h3 class="card-title font-weight-bold text-white mb-0">
-          <i class="fas fa-undo mr-2"></i> Refund List <small class="badge badge-light ml-2 opacity-75">V5</small>
+          <i class="fas fa-undo mr-2"></i> Refund List
         </h3>
       </div>
 

@@ -339,35 +339,51 @@ class CartController extends Controller
     }
 
     /**
-     * Update cart item by desired price (auto-calculate quantity)
+     * Update cart item by desired amount (auto-calculate quantity)
      * Customer says "100 rupees ka dedo" → System calculates quantity
-     * Example: Rs.100 ÷ Rs.1400/kg = 0.071 kg (71 grams)
+     * Example: Rs.100 ÷ Rs.50/kg = 2kg
+     * 
+     * PROFESSIONAL: This updates BOTH row_total AND quantity
      */
     public function updateByPrice(Request $request)
     {
         $request->validate([
             'id' => 'required|exists:pos_carts,id',
-            // 'price' here is actually the "Amount" (Total) from frontend
             'price' => 'required|numeric|min:0', 
         ]);
 
         $cart = PosCart::where('user_id', auth()->id())->where('id', $request->id)->firstOrFail();
         
-        // When user updates "Amount", we are setting the row_total_override
-        $cart->row_total_override = $request->price;
+        $targetAmount = $request->price;
         
-        // We do NOT change quantity or rate here. 
-        // This allows "Custom Amount" logic (e.g. Rate 100 * Qty 1 = 90 Total)
-        // implying an implicit discount or surcharge without changing base rate.
+        // Get effective rate (discounted_price after discount applied)
+        $effectiveRate = $cart->price_override ?? $cart->product->discounted_price;
+        
+        if ($effectiveRate <= 0) {
+            return response()->json(['message' => 'Cannot calculate quantity - invalid rate'], 400);
+        }
+        
+        // Calculate new quantity: Quantity = Amount ÷ Effective Rate
+        $newQuantity = round($targetAmount / $effectiveRate, 3);
+        
+        // Update both quantity and row total
+        $cart->quantity = $newQuantity;
+        $cart->row_total_override = $targetAmount;
         
         $cart->save();
+        $this->syncJournal();
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'quantity' => $newQuantity,
+            'amount' => $targetAmount
+        ]);
     }
 
 
     /**
      * Update price override (Rate)
+     * When rate changes, recalculate row_total = quantity × new rate
      */
     public function updateRate(Request $request)
     {
@@ -377,10 +393,23 @@ class CartController extends Controller
         ]);
 
         $cart = PosCart::findOrFail($request->id);
-        $cart->price_override = (float) $request->price;
+        $newRate = (float) $request->price;
+        
+        // Set the price override (new rate)
+        $cart->price_override = $newRate;
+        
+        // Clear row_total_override to force recalculation
+        // New Amount = Quantity × New Rate
+        $cart->row_total_override = null;
+        
         $cart->save();
         $this->syncJournal();
+        
+        $newAmount = round($cart->quantity * $newRate, 2);
 
-        return response()->json(['message' => 'Price override saved'], 200);
+        return response()->json([
+            'message' => 'Rate updated successfully',
+            'new_amount' => $newAmount
+        ], 200);
     }
 }

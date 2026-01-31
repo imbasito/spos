@@ -14,6 +14,12 @@ class AutoBackupCheck
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Skip backup check during activation
+        $currentRoute = $request->route() ? $request->route()->getName() : null;
+        if ($currentRoute && in_array($currentRoute, ['license.activate.show', 'license.activate.public'])) {
+            return $next($request);
+        }
+
         // Only check once per session to avoid performance issues
         if (!session()->has('auto_backup_checked')) {
             session(['auto_backup_checked' => true]);

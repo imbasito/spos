@@ -161,6 +161,11 @@ class LicenseHelper
         if ($result['valid']) {
             writeConfig('license_key', $licenseKey);
             writeConfig('licensed_to', $result['shop']);
+            
+            // Mark as activated and remove first-run flag
+            file_put_contents(storage_path('app/activated_at'), now()->toDateTimeString());
+            @unlink(storage_path('app/first_run_pending'));
+            
             return $result;
         }
         

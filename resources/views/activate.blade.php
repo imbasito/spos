@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Activate SPOS</title>
     <!-- FAVICON ICON -->
-    <link rel="shortcut icon" href="{{ assetImage(readconfig('site_logo')) }}" type="image/svg+xml">
+    <link rel="shortcut icon" href="{{ asset('assets/images/nofav.png') }}" type="image/png">
     <!-- BOOTSTRAP CSS -->
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap/bootstrap.min.css') }}">
     <!-- APP-CSS -->

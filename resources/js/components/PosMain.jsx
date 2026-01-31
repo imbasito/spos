@@ -230,7 +230,9 @@ export default function Pos() {
         const totalNetItems = carts.reduce((acc, item) => 
             acc + (parseFloat(item.row_total) || 0), 0);
         
-        const beforeRounding = Math.max(0, totalNetItems - manualDiscount);
+        // CRITICAL FIX: Parse manualDiscount to number to prevent string concatenation bug
+        const manualDiscountNum = parseFloat(manualDiscount) || 0;
+        const beforeRounding = Math.max(0, totalNetItems - manualDiscountNum);
         
         // Fractional Rounding (if enabled)
         let roundDisc = 0;
@@ -240,7 +242,7 @@ export default function Pos() {
         
         return {
             finalTotal: beforeRounding - roundDisc,
-            finalDiscount: manualDiscount + roundDisc
+            finalDiscount: manualDiscountNum + roundDisc  // FIXED: Now adding numbers, not concatenating strings
         };
     }, [carts, manualDiscount, autoRound]);
 

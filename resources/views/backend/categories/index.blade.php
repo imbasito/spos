@@ -5,19 +5,27 @@
 @section('content')
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
-    <!-- Spotlight Search -->
-    <div class="card shadow-sm border-0 border-radius-15 mb-4 overflow-hidden">
-      <div class="card-body p-3">
-        <div class="row align-items-center">
-          <div class="col-md-6">
-            <div class="input-group spotlight-search-group">
+    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
+      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <h3 class="card-title font-weight-bold text-white mb-0">
+          <i class="fas fa-sitemap mr-2"></i> Categories List
+        </h3>
+      </div>
+
+      <div class="card-body p-4">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
+          <div class="col-md-7">
+            <div class="input-group shadow-sm spotlight-search-group">
               <div class="input-group-prepend">
-                <span class="input-group-text bg-white border-right-0"><i class="fas fa-search text-maroon"></i></span>
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
               </div>
-              <input type="text" id="quickSearchInput" class="form-control border-left-0 apple-input" placeholder="Search category name..." autofocus>
+              <input type="text" id="quickSearchInput" class="form-control border-0 py-4 apple-input" placeholder="Search category name..." autofocus style="font-size: 1rem; box-shadow: none;">
             </div>
           </div>
-          <div class="col-md-6 text-right">
+          <div class="col-md-5 text-right">
             @can('category_create')
             <a href="{{ route('backend.admin.categories.create') }}" class="btn btn-apple-primary btn-apple px-4 shadow-sm font-weight-bold text-white">
               <i class="fas fa-plus-circle mr-1"></i> Add New Category
@@ -25,11 +33,7 @@
             @endcan
           </div>
         </div>
-      </div>
-    </div>
 
-    <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
-      <div class="card-body p-0">
         <div class="table-responsive">
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
             <thead class="bg-dark text-white text-uppercase font-weight-bold small">

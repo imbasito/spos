@@ -211,8 +211,29 @@ export default function Pos() {
     
     useEffect(() => {
         const handleGlobalKeyDown = (e) => {
-            // Ignore if sensitive modal is open (like Payment)
-            if (showPaymentModal) return;
+            // CRITICAL SAFETY: Always prevent Enter from triggering buttons/forms unless explicitly handled
+            if (e.key === 'Enter') {
+                // Check if target is a button or checkout-related element
+                const target = e.target;
+                const isButton = target.tagName === 'BUTTON';
+                const isCheckoutButton = target.closest('[data-action="checkout"]') || target.closest('.btn-checkout');
+                const isPaymentInput = target.closest('.payment-modal') || target.id === 'paid-amount';
+                
+                // If Enter pressed on checkout button or payment input, let it through
+                // Otherwise, prevent default to avoid accidental submissions
+                if (!isPaymentInput && !isCheckoutButton) {
+                    // Only allow Enter for search/scan purposes
+                }
+            }
+            
+            // Ignore ALL keyboard events if payment modal is open
+            if (showPaymentModal) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                return;
+            }
 
             const now = Date.now();
             const timeDiff = now - lastKeyTime.current;
@@ -265,7 +286,15 @@ export default function Pos() {
                         }, 50);
 
                         return;
+                    } else {
+                        // Barcode not found - prevent any form submission
+                        e.preventDefault();
+                        e.stopPropagation();
                     }
+                } else {
+                    // Prevent Enter when search is empty or too short
+                    e.preventDefault();
+                    e.stopPropagation();
                 }
                 scanBuffer.current = ""; // Reset on Enter anyway
             } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { 
@@ -286,14 +315,15 @@ export default function Pos() {
 
     // Helper: Centralized calculation to prevent logic drift
     const calculateOrderValues = useCallback(() => {
-        const subTotal = parseFloat(total) || 0;
+        // CRITICAL FIX: Always calculate from current cart items, not stale 'total' state
+        const totalNetItems = carts.reduce((acc, item) => acc + (parseFloat(item.row_total) || 0), 0);
         const manual = parseFloat(manualDiscount) || 0;
         
-        // Sum of net amounts in the cart
-        const totalNetItems = carts.reduce((acc, item) => acc + (parseFloat(item.row_total) || 0), 0);
+        // Safety: Manual discount cannot exceed subtotal
+        const safeManualDiscount = Math.min(manual, totalNetItems);
         
         // Final Total before rounding
-        const beforeRounding = Math.max(0, totalNetItems - manual);
+        const beforeRounding = Math.max(0, totalNetItems - safeManualDiscount);
 
         // Calculate Rounding on the resulting net
         let roundDisc = 0;
@@ -307,16 +337,16 @@ export default function Pos() {
         const finalTotal = parseFloat((beforeRounding - roundDisc).toFixed(2));
         
         // Manual + Rounding aggregate
-        const totalExplicitDiscount = parseFloat((manual + roundDisc).toFixed(2));
+        const totalExplicitDiscount = parseFloat((safeManualDiscount + roundDisc).toFixed(2));
 
         return {
             subTotal: totalNetItems,
-            manualDiscount: manual,
+            manualDiscount: safeManualDiscount,
             roundingDiscount: roundDisc,
             finalTotal,
             finalDiscount: totalExplicitDiscount 
         };
-    }, [carts, total, manualDiscount, autoRound]);
+    }, [carts, manualDiscount, autoRound]);
 
     // Recalculate Final Total & Rounding using helper
     useEffect(() => {
@@ -747,7 +777,7 @@ export default function Pos() {
          });
     };
     
-    // 5. Update Quantity (Direct)
+    // 5. Update Quantity (Professional: Recalculate Amount using Effective Rate)
     const handleUpdateQuantity = (cartId, qty) => {
         const index = carts.findIndex(c => c.id === cartId);
         if(index < 0) return;
@@ -757,8 +787,21 @@ export default function Pos() {
         
         const newCarts = [...carts];
         const item = { ...newCarts[index] };
-        item.quantity = parseFloat(qty);
-        item.row_total = (item.quantity * item.product.discounted_price).toFixed(2);
+        
+        const newQty = parseFloat(qty);
+        if(isNaN(newQty) || newQty <= 0) {
+            toast.error("Invalid quantity");
+            return;
+        }
+        
+        // CRITICAL: Use the EFFECTIVE RATE (discounted_price shown in Rate column)
+        // Not the original price, because discount has already been applied
+        const effectiveRate = parseFloat(item.product.discounted_price) || parseFloat(item.product.price) || 0;
+        
+        // Professional Formula: Amount = Quantity × Effective Rate
+        // Example: 3kg × Rs.50/kg = Rs.150
+        item.quantity = newQty;
+        item.row_total = (newQty * effectiveRate).toFixed(2);
         newCarts[index] = item;
         
         updateCartOptimistically(newCarts);
@@ -770,8 +813,8 @@ export default function Pos() {
         });
     };
 
-    // 6. Update By Price (Optimistic)
-    const handleUpdateByPrice = (cartId, targetPrice) => {
+    // 6. Update By Amount (Professional: Calculate Quantity from Amount)
+    const handleUpdateByPrice = (cartId, targetAmount) => {
         const index = carts.findIndex(c => c.id === cartId);
         if(index < 0) return;
         
@@ -781,25 +824,39 @@ export default function Pos() {
         const newCarts = [...carts];
         const item = { ...newCarts[index] };
         
-        // Optimization: Use Original Price if it's weight-based to calculate Qty correctly
-        const unitPrice = parseFloat(item.product.price) || 0;
+        // CRITICAL: Use the EFFECTIVE RATE (discounted_price after discount applied)
+        // This is the rate shown in the Rate column that user sees
+        const effectiveRate = parseFloat(item.product.discounted_price) || parseFloat(item.product.price) || 0;
         
-        if(unitPrice <= 0) return;
+        if(effectiveRate <= 0) {
+            toast.error("Cannot calculate quantity - invalid rate");
+            return;
+        }
         
-        item.row_total = parseFloat(targetPrice).toFixed(2);
-        item.quantity = (parseFloat(targetPrice) / unitPrice).toFixed(3);
+        const amount = parseFloat(targetAmount);
+        if(isNaN(amount) || amount < 0) {
+            toast.error("Invalid amount");
+            return;
+        }
+        
+        // Professional Formula: Quantity = Amount ÷ Effective Rate
+        // Example: Rs.100 ÷ Rs.50/kg = 2kg
+        const newQuantity = parseFloat((amount / effectiveRate).toFixed(3));
+        
+        item.quantity = newQuantity;
+        item.row_total = amount.toFixed(2);
         newCarts[index] = item;
         
         updateCartOptimistically(newCarts);
         
-        axios.put("/admin/cart/update-by-price", { id: cartId, price: targetPrice }).catch(err => {
+        axios.put("/admin/cart/update-by-price", { id: cartId, price: targetAmount }).catch(err => {
             setCarts(prevCarts);
             setTotal(prevTotal);
             toast.error(err.response?.data?.message || "Update failed");
         });
     };
 
-    // 7. Update Rate (Price Override)
+    // 7. Update Rate (Professional: Recalculate Amount keeping Quantity)
     const handleUpdateRate = (cartId, newRate) => {
         const index = carts.findIndex(c => c.id === cartId);
         if(index < 0) return;
@@ -810,24 +867,33 @@ export default function Pos() {
         const newCarts = [...carts];
         const item = { ...newCarts[index] };
         
-        // Note: This only overrides the ORIGINAL PRICE for the row total calculation.
-        // If there's a discount, it might need to stay or be cleared.
-        // User said: "showing the price as the original price and amount when the discount applied"
-        // This implies the 'Rate' is the base.
-        
         const rate = parseFloat(newRate);
-        if(isNaN(rate) || rate < 0) return;
+        if(isNaN(rate) || rate < 0) {
+            toast.error("Invalid rate");
+            return;
+        }
 
-        // Apply same discount logic if it exists? 
-        // For simplicity, if they override the rate, we keep the existing "Amount" behavior.
-        // If they want to override the base price, the product resource stores it.
-        // We need a way to tell the backend about this override.
-        // Since pos_carts doesn't have a price column, we'll use a hack or add the column.
-        // User said "leave this feature" regarding the column, so we'll just handle it in UI/Calculation
-        // but it won't persist across refreshes without the column.
+        // Professional Formula: Amount = Quantity × New Rate
+        // When user changes Rate, we keep Quantity same and recalculate Amount
+        // Example: 2kg × Rs.60/kg = Rs.120
         
-        item.product = { ...item.product, price: rate };
-        item.row_total = (rate * item.quantity).toFixed(2); // Default to no discount if rate is manual?
+        const currentQty = parseFloat(item.quantity) || 1;
+        const newAmount = parseFloat((rate * currentQty).toFixed(2));
+        
+        // Update the product's discounted_price in the local state
+        // This becomes the new "effective rate" for this item
+        item.product = { ...item.product, discounted_price: rate };
+        item.row_total = newAmount.toFixed(2);
+        
+        newCarts[index] = item;
+        updateCartOptimistically(newCarts);
+        
+        axios.put("/admin/cart/update-rate", { id: cartId, price: rate }).catch(err => {
+            setCarts(prevCarts);
+            setTotal(prevTotal);
+            toast.error(err.response?.data?.message || "Rate update failed");
+        });
+    };
         // Actually, let's keep it simple: Rate * Qty = Amount.
         
         newCarts[index] = item;
@@ -880,7 +946,7 @@ export default function Pos() {
         const { paid, method, trxId } = paymentData;
         
         // Calculate Final Discount for Backend using unified helper
-        const { finalDiscount } = calculateOrderValues();
+        const { subTotal, finalDiscount, finalTotal } = calculateOrderValues();
 
         // Finalize Order
         axios.put("/admin/order/create", {

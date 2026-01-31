@@ -94,8 +94,29 @@ a:hover {
     background: var(--primary-color) !important;
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
-    color: var(--white) !important;
+    color: #ffffff !important;
     box-shadow: none !important;
+}
+
+/* Ensure all buttons have visible text */
+.btn {
+    color: inherit;
+}
+
+.btn-primary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.btn-info,
+.btn-dark {
+    color: #ffffff !important;
+}
+
+.btn-light,
+.btn-white {
+    color: #333333 !important;
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
 }
 
 .btn-primary:hover,
@@ -236,8 +257,8 @@ a:hover {
 
 
 .brand-link {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
 .brand-text {
@@ -355,13 +376,24 @@ body.sidebar-collapse .sidebar-hover-trigger:hover ~ .wrapper .main-sidebar,
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* Hide Scrollbar (Clean Look) */
-.sidebar::-webkit-scrollbar {
-    width: 0px;
-    background: transparent;
+.sidebar::-webkit-scrollbar,
+.main-sidebar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+}
+
+.sidebar,
+.main-sidebar {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
 }
 
 .nav-header {
-    color: rgba(255, 255, 255, 0.5) !important;
+    color: #888 !important;
+    font-weight: 700 !important;
+    font-size: 0.7rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
 }
 
 /* Sidebar Treeview */
