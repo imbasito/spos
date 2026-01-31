@@ -78,7 +78,7 @@ class RefundController extends Controller
             'order_id' => 'required|exists:orders,id',
             'items' => 'required|array|min:1',
             'items.*.order_product_id' => 'required|exists:order_products,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.001',
         ]);
 
         try {
@@ -99,19 +99,28 @@ class RefundController extends Controller
                 
                 // Calculate already returned quantity to verify availability
                 $alreadyReturned = ReturnItem::where('order_product_id', $orderProduct->id)->sum('quantity');
-                $availableQty = $orderProduct->quantity - $alreadyReturned;
+                $availableQty = round($orderProduct->quantity - $alreadyReturned, 3);
                 
-                $quantity = min($item['quantity'], $availableQty); 
+                // Validate requested quantity
+                $quantity = round($item['quantity'], 3);
+                
+                if ($quantity <= 0) {
+                    continue;
+                }
+                
+                if ($quantity > $availableQty) {
+                    throw new \Exception("Return quantity ({$quantity}) exceeds available quantity ({$availableQty}) for product: {$orderProduct->product->name}");
+                }
 
-                if ($quantity <= 0) continue;
-
-                // Calculate refund amount for this item (exact proportional refund based on original line total)
-                $pricePerUnit = $orderProduct->total / $orderProduct->quantity;
+                // Calculate refund amount for this item with proper precision
+                // Step 1: Get base price per unit from original line item
+                $pricePerUnit = round($orderProduct->total / $orderProduct->quantity, 4);
+                
+                // Step 2: Calculate line refund amount
                 $lineRefundAmount = $pricePerUnit * $quantity;
                 
-                // ADJUST FOR GLOBAL ORDER DISCOUNT:
-                // If there was an order-level discount, we must refund proportionally to what was actually paid.
-                // Formula: Adjusted Refund = LineRefund * (OrderTotal / OrderSubTotal)
+                // Step 3: Apply order-level discount adjustment factor
+                // This ensures if order had a discount, the refund reflects what was actually paid
                 $adjustmentFactor = ($order->sub_total > 0) ? ($order->total / $order->sub_total) : 1;
                 $refundAmount = round($lineRefundAmount * $adjustmentFactor, 2);
                 
@@ -134,33 +143,34 @@ class RefundController extends Controller
                 }
             }
 
-            // 1. Update Order Total
-            $oldTotal = $order->total;
-            $newTotal = max(0, $oldTotal - $totalRefund);
+            // 1. Update Order Total (with precision)
+            $oldTotal = round($order->total, 2);
+            $newTotal = round(max(0, $oldTotal - $totalRefund), 2);
             $order->total = $newTotal;
 
-            // 2. Adjust Balance (The "Professional" Due Logic)
-            // If the customer has a Due balance, we should clear the debt FIRST 
-            // before giving them any actual cash back.
+            // 2. Adjust Balance with Professional Due Logic
+            // Priority: Clear customer debt FIRST before giving cash back
             $cashBack = 0;
-            if ($order->due > 0) {
-                if ($totalRefund <= $order->due) {
-                    // Refund is less than or equal to debt: Just reduce the debt
-                    $order->due -= $totalRefund;
-                    $cashBack = 0; // No cash leaves the drawer
+            $oldDue = round($order->due, 2);
+            
+            if ($oldDue > 0) {
+                if ($totalRefund <= $oldDue) {
+                    // Refund clears partial or full debt
+                    $order->due = round($oldDue - $totalRefund, 2);
+                    $cashBack = 0; // No cash returned
                 } else {
-                    // Refund is more than debt: Clear debt and return remaining as cash
-                    $cashBack = $totalRefund - $order->due;
+                    // Refund exceeds debt: Clear debt and calculate cash back
+                    $cashBack = round($totalRefund - $oldDue, 2);
                     $order->due = 0;
                 }
             } else {
-                // No debt: Full refund amount is cash back
+                // No debt: Full refund is cash back
                 $cashBack = $totalRefund;
             }
             
-            // 3. Update Order Paid (Reflection of actual money kept)
-            $order->paid = max(0, $newTotal - $order->due);
-            $order->status = $order->due <= 0;
+            // 3. Update Order Paid (reflects actual money kept by store)
+            $order->paid = round(max(0, $newTotal - $order->due), 2);
+            $order->status = $order->due <= 0.01; // Consider paid if due is negligible
             $order->save();
 
             // Note: We are no longer creating a negative OrderTransaction to avoid SQL errors 
@@ -252,16 +262,16 @@ class RefundController extends Controller
 
                         return [
                             'name' => $item->product->name ?? 'Product',
-                            'qty' => $item->quantity,
+                            'qty' => number_format($qty, 2),
                             'price' => number_format($unitPrice, 2),
                             'total' => number_format($refundAmt, 2)
                         ];
                     }),
-                    'total' => number_format($return->total_refund, 2),
                     'order_summary' => [
-                        'original_total' => number_format($order->sub_total - $order->discount, 2),
+                        'original_total' => number_format($order->sub_total, 2),
                         'total_refunded' => number_format($totalRefundedSoFar, 2),
-                        'adjusted_total' => number_format($order->total, 2)
+                        'adjusted_total' => number_format($order->total, 2),
+                        'customer_due' => number_format($order->due, 2)
                     ],
                     'config' => [
                         'site_name' => readConfig('site_name'),

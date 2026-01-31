@@ -161,6 +161,10 @@
       openReceiptModal(url);
   }
 
+  function openRefundReceipt(url) {
+      openReceiptModal(url);
+  }
+
   function openReceiptModal(url) {
       const frame = document.getElementById('receiptFrame');
       const loader = document.getElementById('receiptLoader');

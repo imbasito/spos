@@ -523,6 +523,11 @@ function setupAutoUpdater() {
         const { url, printerName, htmlContent, jsonData } = options;
         console.log(`[PRINT REQUEST]: ${jsonData ? 'Headless JSON (ESC/POS)' : 'Legacy HTML'}`);
         
+        // DEBUG: Log the actual data structure
+        if (jsonData && jsonData.type !== 'barcode') {
+            console.log('[DEBUG] Print Data:', JSON.stringify(jsonData, null, 2));
+        }
+        
         // --- AUTO-RESOLVE PRINTER (DRIVER MISMATCH FIX) ---
         // Prevents silent failure if 'POS80' is missing but 'Thermal Printer' is default.
         const targetPrinter = await resolvePrinter(printerName); 

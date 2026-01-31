@@ -12,7 +12,17 @@ class RawReceiptGenerator {
     }
 
     async generate(data) {
-        const { id, staff, customer, items, sub_total, discount, total, paid, due, change, payment_method, config } = data;
+        // Handle both POS and Refund data structures
+        let { id, staff, customer, items, sub_total, discount, total, paid, due, change, payment_method, config } = data;
+        
+        // For refunds, extract from order_summary if not at root level
+        if (data.type === 'refund' && data.order_summary) {
+            // Don't override if already set, but populate from order_summary if missing
+            sub_total = sub_total || data.order_summary.original_total;
+            total = total || data.order_summary.adjusted_total;
+            // Refunds don't have discount/paid/due at transaction level, use order values
+        }
+        
         const width = 42; 
 
         const now = new Date();
@@ -120,7 +130,7 @@ class RawReceiptGenerator {
                              .bold(true).line("ORDER SUMMARY (ADJUSTED)")
                              .bold(false).line(this.twoColumn("Original Total:", data.order_summary.original_total, width))
                              .line(this.twoColumn("Total Refunded:", data.order_summary.total_refunded, width))
-                             .bold(true).line(this.twoColumn("Final Balance:", data.order_summary.adjusted_total, width)).bold(false);
+                             .bold(true).line(this.twoColumn("Adjusted Total:", data.order_summary.adjusted_total, width)).bold(false);
         } else {
             encoder = encoder.line(this.twoColumn("Gross Total:", sub_total.toString(), width));
             const discVal = discount ? parseFloat(discount) : 0;

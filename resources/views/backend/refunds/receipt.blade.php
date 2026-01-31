@@ -116,6 +116,10 @@
       </thead>
       <tbody>
         @foreach ($return->items as $item)
+        @php
+            $unitPrice = ($item->quantity > 0) ? round($item->refund_amount / $item->quantity, 2) : 0;
+            $displayQty = number_format($item->quantity, 2);
+        @endphp
         <tr>
           <td>
             <div style="line-height: 1.2;">
@@ -123,9 +127,9 @@
             </div>
           </td>
           <td class="qty-cell">
-            <span class="new-qty">x{{ number_format($item->quantity, 0) }}</span>
+            <span class="new-qty">x{{ $displayQty }}</span>
           </td>
-          <td class="text-right price-col">{{ number_format(($item->refund_amount / ($item->quantity > 0 ? $item->quantity : 1)), 2) }}</td>
+          <td class="text-right price-col">{{ number_format($unitPrice, 2) }}</td>
           <td class="text-right amt-col">
             <span class="new-qty font-bold">{{ number_format($item->refund_amount, 2) }}</span>
           </td>
@@ -145,24 +149,72 @@
     </table>
     
     <div class="divider"></div>
-    <div class="text-center font-bold mb-2">ORDER STATUS</div>
+    <div class="text-center font-bold mb-2" style="font-size: 11px; letter-spacing: 1px;">TRANSACTION SUMMARY</div>
 
-    <table>
+    <table style="font-size: 11px;">
         <tr>
-            <td class="text-right" width="60%">Original Total:</td>
-            <td class="text-right" width="40%">{{ number_format($return->original_order_total + $return->order->discount, 2) }}</td>
-        </tr>
-        <tr>
-            <td class="text-right">Total Refunded:</td>
-            <td class="text-right">{{ number_format($return->order_total_refunded, 2) }}</td>
+            <td class="text-right" width="60%">Original Order Total:</td>
+            <td class="text-right font-bold" width="40%">{{ number_format($return->order->sub_total, 2) }}</td>
         </tr>
         <tr class="grand-total">
-            <td class="text-left" style="font-size: 13px;">FINAL BALANCE</td>
-            <td class="text-right" style="font-size: 16px;">{{ number_format($return->order->total, 2) }}</td>
+            <td class="text-left" style="font-size: 13px;">TOTAL REFUND</td>
+            <td class="text-right" style="font-size: 16px; color: #d00;">-{{ number_format($return->order_total_refunded, 2) }}</td>
         </tr>
+        <tr style="border-top: 1.5px solid #000; padding-top: 6px;">
+            <td class="text-left font-bold" style="font-size: 13px; padding-top: 8px;">ADJUSTED TOTAL</td>
+            <td class="text-right font-bold" style="font-size: 16px; padding-top: 8px;">{{ number_format($return->order->total, 2) }}</td>
+        </tr>
+        @if($return->order->due > 0)
+        <tr>
+            <td class="text-right text-xs" style="color: #666; padding-top: 4px;">Customer Due:</td>
+            <td class="text-right text-xs" style="color: #d00; padding-top: 4px;">{{ number_format($return->order->due, 2) }}</td>
+        </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
+    
+    @php
+        // Calculate cash back information
+        $cashBack = 0;
+        $debtCleared = 0;
+        
+        // Get current due and total refunded
+        $currentDue = $return->order->due;
+        $totalRefunded = $return->order_total_refunded;
+        
+        // Logic: If there's no debt now, the refund was returned as cash
+        if ($currentDue <= 0) {
+            $cashBack = $totalRefunded;
+        } else {
+            // There's still debt, so refund went to clearing debt
+            $debtCleared = $totalRefunded;
+        }
+    @endphp
+    
+    @if($cashBack > 0)
+    <div class="text-center font-bold" style="margin: 8px 0; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+        CASH RETURNED: <span style="font-size: 15px; color: #d00;">{{ number_format($cashBack, 2) }}</span>
+    </div>
+    @endif
+    
+    @if($debtCleared > 0 && $currentDue > 0)
+    <div class="text-center text-xs" style="margin: 4px 0; color: #666;">
+        (Refund applied to outstanding balance)
+    </div>
+    @endif
+    
+    <div class="text-center text-xs" style="margin-top: 12px; line-height: 1.4;">
+        Processed by: <strong>{{ optional($return->processedBy)->name ?? 'Admin' }}</strong><br>
+        Date: {{ $return->created_at->format('d M Y, h:i A') }}
+    </div>
+    
+    <div class="divider"></div>
+    
+    <div class="text-center text-xs" style="margin-top: 8px; line-height: 1.5;">
+        Thank you for your understanding.<br>
+        Please keep this receipt for your records.
+    </div>
     
     <div class="text-center font-bold text-xs" style="margin-top: 15px;">Software by SINYX<br>Contact: +92 342 9031328</div>
   </div>

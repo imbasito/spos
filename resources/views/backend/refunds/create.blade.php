@@ -32,26 +32,31 @@
                 </thead>
                 <tbody>
                     @foreach($order->products as $item)
-                    @php $isAvailable = $item->available_qty > 0; @endphp
+                    @php 
+                        $isAvailable = $item->available_qty > 0;
+                        // Calculate unit price with proper precision (considering order discount)
+                        $adjustmentFactor = ($order->sub_total > 0) ? ($order->total / $order->sub_total) : 1;
+                        $unitPrice = round(($item->total / $item->quantity) * $adjustmentFactor, 2);
+                    @endphp
                     <tr data-item-id="{{ $item->id }}" class="{{ !$isAvailable ? 'bg-light text-muted' : '' }}" style="transition: all 0.2s;">
                         <td class="align-middle px-3">
                             <input type="checkbox" class="item-checkbox" 
                                    data-order-product-id="{{ $item->id }}"
-                                   data-max-qty="{{ (int)$item->available_qty }}"
-                                   data-unit-price="{{ $item->total / $item->quantity }}"
+                                   data-max-qty="{{ number_format($item->available_qty, 3, '.', '') }}"
+                                   data-unit-price="{{ number_format($unitPrice, 2, '.', '') }}"
                                    {{ !$isAvailable ? 'disabled' : '' }}
                                    style="transform: scale(1.2);">
                         </td>
                         <td class="align-middle">
                             <div class="font-weight-bold text-dark">{{ $item->product->name ?? 'Deleted Product' }}</div>
-                            <small class="text-muted">Price: {{ number_format($item->total / $item->quantity, 2) }}</small>
+                            <small class="text-muted">Unit Price: {{ number_format($unitPrice, 2) }}</small>
                         </td>
-                        <td class="text-center align-middle font-weight-bold">{{ number_format($item->quantity, 0) }}</td>
-                        <td class="text-center align-middle text-danger">{{ number_format($item->returned_qty, 0) }}</td>
+                        <td class="text-center align-middle font-weight-bold">{{ number_format($item->quantity, 2) }}</td>
+                        <td class="text-center align-middle text-danger">{{ number_format($item->returned_qty, 2) }}</td>
                         <td class="align-middle">
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control form-control-sm return-qty text-center font-weight-bold"
-                                       min="0" max="{{ (int)$item->available_qty }}" step="1" value="0"
+                                       min="0" max="{{ number_format($item->available_qty, 3, '.', '') }}" step="0.001" value="0"
                                        disabled data-order-product-id="{{ $item->id }}"
                                        style="border-radius: 4px; border: 1px solid #ced4da;">
                             </div>
@@ -126,8 +131,8 @@ $(function() {
         const checkbox = row.find('.item-checkbox');
         const qtyInput = row.find('.return-qty');
         const unitPrice = parseFloat(checkbox.data('unit-price'));
-        const qty = parseInt(qtyInput.val()) || 0;
-        const refund = qty * unitPrice;
+        const qty = parseFloat(qtyInput.val()) || 0;
+        const refund = Math.round(qty * unitPrice * 100) / 100; // Precise 2-decimal rounding
         row.find('.refund-amount').text(refund.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
     }
 
@@ -136,19 +141,30 @@ $(function() {
         $('.item-checkbox:checked').each(function() {
             const row = $(this).closest('tr');
             const unitPrice = parseFloat($(this).data('unit-price'));
-            const qty = parseInt(row.find('.return-qty').val()) || 0;
-            total += (qty * unitPrice);
+            const qty = parseFloat(row.find('.return-qty').val()) || 0;
+            total += Math.round(qty * unitPrice * 100) / 100;
         });
         $('#total-refund').text(total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
     }
 
     window.submitRefund = function() {
         const items = [];
+        let totalRefundAmount = 0;
+        
         $('.item-checkbox:checked').each(function() {
+            const row = $(this).closest('tr');
             const orderProductId = $(this).data('order-product-id');
-            const qty = parseInt($(this).closest('tr').find('.return-qty').val()) || 0;
+            const qty = parseFloat(row.find('.return-qty').val()) || 0;
+            const maxQty = parseFloat($(this).data('max-qty'));
+            
             if (qty > 0) {
+                if (qty > maxQty) {
+                    Swal.fire({ icon: 'error', title: 'Invalid Quantity', text: 'Return quantity exceeds available quantity for: ' + row.find('.font-weight-bold').text() });
+                    return false;
+                }
                 items.push({ order_product_id: orderProductId, quantity: qty });
+                const unitPrice = parseFloat($(this).data('unit-price'));
+                totalRefundAmount += Math.round(qty * unitPrice * 100) / 100;
             }
         });
 
@@ -156,17 +172,53 @@ $(function() {
             Swal.fire({ icon: 'warning', title: 'Selection Empty', text: 'Please select at least one item to refund.' });
             return;
         }
+        
+        // Calculate cash back vs debt clearance
+        const orderDue = {{ $order->due }};
+        let cashBackAmount = 0;
+        let debtClearance = 0;
+        
+        if (orderDue > 0) {
+            if (totalRefundAmount <= orderDue) {
+                debtClearance = totalRefundAmount;
+                cashBackAmount = 0;
+            } else {
+                debtClearance = orderDue;
+                cashBackAmount = totalRefundAmount - orderDue;
+            }
+        } else {
+            cashBackAmount = totalRefundAmount;
+        }
+        
+        // Show confirmation with cash back details
+        let confirmMsg = 'Total Refund: Rs.' + totalRefundAmount.toFixed(2);
+        if (debtClearance > 0) {
+            confirmMsg += '\n\nDebt Cleared: Rs.' + debtClearance.toFixed(2);
+        }
+        if (cashBackAmount > 0) {
+            confirmMsg += '\nCash to Return: Rs.' + cashBackAmount.toFixed(2);
+        }
+        
+        Swal.fire({
+            icon: 'question',
+            title: 'Confirm Refund',
+            html: confirmMsg.replace(/\n/g, '<br>'),
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Process Refund',
+            confirmButtonColor: '#800000'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
 
-        const formData = {
-            _token: '{{ csrf_token() }}',
-            order_id: {{ $order->id }},
-            items: items
-        };
+            const formData = {
+                _token: '{{ csrf_token() }}',
+                order_id: {{ $order->id }},
+                items: items
+            };
 
-        // UI Loading State
-        const btn = $('#confirm-refund-btn');
-        const originalHtml = btn.html();
-        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+            // UI Loading State
+            const btn = $('#confirm-refund-btn');
+            const originalHtml = btn.html();
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
 
         $.ajax({
             url: '{{ route("backend.admin.refunds.store") }}',
@@ -195,6 +247,7 @@ $(function() {
                 const errorMsg = xhr.responseJSON?.error || 'Failed to process refund.';
                 Swal.fire({ icon: 'error', title: 'Error', text: errorMsg });
             }
+        });
         });
     }
 });

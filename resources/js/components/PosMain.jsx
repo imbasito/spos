@@ -835,16 +835,31 @@ export default function Pos() {
             });
     };
 
-    // 6. Update By Price (Optimistic)
+    // 6. Update By Price (Robust Server-First)
     const handleUpdateByPrice = (cartId, targetTotal) => {
-        const item = carts.find(c => c.id === cartId);
-        if (!item) return;
+        if (isProcessing.current) return;
+        isProcessing.current = true;
 
-        // Formula: NewQty = TargetTotal / Rate
-        const rate = parseFloat(item.product.discounted_price);
-        const newQty = (parseFloat(targetTotal) / rate).toFixed(3);
-        
-        handleUpdateQuantity(cartId, newQty);
+        const parsedTotal = parseFloat(targetTotal);
+        if (isNaN(parsedTotal) || parsedTotal < 0) {
+            toast.error("Invalid amount");
+            isProcessing.current = false;
+            return;
+        }
+
+        axios.put("/admin/cart/update-by-price", { 
+            id: cartId, 
+            price: parsedTotal 
+        })
+        .then(() => {
+            getCarts();
+        })
+        .catch(err => {
+            toast.error(err.response?.data?.message || "Amount update failed");
+        })
+        .finally(() => {
+            isProcessing.current = false;
+        });
     };
 
     // 7. Update Rate (Unified Server-First)
