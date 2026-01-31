@@ -38,6 +38,14 @@ use App\Models\Supplier;
 
 // homepage
 Route::get('/', function () {
+    // Check if first-run activation is pending
+    $firstRunPending = file_exists(storage_path('app/first_run_pending'));
+    $activated = file_exists(storage_path('app/activated_at'));
+    
+    if ($firstRunPending && !$activated) {
+        return redirect()->route('license.activate.show');
+    }
+    
     return to_route('login');
 })->name('frontend.home');
 

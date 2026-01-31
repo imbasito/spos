@@ -27,6 +27,14 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // Check if first-run activation is pending
+        $firstRunPending = file_exists(storage_path('app/first_run_pending'));
+        $activated = file_exists(storage_path('app/activated_at'));
+        
+        if ($firstRunPending && !$activated && !$request->isMethod('post')) {
+            return redirect()->route('license.activate.show');
+        }
+        
         if ($request->isMethod('post')) {
 
             $request->validate(

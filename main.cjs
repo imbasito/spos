@@ -49,11 +49,15 @@ class Logger {
     log(message, level = 'INFO') {
         const timestamp = new Date().toISOString();
         const logEntry = `[${timestamp}] [${level}] ${message}\n`;
-        console.log(logEntry.trim());
+        try {
+            console.log(logEntry.trim());
+        } catch (e) {
+            // Ignore EPIPE errors when console is closed
+        }
         try {
             fs.appendFileSync(this.logFile, logEntry);
         } catch (err) {
-            console.error('Failed to write to log file:', err);
+            // Silently fail if log file write fails
         }
     }
 
