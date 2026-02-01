@@ -1,5 +1,5 @@
-# Professional .gitignore for SPOS
-# Clean repository with organized structure
+# Professional .gitignore for Mithai POS
+# Excludes local environments and heavy software engines
 
 # Laravel / PHP
 /.phpunit.cache
@@ -41,14 +41,10 @@ last_logs.txt
 /mysql/
 /mysql_data_backups/
 
-# Development & Testing Files (Organized)
-/.dev-tools/
-/.build-scripts/
+# Organized Folders (Development Tools & Archives)
 /.archive/
-
-# Generated Documentation
-/SPOS_USER_MANUAL.html
-/SPOS_USER_MANUAL.pdf
+/.build-scripts/
+/.dev-tools/
 
 # IDE / System
 /.fleet
