@@ -38,16 +38,21 @@ use App\Models\Supplier;
 
 // homepage
 Route::get('/', function () {
-    // Check if first-run activation is pending
-    $firstRunPending = file_exists(storage_path('app/first_run_pending'));
-    $activated = file_exists(storage_path('app/activated_at'));
-    
-    if ($firstRunPending && !$activated) {
+    // Check license activation
+    if (!\App\Helpers\LicenseHelper::isActivated()) {
         return redirect()->route('license.activate.show');
     }
     
     return to_route('login');
 })->name('frontend.home');
+
+// API endpoint for license check (used by Electron)
+Route::get('/api/license-check', function () {
+    $activated = \App\Helpers\LicenseHelper::isActivated();
+    return response()->json([
+        'activated' => $activated,
+    ]);
+});
 
 // Standalone Activation routes (Public)
 Route::get('/activate', [\App\Http\Controllers\Backend\LicenseController::class, 'showActivate'])->name('license.activate.show');

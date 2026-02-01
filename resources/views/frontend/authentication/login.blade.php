@@ -1,3 +1,10 @@
+@php
+    // Redirect to license activation if not activated
+    if (!\App\Helpers\LicenseHelper::isActivated()) {
+        header('Location: ' . route('license.activate.show'));
+        exit;
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 

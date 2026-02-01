@@ -16,7 +16,8 @@ return new class extends Migration
             $table->string('name'); // Currency name, e.g., 'US Dollar'
             $table->string('code')->unique(); // Currency code, e.g., 'USD'
             $table->string('symbol'); // Currency symbol, e.g., '$'
-            $table->boolean('active')->default(false); 
+            $table->boolean('active')->default(false);
+            $table->boolean('is_default')->default(false);
             $table->timestamps();
         });
     }

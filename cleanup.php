@@ -84,10 +84,23 @@ if (file_exists($dbPath)) {
     echo "Created fresh database.sqlite\n";
 }
 
-// 7. Clear MySQL data folder (if exists in dev)
+// 7. Clear SPOS MySQL database only (preserve MySQL system databases)
 $mysqlDataPath = $root . '/mysql/data';
-if (is_dir($mysqlDataPath)) {
-    echo "MySQL data folder exists - will be freshly initialized on first run\n";
+$sposDbPath = $mysqlDataPath . '/spos';
+if (is_dir($sposDbPath)) {
+    echo "Deleting SPOS database...\n";
+    $files = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($sposDbPath, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($files as $fileinfo) {
+        $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+        @$todo($fileinfo->getRealPath());
+    }
+    @rmdir($sposDbPath);
+    echo "SPOS database deleted successfully.\n";
+} else {
+    echo "SPOS database not found (already clean).\n";
 }
 
 // 8. Copy Production .env

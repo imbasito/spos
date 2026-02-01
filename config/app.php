@@ -17,7 +17,7 @@ return [
     */
 
     'name' => env('APP_NAME', 'SPOS'),
-    'version' => json_decode(file_get_contents(base_path('package.json')))->version ?? '1.0.5',
+    'version' => '1.0.5',
 
     /*
     |--------------------------------------------------------------------------

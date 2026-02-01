@@ -59,7 +59,7 @@
     "productName": "SPOS",
     "artifactName": "SPOS-Setup-${version}.${ext}",
     "copyright": "Copyright © 2026 SINYX. All Rights Reserved.",
-    "compression": "maximum",
+    "compression": "normal",
     "directories": {
       "output": "dist_production",
       "buildResources": "build"

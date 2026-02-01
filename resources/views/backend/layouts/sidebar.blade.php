@@ -115,11 +115,24 @@ $route = request()->route()->getName();
             @can('reports_summary')
             <li class="nav-item">
                 <a href="{{route('backend.admin.sale.summery')}}"
-                    class="nav-link {{ request()->routeIs(['backend.admin.sale.*', 'backend.admin.inventory.report', 'backend.admin.report.*', 'backend.admin.refund.report']) ? 'active' : '' }}">
+                    class="nav-link {{ request()->routeIs(['backend.admin.sale.*']) ? 'active' : '' }}">
                     <i class="fas fa-chart-pie nav-icon"></i>
                     <p>Sales Summary</p>
                 </a>
             </li>
+            @endcan
+            
+            @can('reports_inventory')
+            <li class="nav-item">
+                <a href="{{route('backend.admin.inventory.report')}}"
+                    class="nav-link {{ request()->routeIs(['backend.admin.inventory.report']) ? 'active' : '' }}">
+                    <i class="fas fa-boxes nav-icon"></i>
+                    <p>Inventory</p>
+                </a>
+            </li>
+            @endcan
+            
+            @can('reports_summary')
             <li class="nav-item">
                 <a href="{{route('backend.admin.report.daily.history')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.report.daily.*']) ? 'active' : '' }}">

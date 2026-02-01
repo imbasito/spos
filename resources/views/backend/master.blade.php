@@ -316,6 +316,59 @@
             margin-top: 50px;
             text-align: center;
         }
+        
+        /* BUTTON COLOR FIX */
+        .btn-primary, .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+            background-color: #800000 !important;
+            border-color: #800000 !important;
+            color: #ffffff !important;
+        }
+        .btn-success, .btn-success:hover, .btn-success:focus {
+            background-color: #28a745 !important;
+            border-color: #28a745 !important;
+            color: #ffffff !important;
+        }
+        .btn-danger, .btn-danger:hover, .btn-danger:focus {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            color: #ffffff !important;
+        }
+        .btn-info, .btn-info:hover, .btn-info:focus {
+            background-color: #17a2b8 !important;
+            border-color: #17a2b8 !important;
+            color: #ffffff !important;
+        }
+        .btn-warning, .btn-warning:hover, .btn-warning:focus {
+            background-color: #ffc107 !important;
+            border-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        
+        /* DataTables export buttons (Excel, CSV, PDF, Print) */
+        .dt-button, .dt-buttons .btn, .buttons-html5, .buttons-print, .buttons-csv, .buttons-excel, .buttons-pdf {
+            background-color: #f8f9fa !important;
+            background: #f8f9fa !important;
+            border: 1px solid #dee2e6 !important;
+            color: #333333 !important;
+        }
+        .dt-button:hover, .dt-buttons .btn:hover {
+            background-color: #e2e6ea !important;
+            background: #e2e6ea !important;
+            color: #000000 !important;
+        }
+        
+        /* Custom Apple-style buttons */
+        .btn-apple, .btn-apple-primary {
+            background-color: #800000 !important;
+            background: #800000 !important;
+            border-color: #800000 !important;
+            color: #ffffff !important;
+        }
+        .btn-apple:hover, .btn-apple-primary:hover {
+            background-color: #5C0000 !important;
+            background: #5C0000 !important;
+            color: #ffffff !important;
+        }
     </style>
     @stack('style')
     @viteReactRefresh

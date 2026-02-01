@@ -32,7 +32,21 @@ const MYSQL_PORT = 3307;
 
 let laravelPort = 8000;
 
-const basePath = app.isPackaged ? process.resourcesPath : __dirname;
+// Determine base path - handle both packaged and unpacked scenarios
+let basePath;
+if (app.isPackaged) {
+    basePath = process.resourcesPath;
+} else {
+    // Check if we're running from dist_production (win-unpacked)
+    if (__dirname.includes('dist_production')) {
+        basePath = __dirname;
+    } else {
+        // Development mode
+        basePath = __dirname;
+    }
+}
+
+// Temporary debug - will be logged after Logger is initialized
 
 // ============================================
 // PROFESSIONAL LOG MANAGEMENT (Black Box)
@@ -98,6 +112,14 @@ class Logger {
     }
 }
 const logger = new Logger();
+
+// Log basePath information for debugging
+logger.log('=== BASEPATH DEBUG ===');
+logger.log('app.isPackaged: ' + app.isPackaged);
+logger.log('process.resourcesPath: ' + process.resourcesPath);
+logger.log('__dirname: ' + __dirname);
+logger.log('FINAL basePath: ' + basePath);
+logger.log('======================');
 
 // ============================================
 
@@ -341,6 +363,67 @@ function startLaravel(port) {
 }
 
 /**
+ * Creates the spos database if it doesn't exist
+ */
+function createDatabase() {
+    return new Promise((resolve, reject) => {
+        logger.log('Ensuring spos database exists...');
+        const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysql.exe');
+        
+        // First, drop the database if it exists (to clear any corruption)
+        const dropDbProcess = spawn(mysqlPath, [
+            '-u', 'root',
+            '-P', MYSQL_PORT,
+            '--protocol=TCP',
+            '-e', 'DROP DATABASE IF EXISTS spos;'
+        ], { 
+            cwd: basePath, 
+            windowsHide: true
+        });
+
+        dropDbProcess.on('close', (dropCode) => {
+            // Now create fresh database
+            const createDbProcess = spawn(mysqlPath, [
+                '-u', 'root',
+                '-P', MYSQL_PORT,
+                '--protocol=TCP',
+                '-e', 'CREATE DATABASE spos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+            ], { 
+                cwd: basePath, 
+                windowsHide: true
+            });
+
+            let dbOutput = '';
+            let dbErrors = '';
+
+            createDbProcess.stdout.on('data', (data) => {
+                dbOutput += data.toString();
+                logger.log(`[DB CREATE]: ${data}`);
+            });
+            
+            createDbProcess.stderr.on('data', (data) => {
+                const msg = data.toString();
+                // Ignore warnings, only log actual errors
+                if (!msg.includes('Warning:')) {
+                    dbErrors += msg;
+                    logger.error(`[DB CREATE ERROR]: ${msg}`);
+                }
+            });
+
+            createDbProcess.on('close', (code) => {
+                if (code !== 0 && dbErrors) {
+                    logger.error('Failed to create database');
+                    reject(new Error('Database creation failed'));
+                    return;
+                }
+                logger.log('Database ready');
+                resolve();
+            });
+        });
+    });
+}
+
+/**
  * AUTO-MIGRATION ENGINE
  * Ensures database schema is ALWAYS in sync with the current code.
  * Runs 'php artisan migrate --force' silently on startup.
@@ -406,17 +489,29 @@ function runMigrations() {
                     logger.warn('Seeder reported issues, but continuing startup...');
                 }
                 
-                // --- Clear View Cache to ensure UI updates apply ---
-                logger.log('Clearing view cache...');
-                const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                // --- Clear Permission Cache (Spatie) ---
+                logger.log('Clearing permission cache...');
+                const permClearProcess = spawn(phpPath, ['artisan', 'permission:cache-reset'], {
                     cwd: basePath, 
                     windowsHide: true,
-                    env: { ...process.env } 
+                    env: { ...process.env, DB_PORT: MYSQL_PORT } 
                 });
                 
-                clearProcess.on('close', () => {
-                    logger.log('View cache cleared.');
-                    resolve();
+                permClearProcess.on('close', () => {
+                    logger.log('Permission cache cleared.');
+                    
+                    // --- Clear View Cache to ensure UI updates apply ---
+                    logger.log('Clearing view cache...');
+                    const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                        cwd: basePath, 
+                        windowsHide: true,
+                        env: { ...process.env } 
+                    });
+                    
+                    clearProcess.on('close', () => {
+                        logger.log('View cache cleared.');
+                        resolve();
+                    });
                 });
             });
         });
@@ -444,6 +539,22 @@ function createMainWindow() {
         }
     });
     mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
+    
+    // Check license after page loads and redirect if not activated
+    mainWindow.webContents.on('did-finish-load', () => {
+        // Inject JavaScript to check license status from the page itself
+        mainWindow.webContents.executeJavaScript(`
+            fetch('/api/license-check')
+                .then(r => r.json())
+                .then(data => {
+                    console.log('License check result:', data);
+                    if (!data.activated) {
+                        window.location.href = '/activate';
+                    }
+                })
+                .catch(err => console.error('License check failed:', err));
+        `).catch(err => logger.error('Failed to inject license check: ' + err.message));
+    });
     
     mainWindow.once('ready-to-show', async () => {
         if (splashWindow && !splashWindow.isDestroyed()) {
@@ -502,6 +613,7 @@ async function triggerCashDrawer(printerName) {
 // ============================================
 function setupAutoUpdater() {
     autoUpdater.autoDownload = false;
+    ipcMain.on('updater:check', () => autoUpdater.checkForUpdates());
     ipcMain.on('updater:download', () => autoUpdater.downloadUpdate());
     ipcMain.on('updater:install', () => { killProcesses(); autoUpdater.quitAndInstall(); });
     
@@ -699,7 +811,11 @@ async function startApp() {
 
 
         await waitForMySQL(MYSQL_PORT, 45000);
-        logger.log('MySQL connection confirmed - proceeding with migrations');
+        logger.log('MySQL connection confirmed - proceeding with database setup');
+        
+        // --- Create database if it doesn't exist ---
+        updateSplashStatus('Preparing database...');
+        await createDatabase();
         
         // --- NEW: Perform Auto-Migrations ---
         updateSplashStatus('Checking database integrity...');

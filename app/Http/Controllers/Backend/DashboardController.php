@@ -18,9 +18,9 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // Enforce strict Dashboard access control
+        // Redirect non-admin users to POS cart
         if (!auth()->user()->hasRole('Admin')) {
-            return redirect()->route('cart.index');
+            return redirect('/admin/cart');
         }
 
         $orders = Order::get();
