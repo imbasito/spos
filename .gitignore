@@ -45,6 +45,7 @@ last_logs.txt
 /.archive/
 /.build-scripts/
 /.dev-tools/
+/Trash/
 
 # IDE / System
 /.fleet
