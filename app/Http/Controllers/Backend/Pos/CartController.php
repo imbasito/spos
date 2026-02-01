@@ -208,6 +208,7 @@ class CartController extends Controller
                         'price' => $item->price_override ?? $item->product->discounted_price,
                         'quantity' => $item->quantity,
                         'price_override' => $item->price_override,
+                        'row_total_override' => $item->row_total_override,
                     ];
                 });
 
@@ -219,6 +220,26 @@ class CartController extends Controller
             ], JSON_PRETTY_PRINT), LOCK_EX);
         } catch (\Exception $e) {
             \Log::error("Journal Sync Failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete the journal file
+     * Called after successful checkout, restore, or discard
+     */
+    public function deleteJournal()
+    {
+        try {
+            $path = storage_path('app/current_sale.journal');
+            if (File::exists($path)) {
+                File::delete($path);
+                \Log::info('Journal deleted successfully');
+                return response()->json(['message' => 'Journal deleted'], 200);
+            }
+            return response()->json(['message' => 'Journal does not exist'], 204);
+        } catch (\Exception $e) {
+            \Log::error('Journal deletion failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete journal'], 500);
         }
     }
 
@@ -285,10 +306,13 @@ class CartController extends Controller
         $deletedCount = PosCart::where('user_id', auth()->id())->delete();
 
         if ($deletedCount > 0) {
-            $this->syncJournal();
+            // Delete journal file when cart is emptied (discard scenario)
+            $path = storage_path('app/current_sale.journal');
+            if (File::exists($path)) {
+                File::delete($path);
+            }
             return response()->json(['message' => 'Cart successfully cleared'], 200);
         }
-
 
         return response()->json(['message' => 'Cart is already empty'], 204);
     }
@@ -300,12 +324,22 @@ class CartController extends Controller
     public function updateQuantity(Request $request)
     {
         try {
+            \Log::info('updateQuantity called', [
+                'request_data' => $request->all(),
+                'user_id' => auth()->id()
+            ]);
+
             $request->validate([
                 'id' => 'required|integer|exists:pos_carts,id',
                 'quantity' => 'required|numeric|min:0.001|max:9999'
             ]);
 
-            $cart = PosCart::with('product')->findOrFail($request->id);
+            // IMPORTANT: Check ownership - ensure cart belongs to current user
+            $cart = PosCart::where('id', $request->id)
+                ->where('user_id', auth()->id())
+                ->with('product')
+                ->firstOrFail();
+            
             $newQuantity = (float) $request->quantity;
             
             // --- SECURITY: Bounds check ---
@@ -337,15 +371,14 @@ class CartController extends Controller
                 'total' => $newTotal
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Cart updateQuantity error: ' . $e->getMessage(), [
+            \Log::error('updateQuantity error', [
+                'message' => $e->getMessage(),
                 'request' => $request->all(),
+                'user_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json([
-                'message' => 'Update failed: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
-
     }
 
     /**
@@ -408,12 +441,21 @@ class CartController extends Controller
     public function updateRate(Request $request)
     {
         try {
+            \Log::info('updateRate called', [
+                'request_data' => $request->all(),
+                'user_id' => auth()->id()
+            ]);
+
             $request->validate([
                 'id' => 'required|integer|exists:pos_carts,id',
                 'price' => 'required|numeric|min:0|max:9999999'
             ]);
 
-            $cart = PosCart::findOrFail($request->id);
+            // IMPORTANT: Check ownership - ensure cart belongs to current user
+            $cart = PosCart::where('id', $request->id)
+                ->where('user_id', auth()->id())
+                ->firstOrFail();
+            
             $newRate = (float) $request->price;
             
             // Set the price override (new rate)
@@ -433,13 +475,13 @@ class CartController extends Controller
                 'new_amount' => $newAmount
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Cart updateRate error: ' . $e->getMessage(), [
+            \Log::error('updateRate error', [
+                'message' => $e->getMessage(),
                 'request' => $request->all(),
+                'user_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json([
-                'message' => 'Update failed: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
     }
 }

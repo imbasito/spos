@@ -207,8 +207,32 @@ class BackupController extends Controller
             \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
             if ($resultCode === 0) {
-                 \Illuminate\Support\Facades\Cache::flush();
-                return redirect()->back()->with('success', "Restored! Previous data saved as 'bak_{table}_...'");
+                // CRITICAL: Run migrations to update database schema
+                // Old backups may be missing columns like 'row_total_override'
+                try {
+                    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                    \Illuminate\Support\Facades\Log::info('Migrations executed after restore');
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Migration failed after restore: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Restore completed but migration failed: ' . $e->getMessage());
+                }
+                
+                // Clear active POS carts after restore
+                // The restored carts have user_ids from backup that don't match current users
+                try {
+                    \Illuminate\Support\Facades\DB::table('pos_carts')->truncate();
+                    
+                    // Also delete journal file to prevent restore popup with invalid data
+                    $journalPath = storage_path('app/current_sale.journal');
+                    if (File::exists($journalPath)) {
+                        File::delete($journalPath);
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not clear pos_carts after restore: ' . $e->getMessage());
+                }
+                
+                \Illuminate\Support\Facades\Cache::flush();
+                return redirect()->back()->with('success', "Restore completed successfully! Database schema updated. Active POS carts cleared.");
             } else {
                 return redirect()->back()->with('error', "Restore Failed! Old data is safe in 'bak_' tables. Error: " . implode(" ", $output));
             }

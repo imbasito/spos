@@ -370,19 +370,32 @@ function createDatabase() {
         logger.log('Ensuring spos database exists...');
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysql.exe');
         
-        // First, drop the database if it exists (to clear any corruption)
-        const dropDbProcess = spawn(mysqlPath, [
+        // Check if database exists first - DON'T drop existing data!
+        const checkDbProcess = spawn(mysqlPath, [
             '-u', 'root',
             '-P', MYSQL_PORT,
             '--protocol=TCP',
-            '-e', 'DROP DATABASE IF EXISTS spos;'
+            '-e', 'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "spos";'
         ], { 
             cwd: basePath, 
             windowsHide: true
         });
 
-        dropDbProcess.on('close', (dropCode) => {
-            // Now create fresh database
+        let checkOutput = '';
+        checkDbProcess.stdout.on('data', (data) => {
+            checkOutput += data.toString();
+        });
+
+        checkDbProcess.on('close', (code) => {
+            // If database exists (output contains 'spos'), skip creation
+            if (checkOutput.includes('spos')) {
+                logger.log('Database already exists - keeping existing data');
+                resolve();
+                return;
+            }
+
+            // Database doesn't exist - create it
+            logger.log('Creating new database...');
             const createDbProcess = spawn(mysqlPath, [
                 '-u', 'root',
                 '-P', MYSQL_PORT,

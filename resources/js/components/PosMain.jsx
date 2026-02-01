@@ -399,42 +399,73 @@ export default function Pos() {
                     if (result.isConfirmed) {
                         const toastId = toast.loading('Restoring session...');
                         try {
+                            console.log('[RESTORE] Starting restore process...');
+                            console.log('[RESTORE] Journal data:', journal);
+                            
                             // 1. Clear existing cart physically to prevent incrementing existing DB items
+                            console.log('[RESTORE] Step 1: Clearing existing cart...');
                             await axios.put("/admin/cart/empty");
 
                             // 2. Restore items with correct Quantity and Custom Prices
+                            console.log('[RESTORE] Step 2: Restoring', journal.items.length, 'items...');
                             for (const item of journal.items) {
+                                console.log('[RESTORE] Restoring item:', item);
+                                
                                 // Add item first (Creates row with Qty 1)
                                 const addRes = await axios.post('/admin/cart', { id: item.product_id });
+                                console.log('[RESTORE] Add response:', addRes.data);
                                 
                                 if (addRes.data?.cart?.id) {
                                     const cartId = addRes.data.cart.id;
 
-                                    // If quantity differs from 1 (or is fractional), update it
-                                    if (parseFloat(item.quantity) !== 1) {
-                                        await axios.put("/admin/cart/update-quantity", { 
+                                    // If row_total_override exists (user modified Amount column), restore it
+                                    if (item.row_total_override !== undefined && item.row_total_override !== null) {
+                                        console.log('[RESTORE] Updating by price:', cartId, item.row_total_override);
+                                        const priceRes = await axios.put("/admin/cart/update-by-price", { 
                                             id: cartId, 
-                                            quantity: item.quantity 
+                                            price: item.row_total_override 
                                         });
-                                    }
-                                    
-                                    // If price was customized (e.g. Price overrides), restore it
-                                    if (item.price_override !== undefined && item.price_override !== null) {
-                                        await axios.put("/admin/cart/update-rate", { 
-                                            id: cartId, 
-                                            price: item.price_override 
-                                        });
+                                        console.log('[RESTORE] Price update response:', priceRes.data);
+                                    } else {
+                                        // Otherwise restore quantity and rate separately
+                                        // If quantity differs from 1 (or is fractional), update it
+                                        if (parseFloat(item.quantity) !== 1) {
+                                            console.log('[RESTORE] Updating quantity:', cartId, item.quantity);
+                                            const qtyRes = await axios.put("/admin/cart/update-quantity", { 
+                                                id: cartId, 
+                                                quantity: item.quantity 
+                                            });
+                                            console.log('[RESTORE] Quantity update response:', qtyRes.data);
+                                        }
+                                        
+                                        // If price was customized (e.g. Price overrides), restore it
+                                        if (item.price_override !== undefined && item.price_override !== null) {
+                                            console.log('[RESTORE] Updating rate:', cartId, item.price_override);
+                                            const rateRes = await axios.put("/admin/cart/update-rate", { 
+                                                id: cartId, 
+                                                price: item.price_override 
+                                            });
+                                            console.log('[RESTORE] Rate update response:', rateRes.data);
+                                        }
                                     }
                                 }
                             }
+                            
+                            // 3. CRITICAL: Delete journal after successful restore to prevent re-triggering
+                            console.log('[RESTORE] Step 3: Deleting journal...');
+                            await axios.delete("/admin/cart/delete-journal");
+                            console.log('[RESTORE] Restore complete!');
+                            
                             setCartUpdated(!cartUpdated);
                             toast.success('Session restored successfully!', { id: toastId });
                         } catch (e) {
-                            console.error(e);
+                            console.error('[RESTORE] Error during restore:', e);
+                            console.error('[RESTORE] Error response:', e.response?.data);
                             toast.error('Restoration failed. Please try fresh.', { id: toastId });
                         }
                     } else if (result.dismiss === Swal.DismissReason.cancel) {
-                        // DISCARD: Must clear the cart physically from backend
+                        // DISCARD: Cart is already cleared by empty() which also deletes journal
+                        console.log('[RESTORE] User chose to discard');
                         axios.put("/admin/cart/empty").then(() => {
                             setCartUpdated(!cartUpdated);
                             toast.success("Previous session discarded");
@@ -605,6 +636,10 @@ export default function Pos() {
                 if (res.data?.cart) {
                     toast.success(res.data.message || "Item Added", { duration: 1000 });
                 }
+                
+                // CRITICAL: Clear product cache so stock quantities refresh immediately
+                setProductCache({});
+                
                 getCarts(); // Consistent refresh
             })
             .catch((err) => {
@@ -820,14 +855,21 @@ export default function Pos() {
     
     // 5. Update Quantity (Unified Server-First)
     const handleUpdateQuantity = (cartId, qty) => {
-        if (isProcessing.current) return;
+        console.log('[UPDATE_QTY] Called with:', { cartId, qty });
+        if (isProcessing.current) {
+            console.log('[UPDATE_QTY] Blocked - already processing');
+            return;
+        }
         isProcessing.current = true;
 
+        console.log('[UPDATE_QTY] Sending request...');
         axios.put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
-            .then(() => {
+            .then((res) => {
+                console.log('[UPDATE_QTY] Success:', res.data);
                 getCarts();
             })
             .catch(err => {
+                console.error('[UPDATE_QTY] Error:', err.response?.data || err);
                 toast.error(err.response?.data?.message || "Update failed");
             })
             .finally(() => {

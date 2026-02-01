@@ -135,6 +135,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::put('/cart/delete', [CartController::class, 'delete']);
     Route::put('/cart/empty', [CartController::class, 'empty']);
     Route::get('/cart/check-journal', [CartController::class, 'checkJournal']);
+    Route::delete('/cart/delete-journal', [CartController::class, 'deleteJournal']);
     Route::put('/cart/update-quantity', [CartController::class, 'updateQuantity']);
     Route::put('/cart/update-rate', [CartController::class, 'updateRate']);
 
