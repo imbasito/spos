@@ -474,6 +474,49 @@ function runMigrations() {
                 return;
             }
             
+            // --- Clear Laravel caches BEFORE seeding to prevent permission errors ---
+            logger.log('Clearing Laravel caches...');
+            const cachePath = path.join(basePath, 'bootstrap', 'cache');
+            const storageCachePath = path.join(basePath, 'storage', 'framework', 'cache', 'data');
+            const viewsPath = path.join(basePath, 'storage', 'framework', 'views');
+            
+            try {
+                const fs = require('fs');
+                // Clear bootstrap cache
+                if (fs.existsSync(cachePath)) {
+                    const files = fs.readdirSync(cachePath).filter(f => f.endsWith('.php'));
+                    files.forEach(file => {
+                        try { fs.unlinkSync(path.join(cachePath, file)); } catch (e) {}
+                    });
+                }
+                // Clear storage cache
+                if (fs.existsSync(storageCachePath)) {
+                    const clearDir = (dir) => {
+                        if (fs.existsSync(dir)) {
+                            fs.readdirSync(dir).forEach(file => {
+                                const fullPath = path.join(dir, file);
+                                if (fs.lstatSync(fullPath).isDirectory()) {
+                                    clearDir(fullPath);
+                                    try { fs.rmdirSync(fullPath); } catch (e) {}
+                                } else {
+                                    try { fs.unlinkSync(fullPath); } catch (e) {}
+                                }
+                            });
+                        }
+                    };
+                    clearDir(storageCachePath);
+                }
+                // Clear views cache
+                if (fs.existsSync(viewsPath)) {
+                    fs.readdirSync(viewsPath).forEach(file => {
+                        try { fs.unlinkSync(path.join(viewsPath, file)); } catch (e) {}
+                    });
+                }
+                logger.log('Laravel caches cleared.');
+            } catch (e) {
+                logger.warn('Cache clearing had minor issues, continuing...');
+            }
+            
             // --- NEW: Run Database Seeder to ensure core data exists ---
             logger.log('Seeding core data...');
             const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {

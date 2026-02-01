@@ -74,21 +74,19 @@ if (file_exists($phpPath)) {
     @shell_exec('php artisan optimize:clear');
 }
 
-// 6. Reset Database (remove test data)
+// 6. Remove SQLite if exists (we use MySQL)
 $dbPath = $root . '/database/database.sqlite';
 if (file_exists($dbPath)) {
     unlink($dbPath);
-    echo "Deleted test database: database.sqlite\n";
-    // Create fresh empty database
-    touch($dbPath);
-    echo "Created fresh database.sqlite\n";
+    echo "Deleted SQLite database (using MySQL)\n";
 }
 
-// 7. Clear SPOS MySQL database only (preserve MySQL system databases)
+// 7. Clear SPOS MySQL database only - ONLY for development mysql/data
+// Do NOT touch dist_production mysql data - it's handled by the build process
 $mysqlDataPath = $root . '/mysql/data';
 $sposDbPath = $mysqlDataPath . '/spos';
-if (is_dir($sposDbPath)) {
-    echo "Deleting SPOS database...\n";
+if (is_dir($sposDbPath) && !strpos(realpath($mysqlDataPath), 'dist_production')) {
+    echo "Deleting development SPOS MySQL database for fresh build...\n";
     $files = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($sposDbPath, RecursiveDirectoryIterator::SKIP_DOTS),
         RecursiveIteratorIterator::CHILD_FIRST
@@ -98,9 +96,9 @@ if (is_dir($sposDbPath)) {
         @$todo($fileinfo->getRealPath());
     }
     @rmdir($sposDbPath);
-    echo "SPOS database deleted successfully.\n";
+    echo "Development SPOS database deleted successfully.\n";
 } else {
-    echo "SPOS database not found (already clean).\n";
+    echo "SPOS database not found or in dist_production (skipped).\n";
 }
 
 // 8. Copy Production .env

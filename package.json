@@ -16,9 +16,9 @@
     "dev": "vite --config vite.config.js",
     "build": "vite build --config vite.config.js",
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "php\\php.exe cleanup.php && electron-builder",
-    "dist:installer": "php\\php.exe cleanup.php && electron-builder --win nsis",
+    "pack": "nodejs\\node.exe node_modules\\electron-builder\\out\\cli\\cli.js --dir",
+    "dist": "php\\php.exe cleanup.php && nodejs\\node.exe node_modules\\electron-builder\\out\\cli\\cli.js",
+    "dist:installer": "php\\php.exe cleanup.php && nodejs\\node.exe node_modules\\electron-builder\\out\\cli\\cli.js --win nsis",
     "sanitize": "php\\php.exe cleanup.php",
     "postinstall": "echo Ensure Visual C++ 2015-2022 Redistributable is installed!"
   },

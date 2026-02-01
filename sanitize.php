@@ -77,19 +77,25 @@ foreach ($devFiles as $file) {
 }
 
 // ============================================
-// 2. CLEAR DATABASE (FRESH SCHEMA ONLY)
+// 2. CLEAR DATABASE (MYSQL - NOT SQLITE!)
 // ============================================
-echo "\n📊 Resetting database to fresh state...\n";
+echo "\n📊 Cleaning MySQL database for fresh install...\n";
 
+// Remove MySQL database folder ONLY for development (not dist_production)
+$mysqlDbPath = $basePath . '/mysql/data/spos';
+if (is_dir($mysqlDbPath) && !strpos(realpath($mysqlDbPath), 'dist_production')) {
+    removeDirectory($mysqlDbPath);
+    echo "  ✓ Removed existing development MySQL database\n";
+} else {
+    echo "  ✓ MySQL database already clean or in dist (skipped)\n";
+}
+
+// Remove SQLite file if it exists (we use MySQL, not SQLite)
 $dbPath = $basePath . '/database/database.sqlite';
 if (file_exists($dbPath)) {
     unlink($dbPath);
-    echo "  ✓ Removed existing database\n";
+    echo "  ✓ Removed SQLite file (using MySQL)\n";
 }
-
-// Create fresh empty database
-touch($dbPath);
-echo "  ✓ Created fresh database file\n";
 
 // ============================================
 // 3. CLEAR ALL CACHES & LOGS

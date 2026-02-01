@@ -39,7 +39,7 @@ last_logs.txt
 /php/
 /nodejs/
 /mysql/
-
+/mysql_data_backups/
 # IDE / System
 /.fleet
 /.idea

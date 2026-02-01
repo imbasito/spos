@@ -14,7 +14,7 @@ export default function Purchase() {
         label: "Own Supplier",
     });
     const [purchaseId, setPurchaseId] = useState(null);
-    const [date, setDate] = useState(null);
+    const [date, setDate] = useState(new Date()); // Default to today
     const [supplierId, setSupplierId] = useState(null);
     const [tax, setTax] = useState(0);
     const [discount, setDiscount] = useState(0);
@@ -59,7 +59,7 @@ export default function Purchase() {
                 subTotal: item.purchase_price * item.quantity,
             }));
             setProducts(purchaseProducts);
-            setDate(purchaseData?.date ? purchaseData.date.split(" ")[0] : "");
+            setDate(purchaseData?.date ? new Date(purchaseData.date.split(" ")[0]) : new Date());
             setSelectedSupplier({
                 value: purchaseData?.supplier_id,
                 label: purchaseData?.supplier?.name,
@@ -241,9 +241,10 @@ export default function Purchase() {
                 //        totals,
                 //    }); return;
                 try {
+                    const formattedDate = date ? date.toISOString().split('T')[0] : null;
                     const res = await axios.post("/admin/purchase", {
                         purchase_id: purchaseId,
-                        date,
+                        date: formattedDate,
                         products,
                         supplierId,
                         totals,
@@ -336,13 +337,8 @@ export default function Purchase() {
                                         placeholderText="Enter purchase date"
                                         selected={date}
                                         dateFormat="yyyy-MM-dd"
-                                        onChange={(date) => {
-                                            const formattedDate = date
-                                                ? date
-                                                      .toISOString()
-                                                      .split("T")[0]
-                                                : null;
-                                            setDate(formattedDate);
+                                        onChange={(selectedDate) => {
+                                            setDate(selectedDate);
                                         }}
                                     />
                                 </div>
