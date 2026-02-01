@@ -299,42 +299,52 @@ class CartController extends Controller
      */
     public function updateQuantity(Request $request)
     {
-        $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id',
-            'quantity' => 'required|numeric|min:0.001|max:9999'
-        ]);
+        try {
+            $request->validate([
+                'id' => 'required|integer|exists:pos_carts,id',
+                'quantity' => 'required|numeric|min:0.001|max:9999'
+            ]);
 
-        $cart = PosCart::with('product')->findOrFail($request->id);
-        $newQuantity = (float) $request->quantity;
-        
-        // --- SECURITY: Bounds check ---
-        if ($newQuantity <= 0) {
-            return response()->json(['message' => 'Quantity must be greater than zero'], 400);
-        }
+            $cart = PosCart::with('product')->findOrFail($request->id);
+            $newQuantity = (float) $request->quantity;
+            
+            // --- SECURITY: Bounds check ---
+            if ($newQuantity <= 0) {
+                return response()->json(['message' => 'Quantity must be greater than zero'], 400);
+            }
 
-        $newQuantity = round($newQuantity, 3);
-        
-        // Check stock availability
-        if ($newQuantity > $cart->product->quantity) {
+            $newQuantity = round($newQuantity, 3);
+            
+            // Check stock availability
+            if ($newQuantity > $cart->product->quantity) {
+                return response()->json([
+                    'message' => 'Insufficient stock. Available: ' . $cart->product->quantity
+                ], 400);
+            }
+
+            $cart->quantity = $newQuantity;
+            // IMPORTANT: Clear row_total_override when quantity changes
+            // This ensures the total is recalculated based on new quantity
+            $cart->row_total_override = null;
+            $cart->save();
+            $this->syncJournal();
+
+            $effectivePrice = $cart->price_override ?? $cart->product->discounted_price;
+            $newTotal = round($newQuantity * $effectivePrice, 2);
+
             return response()->json([
-                'message' => 'Insufficient stock. Available: ' . $cart->product->quantity
-            ], 400);
+                'message' => 'Quantity updated to ' . $newQuantity,
+                'total' => $newTotal
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Cart updateQuantity error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Update failed: ' . $e->getMessage()
+            ], 500);
         }
-
-        $cart->quantity = $newQuantity;
-        // IMPORTANT: Clear row_total_override when quantity changes
-        // This ensures the total is recalculated based on new quantity
-        $cart->row_total_override = null;
-        $cart->save();
-        $this->syncJournal();
-
-        $effectivePrice = $cart->price_override ?? $cart->product->discounted_price;
-        $newTotal = round($newQuantity * $effectivePrice, 2);
-
-        return response()->json([
-            'message' => 'Quantity updated to ' . $newQuantity,
-            'total' => $newTotal
-        ], 200);
 
     }
 
@@ -347,37 +357,47 @@ class CartController extends Controller
      */
     public function updateByPrice(Request $request)
     {
-        $request->validate([
-            'id' => 'required|exists:pos_carts,id',
-            'price' => 'required|numeric|min:0', 
-        ]);
+        try {
+            $request->validate([
+                'id' => 'required|exists:pos_carts,id',
+                'price' => 'required|numeric|min:0', 
+            ]);
 
-        $cart = PosCart::where('user_id', auth()->id())->where('id', $request->id)->firstOrFail();
-        
-        $targetAmount = $request->price;
-        
-        // Get effective rate (discounted_price after discount applied)
-        $effectiveRate = $cart->price_override ?? $cart->product->discounted_price;
-        
-        if ($effectiveRate <= 0) {
-            return response()->json(['message' => 'Cannot calculate quantity - invalid rate'], 400);
+            $cart = PosCart::where('user_id', auth()->id())->where('id', $request->id)->firstOrFail();
+            
+            $targetAmount = $request->price;
+            
+            // Get effective rate (discounted_price after discount applied)
+            $effectiveRate = $cart->price_override ?? $cart->product->discounted_price;
+            
+            if ($effectiveRate <= 0) {
+                return response()->json(['message' => 'Cannot calculate quantity - invalid rate'], 400);
+            }
+            
+            // Calculate new quantity: Quantity = Amount ÷ Effective Rate
+            $newQuantity = round($targetAmount / $effectiveRate, 3);
+            
+            // Update both quantity and row total
+            $cart->quantity = $newQuantity;
+            $cart->row_total_override = $targetAmount;
+            
+            $cart->save();
+            $this->syncJournal();
+
+            return response()->json([
+                'success' => true,
+                'quantity' => $newQuantity,
+                'amount' => $targetAmount
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Cart updateByPrice error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Update failed: ' . $e->getMessage()
+            ], 500);
         }
-        
-        // Calculate new quantity: Quantity = Amount ÷ Effective Rate
-        $newQuantity = round($targetAmount / $effectiveRate, 3);
-        
-        // Update both quantity and row total
-        $cart->quantity = $newQuantity;
-        $cart->row_total_override = $targetAmount;
-        
-        $cart->save();
-        $this->syncJournal();
-
-        return response()->json([
-            'success' => true,
-            'quantity' => $newQuantity,
-            'amount' => $targetAmount
-        ]);
     }
 
 
@@ -387,29 +407,39 @@ class CartController extends Controller
      */
     public function updateRate(Request $request)
     {
-        $request->validate([
-            'id' => 'required|integer|exists:pos_carts,id',
-            'price' => 'required|numeric|min:0|max:9999999'
-        ]);
+        try {
+            $request->validate([
+                'id' => 'required|integer|exists:pos_carts,id',
+                'price' => 'required|numeric|min:0|max:9999999'
+            ]);
 
-        $cart = PosCart::findOrFail($request->id);
-        $newRate = (float) $request->price;
-        
-        // Set the price override (new rate)
-        $cart->price_override = $newRate;
-        
-        // Clear row_total_override to force recalculation
-        // New Amount = Quantity × New Rate
-        $cart->row_total_override = null;
-        
-        $cart->save();
-        $this->syncJournal();
-        
-        $newAmount = round($cart->quantity * $newRate, 2);
+            $cart = PosCart::findOrFail($request->id);
+            $newRate = (float) $request->price;
+            
+            // Set the price override (new rate)
+            $cart->price_override = $newRate;
+            
+            // Clear row_total_override to force recalculation
+            // New Amount = Quantity × New Rate
+            $cart->row_total_override = null;
+            
+            $cart->save();
+            $this->syncJournal();
+            
+            $newAmount = round($cart->quantity * $newRate, 2);
 
-        return response()->json([
-            'message' => 'Rate updated successfully',
-            'new_amount' => $newAmount
-        ], 200);
+            return response()->json([
+                'message' => 'Rate updated successfully',
+                'new_amount' => $newAmount
+            ], 200);
+        } catch (\Exception $e) {
+            \Log::error('Cart updateRate error: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Update failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
