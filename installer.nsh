@@ -1,6 +1,6 @@
 ; ============================================================
 ; SPOS Professional Installer Script
-; Version: 1.0.5
+; Version: 1.1.0
 ; Copyright © 2026 SINYX. All Rights Reserved.
 ; ============================================================
 

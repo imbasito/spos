@@ -268,8 +268,8 @@ SPOS includes automatic update functionality via GitHub Releases.
 
 3. **Create GitHub Release**
    - Go to repository → Releases → Create new release
-   - Tag: `v1.0.6` (match package.json version)
-   - Upload `SPOS-Setup-1.0.6.exe` from `dist_production/`
+   - Tag: `v1.1.0` (match package.json version)
+   - Upload `SPOS-Setup-1.1.0.exe` from `dist_production/`
    - Publish release
 
 4. **Automatic Distribution**
