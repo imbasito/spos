@@ -82,7 +82,12 @@
         @if(readConfig('is_show_phone_invoice'))Tel: {{ readConfig('contact_phone') }}<br>@endif
         @if(readConfig('is_show_email_invoice')){{ readConfig('contact_email') }}@endif
       </div>
-      <div class="text-xs font-bold mt-1">NTN: 1620237071939</div>
+      @if(readConfig('tax_ntn'))
+      <div class="text-xs font-bold mt-1">NTN: {{ readConfig('tax_ntn') }}</div>
+      @endif
+      @if(readConfig('tax_strn'))
+      <div class="text-xs font-bold">STRN: {{ readConfig('tax_strn') }}</div>
+      @endif
     </div>
 
     <!-- Refund Banner -->

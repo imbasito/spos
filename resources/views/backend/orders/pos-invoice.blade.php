@@ -154,7 +154,12 @@
       @if(readConfig('is_show_phone_invoice'))<div>Tel: {{ readConfig('contact_phone') }}</div>@endif
       @if(readConfig('is_show_email_invoice'))<div>{{ readConfig('contact_email') }}</div>@endif
       
-      <div style="margin-top: 4px;">NTN: 1620237071939</div>
+      @if(readConfig('tax_ntn'))
+      <div style="margin-top: 4px;">NTN: {{ readConfig('tax_ntn') }}</div>
+      @endif
+      @if(readConfig('tax_strn'))
+      <div>STRN: {{ readConfig('tax_strn') }}</div>
+      @endif
     </div>
 
     <div class="divider"></div>
@@ -215,6 +220,18 @@
         <span>Discount:</span>
         <span>(-{{ number_format($order->discount, 2) }})</span>
       </div>
+      
+      @if(readConfig('tax_gst_enabled') && readConfig('tax_show_on_receipt'))
+      @php
+        $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
+        $taxableAmount = $order->sub_total - $order->discount;
+        $gstAmount = ($taxableAmount * $gstRate) / 100;
+      @endphp
+      <div class="total-row">
+        <span>GST ({{ $gstRate }}%):</span>
+        <span>{{ number_format($gstAmount, 2) }}</span>
+      </div>
+      @endif
       
       <div class="net-payable">
         <div class="total-row">

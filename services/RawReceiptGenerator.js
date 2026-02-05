@@ -55,7 +55,14 @@ class RawReceiptGenerator {
         if (config.show_address && config.address) encoder = encoder.raw([0x1B, 0x61, 0x01]).text(config.address).newline();
         if (config.show_phone && config.phone) encoder = encoder.raw([0x1B, 0x61, 0x01]).text(`Tel: ${config.phone}`).newline();
         if (config.show_email && config.email) encoder = encoder.raw([0x1B, 0x61, 0x01]).text(config.email).newline();
-        encoder = encoder.raw([0x1B, 0x61, 0x01]).text("NTN: 1620237071939").newline();
+        
+        // Dynamic NTN/STRN from config
+        if (config.ntn) {
+            encoder = encoder.raw([0x1B, 0x61, 0x01]).text(`NTN: ${config.ntn}`).newline();
+        }
+        if (config.strn) {
+            encoder = encoder.raw([0x1B, 0x61, 0x01]).text(`STRN: ${config.strn}`).newline();
+        }
         
         // 5. Header / Badge (RE-ALIGN)
         if (data.type === 'refund') {
@@ -162,6 +169,16 @@ class RawReceiptGenerator {
             encoder = encoder.line(this.twoColumn("Gross Total:", sub_total.toString(), width));
             const discVal = discount ? parseFloat(discount) : 0;
             encoder = encoder.line(this.twoColumn("Discount:", `(-${discVal})`, width));
+
+            // GST Calculation (if enabled)
+            if (config.gst_enabled && config.show_tax) {
+                const gstRate = config.gst_rate || 17;
+                const grossNum = parseFloat(String(sub_total).replace(/,/g, '')) || 0;
+                const discNum = discVal;
+                const taxableAmount = grossNum - discNum;
+                const gstAmount = (taxableAmount * gstRate) / 100;
+                encoder = encoder.line(this.twoColumn(`GST (${gstRate}%):`, this.formatValue(gstAmount), width));
+            }
 
             encoder = encoder.line("-".repeat(width)).bold(true)
                 .line(this.twoColumn("NET PAYABLE", total.toString(), width))

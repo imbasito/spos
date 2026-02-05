@@ -126,7 +126,31 @@ class OrderController extends Controller
                 \Illuminate\Support\Facades\File::delete($path);
             }
             
-            return response()->json(['message' => 'Order completed successfully', 'order' => $order], 200);
+            // Submit to FBR if integration is enabled
+            $fbrResult = null;
+            try {
+                $fbrService = new \App\Services\FbrService();
+                if ($fbrService->isConfigured()) {
+                    $orderData = $this->prepareFbrOrderData($order);
+                    $fbrResult = $fbrService->submitInvoice($orderData);
+                    
+                    // Update order with FBR invoice ID if received
+                    if ($fbrResult['success'] && !empty($fbrResult['fbr_invoice_id'])) {
+                        $order->fbr_invoice_id = $fbrResult['fbr_invoice_id'];
+                        $order->fbr_synced_at = now();
+                        $order->save();
+                    }
+                }
+            } catch (\Exception $fbrError) {
+                // Log but don't fail the order
+                \Illuminate\Support\Facades\Log::warning('FBR submission error', ['error' => $fbrError->getMessage()]);
+            }
+            
+            return response()->json([
+                'message' => 'Order completed successfully', 
+                'order' => $order,
+                'fbr' => $fbrResult
+            ], 200);
         } catch (\Exception $e) {
 
             return response()->json(['message' => $e->getMessage()], 400);
@@ -247,7 +271,12 @@ class OrderController extends Controller
                 // Config
                 'config' => [
                     'site_name' => readConfig('site_name'),
-                    'ntn' => '00000000', // Hardcoded per request
+                    'ntn' => readConfig('tax_ntn') ?: '',
+                    'strn' => readConfig('tax_strn') ?: '',
+                    'gst_rate' => floatval(readConfig('tax_gst_rate') ?: 17),
+                    'gst_enabled' => readConfig('tax_gst_enabled') == 1,
+                    'show_tax' => readConfig('tax_show_on_receipt') == 1,
+                    'fbr_pos_id' => readConfig('fbr_pos_id') ?: '',
                     'address' => readConfig('contact_address'),
                     'phone' => readConfig('contact_phone'),
                     'email' => readConfig('contact_email'),
@@ -265,4 +294,47 @@ class OrderController extends Controller
         ]);
     }
 
+    /**
+     * Prepare order data for FBR submission
+     */
+    protected function prepareFbrOrderData($order): array
+    {
+        $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
+        $taxableAmount = $order->sub_total - $order->discount;
+        $taxAmount = readConfig('tax_gst_enabled') == 1 ? ($taxableAmount * $gstRate) / 100 : 0;
+
+        $items = [];
+        foreach ($order->products as $product) {
+            $items[] = [
+                'product_id' => $product->product_id,
+                'sku' => $product->product->sku ?? '',
+                'name' => $product->product->name ?? 'Product',
+                'quantity' => $product->quantity,
+                'price' => $product->price,
+                'total' => $product->total,
+                'tax_rate' => $gstRate,
+                'tax_amount' => ($product->total * $gstRate) / 100,
+                'discount' => 0
+            ];
+        }
+
+        return [
+            'order_id' => $order->id,
+            'invoice_number' => $order->id,
+            'date' => $order->created_at->format('Y-m-d H:i:s'),
+            'customer_name' => $order->customer->name ?? 'Walk-in Customer',
+            'customer_phone' => $order->customer->phone ?? '',
+            'buyer_ntn' => '',
+            'buyer_cnic' => '',
+            'sub_total' => $order->sub_total,
+            'discount' => $order->discount,
+            'tax_amount' => $taxAmount,
+            'total' => $order->total,
+            'total_quantity' => $order->products->sum('quantity'),
+            'payment_method' => $order->transactions->last()->paid_by ?? 'cash',
+            'items' => $items
+        ];
+    }
+
 }
+

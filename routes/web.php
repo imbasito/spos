@@ -63,7 +63,8 @@ Route::get('admin/orders/pos-invoice/{id}', [\App\Http\Controllers\Backend\Pos\O
 Route::match(['get', 'post'], 'login', [AuthController::class, 'login'])->name('login');
 
 Route::get('logout', [AuthController::class, 'logout'])->name('logout');
-Route::match(['get', 'post'], 'sign-up', [AuthController::class, 'register'])->name('signup');
+// Public registration disabled - users should be created by admin only
+// Route::match(['get', 'post'], 'sign-up', [AuthController::class, 'register'])->name('signup');
 Route::match(['get', 'post'], 'forget-password', [AuthController::class, 'forgetPassword'])->name('forget.password');
 Route::match(['get', 'post'], 'new-password', [AuthController::class, 'newPassword'])->name('new.password');
 Route::match(['get', 'post'], 'password-reset', [AuthController::class, 'resetPassword'])->name('password.reset');

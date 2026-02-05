@@ -275,6 +275,11 @@ class RefundController extends Controller
                     ],
                     'config' => [
                         'site_name' => readConfig('site_name'),
+                        'ntn' => readConfig('tax_ntn') ?: '',
+                        'strn' => readConfig('tax_strn') ?: '',
+                        'gst_rate' => floatval(readConfig('tax_gst_rate') ?: 17),
+                        'gst_enabled' => readConfig('tax_gst_enabled') == 1,
+                        'show_tax' => readConfig('tax_show_on_receipt') == 1,
                         'address' => readConfig('contact_address'),
                         'phone' => readConfig('contact_phone'),
                         'email' => readConfig('contact_email'),

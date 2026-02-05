@@ -78,6 +78,13 @@
                         <i class="fas fa-print mr-2"></i> Printer Config
                     </a>
                     @endcan
+
+                    @can('invoice_settings')
+                    <a class="nav-link {{ @$_GET['active-tab'] == 'tax-settings' ? 'active' : '' }}" id="vert-tabs-10"
+                        data-toggle="pill" href="#tabs-10" role="tab" aria-controls="tabs-10" aria-selected="false">
+                        <i class="fas fa-landmark mr-2"></i> Tax & FBR
+                    </a>
+                    @endcan
                 </div>
             </div>
         </div>
@@ -138,6 +145,12 @@
             @can('website_settings')
             <div class="tab-pane fade {{ @$_GET['active-tab'] == 'printer-settings' ? 'active show' : '' }}" id="tabs-9" role="tabpanel" aria-labelledby="vert-tabs-9">
                  @include('backend.settings.website-settings.partials.printer-settings')
+            </div>
+            @endcan
+
+            @can('invoice_settings')
+            <div class="tab-pane fade {{ @$_GET['active-tab'] == 'tax-settings' ? 'active show' : '' }}" id="tabs-10" role="tabpanel" aria-labelledby="vert-tabs-10">
+                 @include('backend.settings.website-settings.partials.tax-settings')
             </div>
             @endcan
 

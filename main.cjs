@@ -39,7 +39,8 @@ if (app.isPackaged) {
 } else {
     // Check if we're running from dist_production (win-unpacked)
     if (__dirname.includes('dist_production')) {
-        basePath = __dirname;
+        // In win-unpacked: __dirname is resources/app, but we need resources/
+        basePath = path.dirname(__dirname);
     } else {
         // Development mode
         basePath = __dirname;
@@ -822,9 +823,74 @@ function setupAutoUpdater() {
 }
 
 
-function killProcesses() {
-    if (laravelServer && !laravelServer.killed) treeKill(laravelServer.pid, 'SIGKILL');
-    if (mysqlServer && !mysqlServer.killed) treeKill(mysqlServer.pid, 'SIGKILL');
+/**
+ * Gracefully shutdown MySQL using mysqladmin
+ * This ensures data integrity and proper cleanup
+ */
+async function shutdownMySQL() {
+    return new Promise((resolve) => {
+        if (!mysqlServer || mysqlServer.killed) {
+            resolve();
+            return;
+        }
+        
+        logger.log('Gracefully shutting down MySQL...');
+        const mysqlAdminPath = path.join(basePath, 'mysql', 'bin', 'mysqladmin.exe');
+        
+        // Try graceful shutdown first with mysqladmin
+        const shutdownProcess = spawn(mysqlAdminPath, [
+            '-u', 'root',
+            '-P', MYSQL_PORT,
+            '--protocol=TCP',
+            'shutdown'
+        ], { cwd: basePath, windowsHide: true });
+        
+        // Set timeout for graceful shutdown (10 seconds)
+        const shutdownTimeout = setTimeout(() => {
+            logger.warn('MySQL graceful shutdown timed out, forcing kill...');
+            if (mysqlServer && !mysqlServer.killed) {
+                treeKill(mysqlServer.pid, 'SIGKILL');
+            }
+            resolve();
+        }, 10000);
+        
+        shutdownProcess.on('close', (code) => {
+            clearTimeout(shutdownTimeout);
+            if (code === 0) {
+                logger.log('MySQL shutdown gracefully.');
+            } else {
+                logger.warn(`MySQL shutdown exited with code ${code}, forcing kill...`);
+                if (mysqlServer && !mysqlServer.killed) {
+                    treeKill(mysqlServer.pid, 'SIGKILL');
+                }
+            }
+            resolve();
+        });
+        
+        shutdownProcess.on('error', (err) => {
+            clearTimeout(shutdownTimeout);
+            logger.error(`MySQL shutdown error: ${err.message}, forcing kill...`);
+            if (mysqlServer && !mysqlServer.killed) {
+                treeKill(mysqlServer.pid, 'SIGKILL');
+            }
+            resolve();
+        });
+    });
+}
+
+async function killProcesses() {
+    logger.log('Shutting down application services...');
+    
+    // Kill Laravel first (it's faster and doesn't need graceful shutdown)
+    if (laravelServer && !laravelServer.killed) {
+        treeKill(laravelServer.pid, 'SIGKILL');
+        logger.log('Laravel server stopped.');
+    }
+    
+    // Gracefully shutdown MySQL to prevent data corruption
+    await shutdownMySQL();
+    
+    logger.log('All services stopped.');
 }
 
 async function startApp() {
@@ -933,7 +999,23 @@ if (!gotTheLock) {
 
     app.whenReady().then(startApp);
 }
-app.on('window-all-closed', () => { killProcesses(); app.quit(); });
+
+// Graceful shutdown handler
+app.on('window-all-closed', async () => { 
+    app.isQuitting = true;
+    await killProcesses(); 
+    app.quit(); 
+});
+
+// Also handle before-quit for graceful shutdown
+app.on('before-quit', async (event) => {
+    if (!app.isQuitting) {
+        event.preventDefault();
+        app.isQuitting = true;
+        await killProcesses();
+        app.quit();
+    }
+});
 
 
 // ============================================
