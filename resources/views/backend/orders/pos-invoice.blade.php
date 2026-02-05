@@ -221,12 +221,23 @@
         <span>(-{{ number_format($order->discount, 2) }})</span>
       </div>
       
-      @if(readConfig('tax_gst_enabled') && readConfig('tax_show_on_receipt'))
       @php
-        $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
-        $taxableAmount = $order->sub_total - $order->discount;
-        $gstAmount = ($taxableAmount * $gstRate) / 100;
+        // Smart Tax Logic: Use Snapshot if available, else Legacy Fallback
+        $hasSnapshot = isset($order->tax_amount) && isset($order->tax_rate) && $order->tax_rate > 0;
+        
+        if ($hasSnapshot) {
+            $gstRate = (float)$order->tax_rate;
+            $gstAmount = (float)$order->tax_amount;
+            $shouldShow = true; // Always show if it was recorded
+        } else {
+            $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
+            $taxableAmount = $order->sub_total - $order->discount;
+            $gstAmount = ($taxableAmount * $gstRate) / 100;
+            $shouldShow = readConfig('tax_gst_enabled') == 1;
+        }
       @endphp
+
+      @if(readConfig('tax_show_on_receipt') && ($shouldShow || $gstAmount > 0))
       <div class="total-row">
         <span>GST ({{ $gstRate }}%):</span>
         <span>{{ number_format($gstAmount, 2) }}</span>

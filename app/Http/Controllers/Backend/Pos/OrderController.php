@@ -299,9 +299,15 @@ class OrderController extends Controller
      */
     protected function prepareFbrOrderData($order): array
     {
-        $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
-        $taxableAmount = $order->sub_total - $order->discount;
-        $taxAmount = readConfig('tax_gst_enabled') == 1 ? ($taxableAmount * $gstRate) / 100 : 0;
+        // Use stored tax if available (Snapshot approach), else fallback to config (Legacy)
+        if (isset($order->tax_amount) && isset($order->tax_rate) && $order->tax_rate > 0) {
+            $gstRate = (float)$order->tax_rate;
+            $taxAmount = (float)$order->tax_amount;
+        } else {
+            $gstRate = floatval(readConfig('tax_gst_rate') ?: 17);
+            $taxableAmount = $order->sub_total - $order->discount;
+            $taxAmount = readConfig('tax_gst_enabled') == 1 ? ($taxableAmount * $gstRate) / 100 : 0;
+        }
 
         $items = [];
         foreach ($order->products as $product) {

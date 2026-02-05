@@ -104,7 +104,18 @@ class PurchaseController extends Controller
                 'totals.discount' => 'nullable|numeric',
                 'totals.shipping' => 'nullable|numeric',
                 'totals.grandTotal' => 'required|numeric',
+                'totals.paidAmount' => 'nullable|numeric|min:0',
             ]);
+
+            // Calculate payment status
+            $grandTotal = $validatedData['totals']['grandTotal'];
+            $paidAmount = $validatedData['totals']['paidAmount'] ?? 0;
+            $paymentStatus = 'unpaid';
+            if ($paidAmount >= $grandTotal) {
+                $paymentStatus = 'paid';
+            } elseif ($paidAmount > 0) {
+                $paymentStatus = 'partial';
+            }
 
             if ($validatedData['purchase_id'] == null) {
                 DB::beginTransaction();
@@ -117,7 +128,9 @@ class PurchaseController extends Controller
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],
                         'shipping' => $validatedData['totals']['shipping'],
-                        'grand_total' => $validatedData['totals']['grandTotal'],
+                        'grand_total' => $grandTotal,
+                        'paid_amount' => $paidAmount,
+                        'payment_status' => $paymentStatus,
                         'date' => $validatedData['date'] ?? Carbon::now()->toDateString(),
                         'status' => 1,
                     ]);
@@ -151,7 +164,9 @@ class PurchaseController extends Controller
                         'tax' => $validatedData['totals']['tax'],
                         'discount_value' => $validatedData['totals']['discount'],
                         'shipping' => $validatedData['totals']['shipping'],
-                        'grand_total' => $validatedData['totals']['grandTotal'],
+                        'grand_total' => $grandTotal,
+                        'paid_amount' => $paidAmount,
+                        'payment_status' => $paymentStatus,
                         'date' => $validatedData['date'] ?? Carbon::now()->toDateString(),
                         'status' => 1,
                     ]);

@@ -1,4 +1,4 @@
-<form action="{{ route('backend.admin.settings.website.invoice.update') }}" method="post">
+<form action="{{ route('backend.admin.settings.website.tax.update') }}" method="post">
     @csrf
     <div class="card shadow-sm border-0 border-radius-15 mb-4">
         <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
@@ -62,7 +62,7 @@
                             <input type="checkbox" onclick="updateCheckboxValue(this)" 
                                    {{ readConfig('tax_gst_enabled') == 1 ? 'checked' : '' }} 
                                    name="tax_gst_enabled" id="tax_gst_enabled" 
-                                   value="{{ readConfig('tax_gst_enabled') == 1 ? 1 : '0' }}">
+                                   value="1">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -74,7 +74,7 @@
                             <input type="checkbox" onclick="updateCheckboxValue(this)" 
                                    {{ readConfig('tax_show_on_receipt') == 1 ? 'checked' : '' }} 
                                    name="tax_show_on_receipt" id="tax_show_on_receipt" 
-                                   value="{{ readConfig('tax_show_on_receipt') == 1 ? 1 : '0' }}">
+                                   value="1">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -101,14 +101,30 @@
                             <input type="checkbox" onclick="updateCheckboxValue(this); toggleFbrFields(this.checked);" 
                                    {{ readConfig('fbr_integration_enabled') == 1 ? 'checked' : '' }} 
                                    name="fbr_integration_enabled" id="fbr_integration_enabled" 
-                                   value="{{ readConfig('fbr_integration_enabled') == 1 ? 1 : '0' }}">
+                                   value="1">
                             <span class="slider round"></span>
                         </label>
                     </div>
 
                     <div class="form-group">
+                        <label class="font-weight-bold">Integration Mode</label>
+                        <select class="form-control custom-select fbr-field" name="fbr_integration_mode" id="fbr_integration_mode"
+                                onchange="toggleIntegrationMode()" 
+                                {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
+                            <option value="direct_api" {{ readConfig('fbr_integration_mode', 'direct_api') == 'direct_api' ? 'selected' : '' }}>
+                                🌐 Direct API (Digital Invoicing)
+                            </option>
+                            <option value="legacy_ims" {{ readConfig('fbr_integration_mode') == 'legacy_ims' ? 'selected' : '' }}>
+                                🖥️ Legacy IMS (Fiscal Component)
+                            </option>
+                        </select>
+                        <small class="text-muted">Direct API = Cloud-based (2026), Legacy IMS = Localhost service</small>
+                    </div>
+
+                    <div class="form-group">
                         <label class="font-weight-bold">FBR Environment</label>
-                        <select class="form-control custom-select fbr-field" name="fbr_environment" 
+                        <select class="form-control custom-select fbr-field" name="fbr_environment" id="fbr_environment"
+                                onchange="updateApiUrl()"
                                 {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
                             <option value="sandbox" {{ readConfig('fbr_environment') == 'sandbox' ? 'selected' : '' }}>
                                 🧪 Sandbox (Testing)
@@ -120,41 +136,70 @@
                         <small class="text-muted">Use Sandbox for testing before going live</small>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="api_url_group">
                         <label class="font-weight-bold">FBR API URL</label>
-                        <input type="url" class="form-control fbr-field" name="fbr_api_url" 
-                               value="{{ readConfig('fbr_api_url') ?? 'https://gw.fbr.gov.pk/imsp/v1/api/' }}" 
-                               placeholder="https://gw.fbr.gov.pk/imsp/v1/api/"
+                        <input type="url" class="form-control fbr-field" name="fbr_api_url" id="fbr_api_url"
+                               value="{{ readConfig('fbr_api_url') ?? 'https://gw.fbr.gov.pk/pdi/v1/api/DigitalInvoicing/PostInvoiceData_v1' }}" 
+                               placeholder="Auto-set based on environment"
                                {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
-                        <small class="text-muted">FBR will provide this URL upon registration</small>
+                        <small class="text-muted">Auto-filled based on Environment selection</small>
+                    </div>
+
+                    {{-- Legacy IMS Endpoint (only shown for legacy_ims mode) --}}
+                    <div class="form-group" id="ims_endpoint_group" style="display: none;">
+                        <label class="font-weight-bold">IMS Localhost Endpoint</label>
+                        <input type="text" class="form-control fbr-field" name="fbr_ims_endpoint"
+                               value="{{ readConfig('fbr_ims_endpoint') ?? 'http://localhost:8585' }}" 
+                               placeholder="http://localhost:8585"
+                               {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
+                        <small class="text-muted">Local FBR IMS service address (usually http://localhost:8585)</small>
                     </div>
                 </div>
 
                 <div class="col-md-6">
-                    <div class="form-group">
-                        <label class="font-weight-bold">API Key (Username)</label>
-                        <input type="text" class="form-control fbr-field" name="fbr_api_key" 
-                               value="{{ readConfig('fbr_api_key') }}" 
-                               placeholder="Your FBR API key"
-                               {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
-                        <small class="text-muted">Provided by FBR after POS registration</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="font-weight-bold">API Secret (Password)</label>
+                    {{-- Direct API: Bearer Token --}}
+                    <div class="form-group" id="bearer_token_group">
+                        <label class="font-weight-bold">Security Token (Bearer)</label>
                         <div class="input-group">
-                            <input type="password" class="form-control fbr-field" name="fbr_api_secret" 
-                                   id="fbr_api_secret"
-                                   value="{{ readConfig('fbr_api_secret') }}" 
-                                   placeholder="Your FBR API secret"
-                                   {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
+                            <textarea class="form-control fbr-field" name="fbr_security_token" id="fbr_security_token"
+                                   rows="3" placeholder="Paste your FBR Security Token here (starts with ey...)"
+                                   {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>{{ readConfig('fbr_security_token') }}</textarea>
                             <div class="input-group-append">
-                                <button class="btn btn-outline-secondary" type="button" onclick="toggleSecretVisibility()">
-                                    <i class="fas fa-eye" id="secret-eye-icon"></i>
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleTokenVisibility()">
+                                    <i class="fas fa-eye" id="token-eye-icon"></i>
                                 </button>
                             </div>
                         </div>
-                        <small class="text-muted">Keep this confidential</small>
+                        <small class="text-muted">Generated from FBR IRIS portal (valid 5 years)</small>
+                    </div>
+
+                    {{-- Legacy IMS: API Key/Secret (hidden by default) --}}
+                    <div id="legacy_auth_group" style="display: none;">
+                        <div class="form-group">
+                            <label class="font-weight-bold">API Key (Username)</label>
+                            <input type="text" class="form-control fbr-field" name="fbr_api_key" 
+                                   value="{{ readConfig('fbr_api_key') }}" 
+                                   placeholder="Your FBR API key"
+                                   {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
+                            <small class="text-muted">For Legacy IMS only</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="font-weight-bold">API Secret (Password)</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control fbr-field" name="fbr_api_secret" 
+                                       id="fbr_api_secret"
+                                       value="{{ readConfig('fbr_api_secret') }}" 
+                                       placeholder="Your FBR API secret"
+                                       {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
+                                <div class="input-group-append">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="toggleSecretVisibility()">
+                                        <i class="fas fa-eye" id="secret-eye-icon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <small class="text-muted">Keep this confidential</small>
+                        </div>
                     </div>
 
                     <div class="form-group d-flex align-items-center justify-content-between mb-3 p-2 rounded bg-light">
@@ -167,7 +212,7 @@
                             <input type="checkbox" onclick="updateCheckboxValue(this)" 
                                    {{ readConfig('fbr_store_forward', '1') == 1 ? 'checked' : '' }} 
                                    name="fbr_store_forward" id="fbr_store_forward" 
-                                   value="{{ readConfig('fbr_store_forward', '1') == 1 ? 1 : '0' }}"
+                                   value="1"
                                    {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
                             <span class="slider round"></span>
                         </label>
@@ -200,25 +245,83 @@
 </form>
 
 <script>
+// Update checkbox hidden value on toggle
+function updateCheckboxValue(checkbox) {
+    checkbox.value = checkbox.checked ? 1 : 0;
+}
+
+const FBR_URLS = {
+    direct_api: {
+        sandbox: 'https://esp.fbr.gov.pk:8244/DigitalInvoicing/v1/PostInvoiceData_v1',
+        production: 'https://gw.fbr.gov.pk/pdi/v1/api/DigitalInvoicing/PostInvoiceData_v1'
+    },
+    legacy_ims: {
+        sandbox: 'http://localhost:8585',
+        production: 'http://localhost:8585'
+    }
+};
+
 function toggleFbrFields(enabled) {
     document.querySelectorAll('.fbr-field').forEach(field => {
         field.disabled = !enabled;
     });
     document.getElementById('fbr_store_forward').disabled = !enabled;
+    if (enabled) toggleIntegrationMode();
+}
+
+function toggleIntegrationMode() {
+    const mode = document.getElementById('fbr_integration_mode').value;
+    const isDirectApi = mode === 'direct_api';
+    
+    // Show/hide fields based on mode
+    document.getElementById('bearer_token_group').style.display = isDirectApi ? 'block' : 'none';
+    document.getElementById('legacy_auth_group').style.display = isDirectApi ? 'none' : 'block';
+    document.getElementById('api_url_group').style.display = isDirectApi ? 'block' : 'none';
+    document.getElementById('ims_endpoint_group').style.display = isDirectApi ? 'none' : 'block';
+    
+    // Update URL based on mode + environment
+    updateApiUrl();
+}
+
+function updateApiUrl() {
+    const mode = document.getElementById('fbr_integration_mode').value;
+    const env = document.getElementById('fbr_environment').value;
+    const urlField = document.getElementById('fbr_api_url');
+    
+    if (FBR_URLS[mode] && FBR_URLS[mode][env]) {
+        urlField.value = FBR_URLS[mode][env];
+    }
 }
 
 function toggleSecretVisibility() {
     const secretField = document.getElementById('fbr_api_secret');
     const eyeIcon = document.getElementById('secret-eye-icon');
-    if (secretField.type === 'password') {
+    if (secretField && secretField.type === 'password') {
         secretField.type = 'text';
         eyeIcon.classList.remove('fa-eye');
         eyeIcon.classList.add('fa-eye-slash');
-    } else {
+    } else if (secretField) {
         secretField.type = 'password';
         eyeIcon.classList.remove('fa-eye-slash');
         eyeIcon.classList.add('fa-eye');
     }
 }
+
+function toggleTokenVisibility() {
+    const tokenField = document.getElementById('fbr_security_token');
+    const eyeIcon = document.getElementById('token-eye-icon');
+    if (tokenField.type === 'textarea') {
+        tokenField.type = 'password'; // Note: textarea doesn't support type, this is a fallback
+    }
+    // Toggle visibility via CSS
+    tokenField.style.webkitTextSecurity = tokenField.style.webkitTextSecurity === 'disc' ? 'none' : 'disc';
+    eyeIcon.classList.toggle('fa-eye');
+    eyeIcon.classList.toggle('fa-eye-slash');
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    toggleIntegrationMode();
+});
 </script>
 

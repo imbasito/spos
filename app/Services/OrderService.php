@@ -123,13 +123,23 @@ class OrderService
             
             $finalDiscount = (float)$orderDiscount;
             
-            // Calculate Total
-            $total = max(0, round($totalNetLineItems - $finalDiscount, 2));
+            // Calculate Total (before tax consideration)
+            $taxableAmount = max(0, round($totalNetLineItems - $finalDiscount, 2));
             
-            // Verify Logic:
-            // If NetLineItems = 90, Gross = 100.
-            // Frontend sends order_discount = 10 (Auto) + 0 (Manual) = 10.
-            // Total = 100 - 10 = 90. Correct.
+            // 5a. Tax Calculation (Snapshot at time of sale)
+            // Tax is INCLUSIVE in Pakistan (prices already include GST)
+            // We calculate the GST component for reporting purposes
+            $taxGstEnabled = readConfig('tax_gst_enabled') == 1;
+            $taxRate = $taxGstEnabled ? floatval(readConfig('tax_gst_rate') ?: 17) : 0;
+            
+            // For inclusive tax: taxAmount = taxableAmount * rate / (100 + rate)
+            // This extracts the tax already embedded in the price
+            $taxAmount = $taxGstEnabled 
+                ? round(($taxableAmount * $taxRate) / (100 + $taxRate), 2) 
+                : 0;
+            
+            // Total remains the same (tax is inclusive, not added)
+            $total = $taxableAmount;
             
             $paid = $data['paid'] ?? 0;
             
@@ -143,6 +153,8 @@ class OrderService
             $order->update([
                 'sub_total' => round((float)$totalNetLineItems, 2),
                 'discount' => round((float)$finalDiscount, 2),
+                'tax_rate' => $taxRate,
+                'tax_amount' => $taxAmount,
                 'paid' => round((float)$paid, 2),
                 'total' => round((float)$total, 2),
                 'due' => $due,

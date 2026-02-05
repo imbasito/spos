@@ -19,6 +19,13 @@
               value="{{ old('name') }}" required>
           </div>
           <div class="mb-3 col-md-6">
+            <label for="urdu_name" class="form-label">
+              Urdu Name <small class="text-muted">(Optional)</small>
+            </label>
+            <input type="text" class="form-control" placeholder="اردو نام" name="urdu_name"
+              value="{{ old('urdu_name') }}" dir="rtl">
+          </div>
+          <div class="mb-3 col-md-6">
             <label for="sku" class="form-label">
               SKU / Barcode
               <small class="text-muted ml-2">(Scan or leave empty to auto-generate)</small>
@@ -31,6 +38,14 @@
                     </button>
                 </div>
             </div>
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="hs_code" class="form-label">
+              HS Code <small class="text-muted">(Optional - for imports)</small>
+            </label>
+            <input type="text" class="form-control" placeholder="e.g., 8471.30" name="hs_code"
+              value="{{ old('hs_code') }}" maxlength="20">
+            <small class="text-muted">Harmonized System code for customs</small>
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">

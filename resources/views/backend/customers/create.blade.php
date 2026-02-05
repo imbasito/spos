@@ -31,7 +31,23 @@
               Address
             </label>
             <input type="text" class="form-control" placeholder="Enter Address" name="address"
-              value="{{ old('Address') }}">
+              value="{{ old('address') }}">
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="cnic" class="form-label">
+              CNIC <small class="text-muted">(Optional)</small>
+            </label>
+            <input type="text" class="form-control" placeholder="xxxxx-xxxxxxx-x" name="cnic"
+              value="{{ old('cnic') }}" pattern="\d{5}-\d{7}-\d{1}">
+            <small class="text-muted">Required for sales over PKR 100,000</small>
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="credit_limit" class="form-label">
+              Credit Limit <small class="text-muted">(Optional)</small>
+            </label>
+            <input type="number" class="form-control" placeholder="0" name="credit_limit"
+              value="{{ old('credit_limit', 0) }}" min="0" step="0.01">
+            <small class="text-muted">Maximum allowed outstanding balance</small>
           </div>
         </div>
         <div class="row">

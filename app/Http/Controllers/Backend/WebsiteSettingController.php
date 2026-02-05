@@ -123,6 +123,16 @@ class WebsiteSettingController extends Controller
             ->with('success', 'Updated successfully');
     }
 
+    public function websiteTaxUpdate(Request $request)
+    {
+        foreach ($request->except('_token') as $key => $value) {
+            writeConfig($key, $value);
+        }
+        Artisan::call('config:clear');
+        return to_route('backend.admin.settings.website.general', ['active-tab' => 'tax-settings'])
+            ->with('success', 'Tax & FBR settings updated successfully');
+    }
+
     public function websitePrinterUpdate(Request $request)
     {
         // Explicitly handle fields to ensure they are captured even if null/empty

@@ -118,6 +118,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('/sale/report', [ReportController::class, 'saleReport'])->name('sale.report');
     Route::get('/inventory/report', [ReportController::class, 'inventoryReport'])->name('inventory.report');
     Route::get('/refund/report', [ReportController::class, 'refundReport'])->name('refund.report');
+    Route::get('/supplier/ledger', [ReportController::class, 'supplierLedger'])->name('supplier.ledger');
     //end report
     
     // Refunds
@@ -172,6 +173,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::post('update-website-status', 'websiteStatusUpdate')->name('settings.website.status.update');
 
                 Route::post('update-invoice-settings', 'websiteInvoiceUpdate')->name('settings.website.invoice.update');
+                Route::post('update-tax-settings', 'websiteTaxUpdate')->name('settings.website.tax.update');
                 Route::post('update-printer-settings', 'websitePrinterUpdate')->name('settings.website.printer.update');
             });
 

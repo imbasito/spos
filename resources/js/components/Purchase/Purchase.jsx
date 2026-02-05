@@ -19,6 +19,7 @@ export default function Purchase() {
     const [tax, setTax] = useState(0);
     const [discount, setDiscount] = useState(0);
     const [shipping, setShipping] = useState(0);
+    const [paidAmount, setPaidAmount] = useState(0);
     const [products, setProducts] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     useEffect(() => {
@@ -67,6 +68,7 @@ export default function Purchase() {
             setTax(purchaseData?.tax);
             setDiscount(purchaseData?.discount_value);
             setShipping(purchaseData?.shipping);
+            setPaidAmount(purchaseData?.paid_amount || 0);
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
@@ -197,12 +199,17 @@ export default function Purchase() {
             ).toFixed(2)
         );
 
+        const formattedPaidAmount = parseFloat((paidAmount || 0).toFixed(2));
+        const dueAmount = parseFloat((grandTotal - formattedPaidAmount).toFixed(2));
+
         return {
             subTotal: formattedSubTotal,
             tax: formattedTax,
             discount: formattedDiscount,
             shipping: formattedShipping,
             grandTotal,
+            paidAmount: formattedPaidAmount,
+            dueAmount: Math.max(0, dueAmount),
         };
     };
 
@@ -524,6 +531,18 @@ export default function Purchase() {
                                                     )}
                                                 </td>
                                             </tr>
+                                            <tr className="table-warning">
+                                                <th>Paid Amount:</th>
+                                                <td className="text-right">
+                                                    {totals.paidAmount.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                            <tr className="table-danger">
+                                                <th>Due (Khata):</th>
+                                                <td className="text-right">
+                                                    {totals.dueAmount.toFixed(2)}
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -534,7 +553,7 @@ export default function Purchase() {
                 <div className="card">
                     <div className="card-body">
                         <div className="row">
-                            <div className="mb-3 col-md-4">
+                            <div className="mb-3 col-md-3">
                                 <label htmlFor="tax" className="form-label">
                                     Tax
                                 </label>
@@ -551,7 +570,7 @@ export default function Purchase() {
                                     required
                                 />
                             </div>
-                            <div className="mb-3 col-md-4">
+                            <div className="mb-3 col-md-3">
                                 <label
                                     htmlFor="discount"
                                     className="form-label"
@@ -573,7 +592,7 @@ export default function Purchase() {
                                     required
                                 />
                             </div>
-                            <div className="mb-3 col-md-4">
+                            <div className="mb-3 col-md-3">
                                 <label
                                     htmlFor="shipping"
                                     className="form-label"
@@ -594,6 +613,30 @@ export default function Purchase() {
                                     name="shipping"
                                     required
                                 />
+                            </div>
+                            <div className="mb-3 col-md-3">
+                                <label
+                                    htmlFor="paidAmount"
+                                    className="form-label"
+                                >
+                                    Paid Amount <small className="text-muted">(0 = Credit)</small>
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    className="form-control"
+                                    value={paidAmount}
+                                    onChange={(e) =>
+                                        setPaidAmount(
+                                            parseFloat(e.target.value) || 0
+                                        )
+                                    }
+                                    placeholder="Amount paid to supplier"
+                                    name="paidAmount"
+                                />
+                                {totals.dueAmount > 0 && (
+                                    <small className="text-danger">Remaining: {totals.dueAmount.toFixed(2)}</small>
+                                )}
                             </div>
                         </div>
                     </div>

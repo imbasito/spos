@@ -86,28 +86,35 @@ class CustomerController extends Controller
 
         abort_if(!auth()->user()->can('customer_create'), 403);
 
+        // Pakistani validation rules
+        $rules = [
+            'name' => 'required|string|max:255',
+            'phone' => ['required', 'string', 'regex:/^03\d{9}$/', 'unique:customers,phone'],
+            'cnic' => ['nullable', 'string', 'regex:/^\d{5}-\d{7}-\d{1}$/'],
+            'address' => 'nullable|string|max:255',
+            'credit_limit' => 'nullable|numeric|min:0',
+        ];
+        $messages = [
+            'phone.regex' => 'Phone must be a valid Pakistani mobile number (03xxxxxxxxx).',
+            'cnic.regex' => 'CNIC must be in format xxxxx-xxxxxxx-x.',
+        ];
+
         if ($request->wantsJson()) {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'phone' => 'required|string|max:20|unique:customers,phone',
-                'address' => 'nullable|string|max:255',
-            ]);
+            $request->validate($rules, $messages);
 
             $customer = Customer::create([
                 'name' => $request->name,
                 'phone' => $request->phone,
+                'cnic' => $request->cnic,
                 'address' => $request->address,
+                'credit_limit' => $request->credit_limit ?? 0,
             ]);
 
             return response()->json($customer);
         }
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone',
-            'address' => 'nullable|string|max:255',
-        ]);
+        $request->validate($rules, $messages);
 
-        $customer = Customer::create($request->only(['name', 'phone', 'address']));
+        $customer = Customer::create($request->only(['name', 'phone', 'cnic', 'address', 'credit_limit']));
 
         session()->flash('success', 'Customer created successfully.');
         return to_route('backend.admin.customers.index');
@@ -141,13 +148,22 @@ class CustomerController extends Controller
         abort_if(!auth()->user()->can('customer_update'), 403);
         $customer = Customer::findOrFail($id);
 
-        $request->validate([
+        // Pakistani validation rules
+        $rules = [
             'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20|unique:customers,phone,' . $customer->id, // Corrected syntax
+            'phone' => ['required', 'string', 'regex:/^03\d{9}$/', 'unique:customers,phone,' . $customer->id],
+            'cnic' => ['nullable', 'string', 'regex:/^\d{5}-\d{7}-\d{1}$/'],
             'address' => 'nullable|string|max:255',
-        ]);
+            'credit_limit' => 'nullable|numeric|min:0',
+        ];
+        $messages = [
+            'phone.regex' => 'Phone must be a valid Pakistani mobile number (03xxxxxxxxx).',
+            'cnic.regex' => 'CNIC must be in format xxxxx-xxxxxxx-x.',
+        ];
 
-        $customer->update($request->only(['name', 'phone', 'address']));
+        $request->validate($rules, $messages);
+
+        $customer->update($request->only(['name', 'phone', 'cnic', 'address', 'credit_limit']));
 
         session()->flash('success', 'Customer updated successfully.');
         return to_route('backend.admin.customers.index');

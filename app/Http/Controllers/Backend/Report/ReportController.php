@@ -169,4 +169,45 @@ class ReportController extends Controller
 
         return view('backend.reports.refund-report', $data);
     }
+    public function supplierLedger(Request $request)
+    {
+        // abort_if(!auth()->user()->can('reports_supplier_ledger'), 403); // Permission check to be added later
+
+        if ($request->ajax()) {
+            $suppliers = \App\Models\Supplier::query();
+            
+            return DataTables::of($suppliers)
+                ->addIndexColumn()
+                ->addColumn('name', fn($data) => $data->name)
+                ->addColumn('phone', fn($data) => $data->phone)
+                ->addColumn('total_purchase', function($data) {
+                    return number_format($data->purchases()->sum('grand_total'), 2);
+                })
+                ->addColumn('total_paid', function($data) {
+                    return number_format($data->purchases()->sum('paid_amount'), 2);
+                })
+                ->addColumn('balance_due', function($data) {
+                    $total = $data->purchases()->sum('grand_total');
+                    $paid = $data->purchases()->sum('paid_amount');
+                    $due = $total - $paid;
+                    return $due > 0 ? '<span class="text-danger font-weight-bold">' . number_format($due, 2) . '</span>' : number_format($due, 2);
+                })
+                ->addColumn('action', function ($data) {
+                    return '<a href="' . route('backend.admin.suppliers.orders', $data->id) . '" class="btn btn-sm btn-info">View History</a>';
+                })
+                ->rawColumns(['balance_due', 'action'])
+                ->toJson();
+        }
+
+        // Summary Cards Data
+        $allSuppliers = \App\Models\Supplier::with('purchases')->get();
+        $totalDebt = 0;
+        foreach ($allSuppliers as $supplier) {
+             $total = $supplier->purchases->sum('grand_total');
+             $paid = $supplier->purchases->sum('paid_amount');
+             $totalDebt += max(0, $total - $paid);
+        }
+
+        return view('backend.reports.supplier-ledger', compact('totalDebt'));
+    }
 }

@@ -27,6 +27,7 @@ class UpdateProductRequest extends FormRequest
         return [
           'product_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'name' => 'required|string|max:255',
+            'urdu_name' => 'nullable|string|max:255',
             'slug' => [
                 'nullable',
                 'string',
@@ -39,6 +40,7 @@ class UpdateProductRequest extends FormRequest
                 'max:20',
                 Rule::unique('products', 'sku')->ignore($productId),
             ],
+            'hs_code' => 'nullable|string|max:20',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'required|exists:brands,id',
