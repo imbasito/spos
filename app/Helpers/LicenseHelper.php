@@ -129,6 +129,31 @@ class LicenseHelper
      */
     public static function isActivated()
     {
+        // First check system state file (preserved during updates)
+        $stateFilePath = storage_path('app/system_state.json');
+        if (file_exists($stateFilePath)) {
+            try {
+                $state = json_decode(file_get_contents($stateFilePath), true);
+                if (isset($state['activated']) && $state['activated'] === true) {
+                    // Verify the license from state is still valid
+                    if (!empty($state['license_key'])) {
+                        $result = self::validate($state['license_key']);
+                        if ($result['valid']) {
+                            // Sync config if needed
+                            if (readConfig('license_key') !== $state['license_key']) {
+                                writeConfig('license_key', $state['license_key']);
+                                writeConfig('licensed_to', $state['licensed_to'] ?? $result['shop']);
+                            }
+                            return true;
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Failed to read system state for activation check', ['error' => $e->getMessage()]);
+            }
+        }
+
+        // Fallback to config-based check
         $licenseKey = readConfig('license_key');
         if (empty($licenseKey)) {
             return false;
@@ -165,6 +190,14 @@ class LicenseHelper
             // Mark as activated and remove first-run flag
             file_put_contents(storage_path('app/activated_at'), now()->toDateTimeString());
             @unlink(storage_path('app/first_run_pending'));
+            
+            // Save to system state for persistence across updates
+            try {
+                $versionService = app(\App\Services\VersionService::class);
+                $versionService->markActivated($licenseKey, $result['shop']);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to save activation to system state', ['error' => $e->getMessage()]);
+            }
             
             return $result;
         }

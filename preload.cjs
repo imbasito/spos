@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld('electron', {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     openDrawer: (printerName = null) => ipcRenderer.invoke('printer:open-drawer', { printerName }),
     getRemoteConfig: () => ipcRenderer.invoke('config:get-remote'),
+    // Initialization recovery handlers
+    retryInit: () => ipcRenderer.invoke('init:retry'),
+    restoreBackup: () => ipcRenderer.invoke('init:restore-backup'),
+    showLogs: () => ipcRenderer.invoke('init:show-logs'),
 });
 
 console.log("[PRELOAD]: Bridge Exposure Complete");

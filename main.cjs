@@ -438,136 +438,232 @@ function createDatabase() {
 }
 
 /**
- * AUTO-MIGRATION ENGINE
+ * AUTO-MIGRATION ENGINE WITH PROFESSIONAL ERROR HANDLING
  * Ensures database schema is ALWAYS in sync with the current code.
- * Runs 'php artisan migrate --force' silently on startup.
+ * Includes health checks, version tracking, and recovery mechanisms.
  */
 function runMigrations() {
     return new Promise((resolve, reject) => {
-        logger.log('Checking for database migrations...');
+        logger.log('Starting professional migration system...');
         const phpPath = path.join(basePath, 'php', 'php.exe');
-        const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
+        
+        // Update splash with stage
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.executeJavaScript(`window.setStage('validating')`);
+            splashWindow.webContents.executeJavaScript(`window.updateStatus('RUNNING HEALTH CHECKS')`);
+        }
+        
+        // Step 1: Run health checks via PHP artisan command
+        logger.log('Running pre-migration health checks...');
+        const healthCheckProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=echo json_encode((new \\App\\Services\\HealthCheckService())->runAllChecks());'], { 
             cwd: basePath, 
             windowsHide: true,
-            env: { ...process.env, DB_PORT: MYSQL_PORT } // Ensure it uses the right port
+            env: { ...process.env, DB_PORT: MYSQL_PORT }
         });
 
-        let migrationOutput = '';
-        let migrationErrors = '';
-
-        migrateProcess.stdout.on('data', (data) => {
-            migrationOutput += data.toString();
-            logger.log(`[MIGRATION]: ${data}`);
-        });
-        
-        migrateProcess.stderr.on('data', (data) => {
-            migrationErrors += data.toString();
-            logger.error(`[MIGRATION ERROR]: ${data}`);
+        let healthOutput = '';
+        healthCheckProcess.stdout.on('data', (data) => {
+            healthOutput += data.toString();
         });
 
-        migrateProcess.on('close', (code) => {
-            logger.log(`Migration process exited with code ${code}`);
-            
-            // Check for critical migration errors
-            if (code !== 0 && migrationErrors && !migrationErrors.includes('Nothing to migrate')) {
-                logger.error('Critical migration error detected. Cannot proceed.');
-                reject(new Error('Migration failed'));
-                return;
-            }
-            
-            // --- Clear Laravel caches BEFORE seeding to prevent permission errors ---
-            logger.log('Clearing Laravel caches...');
-            const cachePath = path.join(basePath, 'bootstrap', 'cache');
-            const storageCachePath = path.join(basePath, 'storage', 'framework', 'cache', 'data');
-            const viewsPath = path.join(basePath, 'storage', 'framework', 'views');
-            
+        healthCheckProcess.on('close', (healthCode) => {
             try {
-                const fs = require('fs');
-                // Clear bootstrap cache
-                if (fs.existsSync(cachePath)) {
-                    const files = fs.readdirSync(cachePath).filter(f => f.endsWith('.php'));
-                    files.forEach(file => {
-                        try { fs.unlinkSync(path.join(cachePath, file)); } catch (e) {}
-                    });
-                }
-                // Clear storage cache
-                if (fs.existsSync(storageCachePath)) {
-                    const clearDir = (dir) => {
-                        if (fs.existsSync(dir)) {
-                            fs.readdirSync(dir).forEach(file => {
-                                const fullPath = path.join(dir, file);
-                                if (fs.lstatSync(fullPath).isDirectory()) {
-                                    clearDir(fullPath);
-                                    try { fs.rmdirSync(fullPath); } catch (e) {}
-                                } else {
-                                    try { fs.unlinkSync(fullPath); } catch (e) {}
-                                }
-                            });
+                // Parse health check results
+                const healthResults = JSON.parse(healthOutput.trim());
+                
+                if (!healthResults.success) {
+                    const criticalFailures = healthResults.checks.filter(c => !c.passed && c.critical);
+                    if (criticalFailures.length > 0) {
+                        const errorMsg = criticalFailures.map(c => c.message).join('; ');
+                        logger.error('Critical health check failures: ' + errorMsg);
+                        
+                        if (splashWindow && !splashWindow.isDestroyed()) {
+                            splashWindow.webContents.executeJavaScript(`window.setStageError('validating')`);
+                            splashWindow.webContents.executeJavaScript(`window.showError('System Health Check Failed', '${errorMsg.replace(/'/g, "\\'")}')` );
                         }
-                    };
-                    clearDir(storageCachePath);
+                        
+                        reject(new Error('Health check failed: ' + errorMsg));
+                        return;
+                    }
                 }
-                // Clear views cache
-                if (fs.existsSync(viewsPath)) {
-                    fs.readdirSync(viewsPath).forEach(file => {
-                        try { fs.unlinkSync(path.join(viewsPath, file)); } catch (e) {}
-                    });
-                }
-                logger.log('Laravel caches cleared.');
             } catch (e) {
-                logger.warn('Cache clearing had minor issues, continuing...');
+                logger.warn('Could not parse health check results, continuing...', e.message);
             }
-            
-            // --- NEW: Run Database Seeder to ensure core data exists ---
-            logger.log('Seeding core data...');
-            const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {
+
+            // Step 2: Update version service before migration
+            logger.log('Detecting installation type...');
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.webContents.executeJavaScript(`window.setStage('migrating')`);
+                splashWindow.webContents.executeJavaScript(`window.updateStatus('APPLYING DATABASE UPDATES')`);
+            }
+
+            // Run migrations
+            logger.log('Checking for database migrations...');
+            const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
                 cwd: basePath, 
                 windowsHide: true,
                 env: { ...process.env, DB_PORT: MYSQL_PORT }
             });
-            
-            let seederErrors = '';
-            
-            seedProcess.stdout.on('data', (data) => logger.log(`[SEEDER]: ${data}`));
-            seedProcess.stderr.on('data', (data) => {
-                // Ignore PHP deprecation warnings during seeding
+
+            let migrationOutput = '';
+            let migrationErrors = '';
+
+            migrateProcess.stdout.on('data', (data) => {
                 const msg = data.toString();
-                if (!msg.includes('Deprecated') && !msg.includes('deprecated')) {
-                    seederErrors += msg;
-                    logger.error(`[SEEDER ERROR]: ${data}`);
+                migrationOutput += msg;
+                logger.log(`[MIGRATION]: ${msg}`);
+                
+                // Send real-time output to splash
+                if (splashWindow && !splashWindow.isDestroyed()) {
+                    const lines = msg.split('\n').filter(l => l.trim());
+                    lines.forEach(line => {
+                        splashWindow.webContents.executeJavaScript(`window.addOutputLine('${line.replace(/'/g, "\\'")}' )`);
+                    });
                 }
             });
             
-            seedProcess.on('close', (seedCode) => {
-                logger.log(`Seeder process exited with code ${seedCode}`);
+            migrateProcess.stderr.on('data', (data) => {
+                migrationErrors += data.toString();
+                logger.error(`[MIGRATION ERROR]: ${data}`);
+            });
+
+            migrateProcess.on('close', (code) => {
+                logger.log(`Migration process exited with code ${code}`);
                 
-                // Seeder errors are non-critical - just log them
-                if (seedCode !== 0 && seederErrors) {
-                    logger.warn('Seeder reported issues, but continuing startup...');
-                }
-                
-                // --- Clear Permission Cache (Spatie) ---
-                logger.log('Clearing permission cache...');
-                const permClearProcess = spawn(phpPath, ['artisan', 'permission:cache-reset'], {
-                    cwd: basePath, 
-                    windowsHide: true,
-                    env: { ...process.env, DB_PORT: MYSQL_PORT } 
-                });
-                
-                permClearProcess.on('close', () => {
-                    logger.log('Permission cache cleared.');
+                // Check for critical migration errors
+                if (code !== 0 && migrationErrors && !migrationErrors.includes('Nothing to migrate')) {
+                    logger.error('Critical migration error detected.');
                     
-                    // --- Clear View Cache to ensure UI updates apply ---
-                    logger.log('Clearing view cache...');
-                    const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
-                        cwd: basePath, 
+                    // Mark migration as failed in version service
+                    const markFailedProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationFailed("Migration exited with code ' + code + '");'], {
+                        cwd: basePath,
                         windowsHide: true,
-                        env: { ...process.env } 
+                        env: { ...process.env, DB_PORT: MYSQL_PORT }
                     });
                     
-                    clearProcess.on('close', () => {
-                        logger.log('View cache cleared.');
-                        resolve();
+                    markFailedProcess.on('close', () => {
+                        if (splashWindow && !splashWindow.isDestroyed()) {
+                            splashWindow.webContents.executeJavaScript(`window.setStageError('migrating')`);
+                            splashWindow.webContents.executeJavaScript(`window.showError('Database Migration Failed', 'Database update failed. Click "Restore Backup" to rollback or "Retry" to try again.')`);
+                        }
+                        
+                        reject(new Error('Migration failed'));
+                    });
+                    return;
+                }
+                
+                // Mark migration as successful
+                const markSuccessProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationSuccess();'], {
+                    cwd: basePath,
+                    windowsHide: true,
+                    env: { ...process.env, DB_PORT: MYSQL_PORT }
+                });
+
+                markSuccessProcess.on('close', () => {
+                    // Step 3: Finalization - Clear caches and run seeders
+                    if (splashWindow && !splashWindow.isDestroyed()) {
+                        splashWindow.webContents.executeJavaScript(`window.setStage('finalizing')`);
+                        splashWindow.webContents.executeJavaScript(`window.updateStatus('FINALIZING SETUP')`);
+                    }
+
+                    logger.log('Clearing Laravel caches...');
+                    const cachePath = path.join(basePath, 'bootstrap', 'cache');
+                    const storageCachePath = path.join(basePath, 'storage', 'framework', 'cache', 'data');
+                    const viewsPath = path.join(basePath, 'storage', 'framework', 'views');
+                    
+                    try {
+                        const fs = require('fs');
+                        // Clear bootstrap cache
+                        if (fs.existsSync(cachePath)) {
+                            const files = fs.readdirSync(cachePath).filter(f => f.endsWith('.php'));
+                            files.forEach(file => {
+                                try { fs.unlinkSync(path.join(cachePath, file)); } catch (e) {}
+                            });
+                        }
+                        // Clear storage cache
+                        if (fs.existsSync(storageCachePath)) {
+                            const clearDir = (dir) => {
+                                if (fs.existsSync(dir)) {
+                                    fs.readdirSync(dir).forEach(file => {
+                                        const fullPath = path.join(dir, file);
+                                        if (fs.lstatSync(fullPath).isDirectory()) {
+                                            clearDir(fullPath);
+                                            try { fs.rmdirSync(fullPath); } catch (e) {}
+                                        } else {
+                                            try { fs.unlinkSync(fullPath); } catch (e) {}
+                                        }
+                                    });
+                                }
+                            };
+                            clearDir(storageCachePath);
+                        }
+                        // Clear views cache
+                        if (fs.existsSync(viewsPath)) {
+                            fs.readdirSync(viewsPath).forEach(file => {
+                                try { fs.unlinkSync(path.join(viewsPath, file)); } catch (e) {}
+                            });
+                        }
+                        logger.log('Laravel caches cleared.');
+                    } catch (e) {
+                        logger.warn('Cache clearing had minor issues, continuing...');
+                    }
+                    
+                    // Run Database Seeder
+                    logger.log('Seeding core data...');
+                    const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {
+                        cwd: basePath, 
+                        windowsHide: true,
+                        env: { ...process.env, DB_PORT: MYSQL_PORT }
+                    });
+                    
+                    let seederErrors = '';
+                    
+                    seedProcess.stdout.on('data', (data) => logger.log(`[SEEDER]: ${data}`));
+                    seedProcess.stderr.on('data', (data) => {
+                        const msg = data.toString();
+                        if (!msg.includes('Deprecated') && !msg.includes('deprecated')) {
+                            seederErrors += msg;
+                            logger.error(`[SEEDER ERROR]: ${data}`);
+                        }
+                    });
+                    
+                    seedProcess.on('close', (seedCode) => {
+                        logger.log(`Seeder process exited with code ${seedCode}`);
+                        
+                        if (seedCode !== 0 && seederErrors) {
+                            logger.warn('Seeder reported issues, but continuing startup...');
+                        }
+                        
+                        // Clear Permission Cache
+                        logger.log('Clearing permission cache...');
+                        const permClearProcess = spawn(phpPath, ['artisan', 'permission:cache-reset'], {
+                            cwd: basePath, 
+                            windowsHide: true,
+                            env: { ...process.env, DB_PORT: MYSQL_PORT } 
+                        });
+                        
+                        permClearProcess.on('close', () => {
+                            logger.log('Permission cache cleared.');
+                            
+                            // Clear View Cache
+                            logger.log('Clearing view cache...');
+                            const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                                cwd: basePath, 
+                                windowsHide: true,
+                                env: { ...process.env } 
+                            });
+                            
+                            clearProcess.on('close', () => {
+                                logger.log('View cache cleared.');
+                                
+                                // Mark all stages as completed
+                                if (splashWindow && !splashWindow.isDestroyed()) {
+                                    splashWindow.webContents.executeJavaScript(`window.setProgress(100)`);
+                                }
+                                
+                                resolve();
+                            });
+                        });
                     });
                 });
             });
@@ -680,6 +776,62 @@ function setupAutoUpdater() {
     autoUpdater.on('error', (err) => mainWindow.webContents.send('updater:status', 'error', err.message));
     autoUpdater.on('download-progress', (progress) => mainWindow.webContents.send('updater:progress', progress.percent));
     autoUpdater.on('update-downloaded', () => mainWindow.webContents.send('updater:ready'));
+
+    // Initialization Recovery IPC Handlers
+    ipcMain.handle('init:retry', async () => {
+        logger.log('User requested initialization retry');
+        try {
+            // Re-run migrations
+            await runMigrations();
+            return { success: true };
+        } catch (error) {
+            logger.error('Retry initialization failed:', error.message);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('init:restore-backup', async () => {
+        logger.log('User requested backup restoration');
+        try {
+            const phpPath = path.join(basePath, 'php', 'php.exe');
+            const restoreProcess = spawn(phpPath, [
+                'artisan',
+                'tinker',
+                '--execute=echo json_encode((new \\App\\Services\\RecoveryService(new \\App\\Services\\UpdateService(), new \\App\\Services\\VersionService(), new \\App\\Services\\HealthCheckService()))->rollbackToLastGoodState());'
+            ], {
+                cwd: basePath,
+                windowsHide: true,
+                env: { ...process.env, DB_PORT: MYSQL_PORT }
+            });
+
+            let output = '';
+            restoreProcess.stdout.on('data', (data) => {
+                output += data.toString();
+            });
+
+            return new Promise((resolve) => {
+                restoreProcess.on('close', () => {
+                    try {
+                        const result = JSON.parse(output.trim());
+                        resolve(result);
+                    } catch (e) {
+                        resolve({ success: false, message: 'Failed to parse restore result' });
+                    }
+                });
+            });
+        } catch (error) {
+            logger.error('Backup restoration failed:', error.message);
+            return { success: false, message: error.message };
+        }
+    });
+
+    ipcMain.handle('init:show-logs', async () => {
+        logger.log('User requested to view logs');
+        const logPath = path.join(app.getPath('userData'), 'app.log');
+        const { shell } = require('electron');
+        shell.openPath(logPath);
+        return { success: true };
+    });
 
     // Config IPC
     ipcMain.handle('config:get-remote', () => global.posConfig || null);
@@ -909,28 +1061,21 @@ async function startApp() {
         // await session.defaultSession.clearStorageData(); // DISABLE THIS to fix "Login Every Time"
 
         updateSplashStatus('Starting...');
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.webContents.executeJavaScript(`window.setStage('preparing')`);
+        }
 
         await new Promise(r => setTimeout(r, 700));
-
-
-
-        await new Promise(r => setTimeout(r, 700));
-
-
 
         await startMySQL();
 
         updateSplashStatus('Loading database...');
 
-
         await new Promise(r => setTimeout(r, 700));
-
-
 
         await startLaravel(laravelPort);
 
         updateSplashStatus('Initializing application...');
-
 
         await waitForMySQL(MYSQL_PORT, 45000);
         logger.log('MySQL connection confirmed - proceeding with database setup');
@@ -939,14 +1084,122 @@ async function startApp() {
         updateSplashStatus('Preparing database...');
         await createDatabase();
         
-        // --- NEW: Perform Auto-Migrations ---
+        // --- NEW: Check for failed updates and offer recovery ---
+        updateSplashStatus('Checking system state...');
+        const phpPath = path.join(basePath, 'php', 'php.exe');
+        
+        // Check if update was in progress
+        const checkUpdateProcess = spawn(phpPath, [
+            'artisan',
+            'tinker',
+            '--execute=echo json_encode((new \\App\\Services\\VersionService())->isUpdateInProgress());'
+        ], {
+            cwd: basePath,
+            windowsHide: true,
+            env: { ...process.env, DB_PORT: MYSQL_PORT }
+        });
+
+        let updateInProgress = false;
+        let checkOutput = '';
+        
+        checkUpdateProcess.stdout.on('data', (data) => {
+            checkOutput += data.toString();
+        });
+
+        await new Promise((resolve) => {
+            checkUpdateProcess.on('close', () => {
+                try {
+                    updateInProgress = JSON.parse(checkOutput.trim()) === true;
+                } catch (e) {
+                    updateInProgress = false;
+                }
+                resolve();
+            });
+        });
+
+        if (updateInProgress) {
+            logger.warn('Detected failed update - attempting automatic recovery');
+            updateSplashStatus('Recovering from failed update...');
+            
+            if (splashWindow && !splashWindow.isDestroyed()) {
+                splashWindow.webContents.executeJavaScript(`window.updateStatus('RECOVERING FROM FAILED UPDATE')`);
+            }
+
+            // Attempt auto-recovery
+            const recoveryProcess = spawn(phpPath, [
+                'artisan',
+                'tinker',
+                '--execute=echo json_encode((new \\App\\Services\\RecoveryService(new \\App\\Services\\UpdateService(), new \\App\\Services\\VersionService(), new \\App\\Services\\HealthCheckService()))->attemptAutoRecovery());'
+            ], {
+                cwd: basePath,
+                windowsHide: true,
+                env: { ...process.env, DB_PORT: MYSQL_PORT }
+            });
+
+            let recoveryOutput = '';
+            recoveryProcess.stdout.on('data', (data) => {
+                recoveryOutput += data.toString();
+            });
+
+            await new Promise((resolve) => {
+                recoveryProcess.on('close', () => {
+                    try {
+                        const result = JSON.parse(recoveryOutput.trim());
+                        if (result.success) {
+                            logger.log('Auto-recovery successful: ' + result.action_taken);
+                        } else {
+                            logger.warn('Auto-recovery failed: ' + result.message);
+                        }
+                    } catch (e) {
+                        logger.warn('Could not parse recovery result');
+                    }
+                    resolve();
+                });
+            });
+        }
+
+        // --- Create automatic backup before migrations ---
+        updateSplashStatus('Creating safety backup...');
+        logger.log('Creating pre-migration backup...');
+        
+        const backupProcess = spawn(phpPath, [
+            'artisan',
+            'tinker',
+            '--execute=echo json_encode((new \\App\\Services\\UpdateService())->createBackup());'
+        ], {
+            cwd: basePath,
+            windowsHide: true,
+            env: { ...process.env, DB_PORT: MYSQL_PORT }
+        });
+
+        let backupOutput = '';
+        backupProcess.stdout.on('data', (data) => {
+            backupOutput += data.toString();
+        });
+
+        await new Promise((resolve) => {
+            backupProcess.on('close', () => {
+                try {
+                    const result = JSON.parse(backupOutput.trim());
+                    if (result.success) {
+                        logger.log('Backup created: ' + result.backup_id);
+                    } else {
+                        logger.warn('Backup creation failed: ' + result.message);
+                    }
+                } catch (e) {
+                    logger.warn('Could not create backup, continuing...');
+                }
+                resolve();
+            });
+        });
+        
+        // --- Perform Auto-Migrations with Professional Error Handling ---
         updateSplashStatus('Checking database integrity...');
         await runMigrations();
 
         await waitForLaravel(laravelPort, 60000);
         
         updateSplashStatus('Establishing connection...');
-
 
         await new Promise(r => setTimeout(r, 700));
 
@@ -957,9 +1210,6 @@ async function startApp() {
         updateSplashStatus('Finalizing...');
 
         await new Promise(r => setTimeout(r, 700));
-
-
-
         
         // Register IPC BEFORE window creation
         setupAutoUpdater();
