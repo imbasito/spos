@@ -68,6 +68,9 @@ class UpdateService
                 throw new \Exception("Backup integrity verification failed");
             }
 
+            // 6. Prune old backups (keep last 10)
+            $this->pruneOldBackups(10);
+
             Log::info("Backup created successfully", ['backup_id' => $backupId, 'paths' => $backupPaths]);
 
             return [
@@ -90,11 +93,57 @@ class UpdateService
     }
 
     /**
-     * Backup database with checksum
+     * Backup database with checksum (supports both SQLite and MySQL)
      */
     private function backupDatabase(string $backupDir): ?string
     {
         try {
+            $dbConnection = config('database.default');
+            
+            // MySQL backup using mysqldump
+            if ($dbConnection === 'mysql') {
+                $dbHost = config('database.connections.mysql.host');
+                $dbPort = config('database.connections.mysql.port');
+                $dbName = config('database.connections.mysql.database');
+                $dbUser = config('database.connections.mysql.username');
+                $dbPass = config('database.connections.mysql.password');
+                
+                $mysqlDumpPath = base_path('mysql/bin/mysqldump.exe');
+                $dbBackupPath = $backupDir . '/database.sql';
+                
+                if (!File::exists($mysqlDumpPath)) {
+                    Log::error("mysqldump not found at: {$mysqlDumpPath}");
+                    return null;
+                }
+                
+                // Build mysqldump command
+                $command = sprintf(
+                    '"%s" -h %s -P %s -u %s --password="%s" --protocol=TCP --single-transaction --routines --triggers %s > "%s" 2>&1',
+                    $mysqlDumpPath,
+                    escapeshellarg($dbHost),
+                    escapeshellarg($dbPort),
+                    escapeshellarg($dbUser),
+                    $dbPass,
+                    escapeshellarg($dbName),
+                    $dbBackupPath
+                );
+                
+                exec($command, $output, $returnCode);
+                
+                if ($returnCode !== 0) {
+                    Log::error("MySQL backup failed", ['output' => implode("\n", $output)]);
+                    throw new \Exception("mysqldump failed with code {$returnCode}");
+                }
+                
+                // Create checksum
+                $checksum = md5_file($dbBackupPath);
+                File::put($dbBackupPath . '.md5', $checksum);
+                
+                Log::info("MySQL database backed up successfully", ['size' => filesize($dbBackupPath)]);
+                return $dbBackupPath;
+            }
+            
+            // SQLite backup (original logic)
             if (!File::exists($this->databasePath)) {
                 Log::warning("Database file not found: {$this->databasePath}");
                 return null;
@@ -225,6 +274,29 @@ class UpdateService
         } catch (\Exception $e) {
             Log::error("Backup verification failed", ['error' => $e->getMessage()]);
             return false;
+        }
+    }
+
+    /**
+     * Prune old backups to avoid disk bloat
+     */
+    private function pruneOldBackups(int $keepCount = 10): void
+    {
+        try {
+            $backupDirs = File::directories($this->backupPath);
+            rsort($backupDirs); // newest first by name
+
+            if (count($backupDirs) <= $keepCount) {
+                return;
+            }
+
+            $dirsToDelete = array_slice($backupDirs, $keepCount);
+            foreach ($dirsToDelete as $dir) {
+                File::deleteDirectory($dir);
+                Log::info("Pruned old backup", ['path' => $dir]);
+            }
+        } catch (\Exception $e) {
+            Log::warning("Backup pruning failed", ['error' => $e->getMessage()]);
         }
     }
 

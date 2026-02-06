@@ -19,25 +19,38 @@ if not exist "package.json" (
 )
 
 echo [1/5] Cleaning previous builds...
+REM Kill any locked processes first
+taskkill /F /IM SPOS.exe >nul 2>&1
+taskkill /F /IM electron.exe >nul 2>&1
+taskkill /F /IM mysqld.exe >nul 2>&1
+taskkill /F /IM php.exe >nul 2>&1
+echo       Waiting for processes to fully release files...
+timeout /t 5 /nobreak >nul
+
+REM Now try to delete directories
 if exist "dist_production" (
-    rmdir /s /q "dist_production"
+    echo       Removing old dist_production folder...
+    rmdir /s /q "dist_production" 2>nul
+    if exist "dist_production" (
+        echo       Forcing removal of locked files...
+        del /f /s /q "dist_production\*.*" >nul 2>&1
+        rmdir /s /q "dist_production" >nul 2>&1
+    )
     echo       Removed old dist_production folder
 )
 if exist "dist" (
-    rmdir /s /q "dist"
+    rmdir /s /q "dist" 2>nul
     echo       Removed old dist folder
 )
 
 echo.
-echo [2/5] Stopping running processes...
-echo       Stopping MySQL to release locked files...
-taskkill /F /IM mysqld.exe >nul 2>&1
-echo       Stopping Electron...
-taskkill /F /IM SPOS.exe >nul 2>&1
-taskkill /F /IM electron.exe >nul 2>&1
-echo       Waiting for processes to close...
-timeout /t 3 /nobreak >nul
-echo       All processes stopped
+echo [2/5] Final process check...
+echo       Ensuring all background services are stopped...
+taskkill /F /IM node.exe >nul 2>&1
+taskkill /F /IM php-cgi.exe >nul 2>&1
+echo       Waiting for system to stabilize...
+timeout /t 2 /nobreak >nul
+echo       System ready for build
 
 echo.
 echo [3/5] Running cleanup script...
@@ -61,6 +74,16 @@ echo       Frontend build completed
 
 echo.
 echo [5/5] Building Electron installer...
+echo       Ensuring no locked files remain...
+REM Kill any hidden node/electron processes
+wmic process where "name='node.exe' or name='electron.exe' or name='SPOS.exe'" delete >nul 2>&1
+timeout /t 3 /nobreak >nul
+
+REM Nuclear deletion with PowerShell and attribute reset
+powershell -Command "if (Test-Path 'dist_production\win-unpacked') { attrib -r -s -h 'dist_production\win-unpacked\*.*' /s /d; Remove-Item 'dist_production\win-unpacked' -Force -Recurse -ErrorAction SilentlyContinue }" >nul 2>&1
+powershell -Command "if (Test-Path 'dist_production') { Remove-Item 'dist_production' -Force -Recurse -ErrorAction SilentlyContinue }" >nul 2>&1
+timeout /t 2 /nobreak >nul
+
 echo       This may take several minutes...
 nodejs\node.exe node_modules\electron-builder\out\cli\cli.js --win nsis
 if errorlevel 1 (

@@ -108,8 +108,10 @@ class RolePermissionSeeder extends Seeder
         $admin = Role::where('name', 'Admin')->first();
         for ($i = 0; $i < count($permissions); $i++) {
             $permission = Permission::firstOrCreate(['name' => $permissions[$i]]);
-            $admin->givePermissionTo($permission);
-            $permission->assignRole($admin);
+            if ($admin) {
+                $admin->givePermissionTo($permission);
+                $permission->assignRole($admin);
+            }
         }
 
         // Create users and assign roles
@@ -133,8 +135,12 @@ class RolePermissionSeeder extends Seeder
         $cashierRole = Role::where('name', 'cashier')->first();
         $salesRole = Role::where('name', 'sales_associate')->first();
 
-        $cashierUser->assignRole($cashierRole);
-        $salesUser->assignRole($salesRole);
+        if ($cashierRole) {
+            $cashierUser->assignRole($cashierRole);
+        }
+        if ($salesRole) {
+            $salesUser->assignRole($salesRole);
+        }
 
         // Optionally, assign permissions to the cashier and sales_associate roles
         // You can customize these permissions as needed

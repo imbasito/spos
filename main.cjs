@@ -28,7 +28,7 @@ const PrinterTransport = require('./services/PrinterTransport.js');
 let laravelServer, mysqlServer, splashWindow, mainWindow;
 let drawerStatus = 'closed'; // 'closed' or 'open'
 let drawerLastOpenTime = 0;
-const MYSQL_PORT = 3307;
+let MYSQL_PORT = parseInt(process.env.DB_PORT || '3307', 10);
 
 let laravelPort = 8000;
 
@@ -48,6 +48,73 @@ if (app.isPackaged) {
 }
 
 // Temporary debug - will be logged after Logger is initialized
+
+// Database config helpers (ensure embedded MySQL uses correct settings)
+function getDbConfig() {
+    return {
+        host: process.env.DB_HOST || '127.0.0.1',
+        port: parseInt(process.env.DB_PORT || MYSQL_PORT, 10),
+        database: process.env.DB_DATABASE || 'spos',
+        username: process.env.DB_USERNAME || 'root',
+        password: process.env.DB_PASSWORD || ''
+    };
+}
+
+function buildMysqlCliArgs(extraArgs = []) {
+    const cfg = getDbConfig();
+    const args = [
+        '-h', cfg.host,
+        '-u', cfg.username,
+        '-P', String(cfg.port),
+        '--protocol=TCP'
+    ];
+    if (cfg.password && cfg.password.length > 0) {
+        args.push(`-p${cfg.password}`);
+    }
+    return args.concat(extraArgs);
+}
+
+async function resolveMySQLPort(preferredPort) {
+    if (!(await isPortOpen(preferredPort))) {
+        return preferredPort;
+    }
+    try {
+        await waitForMySQL(preferredPort, 2000);
+        return preferredPort;
+    } catch (e) {
+        // Port in use but not MySQL - fall back to another port
+        for (let port = preferredPort + 1; port <= preferredPort + 10; port++) {
+            if (!(await isPortOpen(port))) {
+                logger.warn(`Port ${preferredPort} is busy. Using fallback port ${port}.`);
+                return port;
+            }
+        }
+        logger.warn(`No fallback ports available. Using ${preferredPort} and retrying.`);
+        return preferredPort;
+    }
+}
+
+async function waitForMySQLReady(port, timeout = 45000) {
+    const startTime = Date.now();
+    const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysql.exe');
+    const args = buildMysqlCliArgs(['-e', 'SELECT 1;']);
+    args[args.indexOf('-P') + 1] = String(port);
+
+    while (Date.now() - startTime < timeout) {
+        try {
+            await new Promise((resolve, reject) => {
+                const testProcess = spawn(mysqlPath, args, { cwd: basePath, windowsHide: true });
+                testProcess.on('close', (code) => code === 0 ? resolve() : reject(new Error('MySQL not ready')));
+                testProcess.on('error', reject);
+            });
+            logger.log('MySQL is ready to accept queries.');
+            return true;
+        } catch (e) {
+            await new Promise(r => setTimeout(r, 1000));
+        }
+    }
+    throw new Error('MySQL did not become ready in time');
+}
 
 // ============================================
 // PROFESSIONAL LOG MANAGEMENT (Black Box)
@@ -191,9 +258,14 @@ function waitForLaravel(port, timeout = 30000) {
         const startTime = Date.now();
         console.log(`Waiting for Laravel on port ${port}...`);
         const check = () => {
-            const req = http.get(`http://127.0.0.1:${port}`, () => {
+            const req = http.get(`http://127.0.0.1:${port}`, (res) => {
+                res.resume(); // Drain response to free resources
                 console.log('Laravel connection successful!');
                 resolve(true);
+            });
+            // Per-request timeout to prevent hanging forever
+            req.setTimeout(5000, () => {
+                req.destroy();
             });
             req.on('error', () => {
                 if (Date.now() - startTime > timeout) reject(new Error(`Laravel connection timeout`));
@@ -307,59 +379,189 @@ async function fetchRemoteConfig() {
     });
 }
 
-async function startMySQL() {
-    // 1. Check if MySQL is already running
-    const isOpen = await isPortOpen(MYSQL_PORT);
-    if (isOpen) {
-        logger.log(`MySQL port ${MYSQL_PORT} is already in use. Verifying connection...`);
-        try {
-            await waitForMySQL(MYSQL_PORT, 2000);
-            logger.log("Existing MySQL instance found and responsive. Skipping spawn.");
-            return;
-        } catch (e) {
-            logger.warn("Port is used but MySQL not responding. Killing orphan process...");
-            try { treeKill(process.pid); /* Safe Attempt */ } catch(e){}
-            // We'll proceed to spawn anyway, hoping the OS clears the port
-        }
-    }
+// MySQL startup protection flag
+let mysqlStarting = false;
 
-    return new Promise((resolve) => {
-        logger.log('Starting MySQL Server...');
+async function startMySQL() {
+    // 0. Prevent concurrent MySQL startup attempts (race condition protection)
+    if (mysqlStarting) {
+        logger.warn('MySQL startup already in progress, skipping duplicate call');
+        return;
+    }
+    mysqlStarting = true;
+    
+    try {
+        // 0.1. Check if MySQL data directory needs initialization
+        const dataDir = path.join(basePath, 'mysql', 'data');
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysqld.exe');
         const myIniPath = path.join(basePath, 'mysql', 'my.ini');
         
-        // Spawn without 'shell: true' to keep PID tracking accurate
-        mysqlServer = spawn(mysqlPath, [`--defaults-file=${myIniPath}`, '--console'], { cwd: basePath, windowsHide: true });
+        // Ensure data directory exists
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
         
-        mysqlServer.on('error', (err) => {
-            logger.error(`Failed to start MySQL: ${err.message}`);
-        });
-
-        // Loop Prevention: Only restart if we actually own the process and it wasn't a clean exit
-        mysqlServer.on('exit', (code) => { 
-            if (!app.isQuitting) {
-                logger.warn(`MySQL exited with code ${code}. Checking if we need to restart...`);
-                // Check if port became free (meaning it actually died)
-                isPortOpen(MYSQL_PORT).then(stillOpen => {
-                    if (!stillOpen) {
-                        logger.warn("MySQL died and port is free. Restarting in 1s...");
-                        setTimeout(startMySQL, 1000); 
+        // Check if data directory is initialized (has mysql system tables)
+        const needsInit = !fs.existsSync(path.join(dataDir, 'mysql')) || 
+                          fs.readdirSync(dataDir).length < 3;
+        
+        if (needsInit) {
+            logger.log('MySQL data directory not initialized. Running fresh initialization...');
+            updateSplashStatus('Initializing database system...');
+            
+            await new Promise((resolve, reject) => {
+                const initProcess = spawn(mysqlPath, [
+                    `--defaults-file=${myIniPath}`,
+                    '--initialize-insecure',
+                    '--console'
+                ], { 
+                    cwd: basePath, 
+                    windowsHide: true 
+                });
+                
+                let initOutput = '';
+                
+                initProcess.stdout.on('data', (data) => {
+                    initOutput += data.toString();
+                    logger.log(`[MYSQL INIT]: ${data}`);
+                });
+                
+                initProcess.stderr.on('data', (data) => {
+                    logger.log(`[MYSQL INIT]: ${data}`);
+                });
+                
+                initProcess.on('close', (code) => {
+                    // Check if initialization succeeded
+                    if (code === 0 || fs.existsSync(path.join(dataDir, 'mysql'))) {
+                        logger.log('MySQL data directory initialized successfully');
+                        resolve();
                     } else {
-                        logger.warn("MySQL exited but port is still open. Likely conflict or concurrent instance. NOT restarting.");
+                        logger.error('MySQL initialization failed with code: ' + code);
+                        reject(new Error('MySQL initialization failed'));
                     }
                 });
+                
+                // Safety timeout (60 seconds for initialization)
+                setTimeout(() => {
+                    if (!initProcess.killed) {
+                        initProcess.kill();
+                        reject(new Error('MySQL initialization timeout'));
+                    }
+                }, 60000);
+            });
+        }
+        
+        // 1. Check if MySQL is already running
+        const isOpen = await isPortOpen(MYSQL_PORT);
+        if (isOpen) {
+            logger.log(`MySQL port ${MYSQL_PORT} is already in use. Verifying connection...`);
+            try {
+                await waitForMySQL(MYSQL_PORT, 2000);
+                logger.log("Existing MySQL instance found and responsive. Skipping spawn.");
+                mysqlStarting = false;
+                return;
+            } catch (e) {
+                logger.warn("Port is used but MySQL not responding. Will retry or use fallback port.");
             }
+        }
+
+        return new Promise((resolve) => {
+            logger.log('Starting MySQL Server...');
+            
+            // Spawn without 'shell: true' to keep PID tracking accurate
+            mysqlServer = spawn(mysqlPath, [`--defaults-file=${myIniPath}`, '--console'], { cwd: basePath, windowsHide: true });
+            
+            mysqlServer.on('error', (err) => {
+                logger.error(`Failed to start MySQL: ${err.message}`);
+            });
+
+            // Loop Prevention: Only restart if we actually own the process and it wasn't a clean exit
+            mysqlServer.on('exit', (code) => { 
+                if (!app.isQuitting) {
+                    logger.warn(`MySQL exited with code ${code}. Checking if we need to restart...`);
+                    // Check if port became free (meaning it actually died)
+                    isPortOpen(MYSQL_PORT).then(stillOpen => {
+                        if (!stillOpen) {
+                            logger.warn("MySQL died and port is free. Restarting in 1s...");
+                            mysqlStarting = false;
+                            setTimeout(startMySQL, 1000); 
+                        } else {
+                            logger.warn("MySQL exited but port is still open. Likely conflict or concurrent instance. NOT restarting.");
+                        }
+                    });
+                }
+            });
+            mysqlStarting = false;
+            resolve();
         });
-        resolve();
-    });
+    } catch (error) {
+        logger.error('MySQL startup failed: ' + error.message);
+        mysqlStarting = false;
+        throw error;
+    }
 }
 
 function startLaravel(port) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         logger.log(`Starting Laravel Server on port ${port}...`);
         const phpPath = path.join(basePath, 'php', 'php.exe');
-        laravelServer = spawn(phpPath, ['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`], { cwd: basePath, windowsHide: true });
-        resolve();
+        const dbConfig = getDbConfig();
+        
+        laravelServer = spawn(phpPath, ['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`], { 
+            cwd: basePath, 
+            windowsHide: true,
+            env: {
+                ...process.env,
+                DB_HOST: dbConfig.host,
+                DB_PORT: String(MYSQL_PORT),
+                DB_DATABASE: dbConfig.database,
+                DB_USERNAME: dbConfig.username,
+                DB_PASSWORD: dbConfig.password || ''
+            }
+        });
+        
+        // Add error handling
+        laravelServer.on('error', (err) => {
+            logger.error(`Failed to start Laravel: ${err.message}`);
+        });
+        
+        // Log Laravel output
+        laravelServer.stdout.on('data', (data) => {
+            logger.log(`[LARAVEL]: ${data.toString().trim()}`);
+        });
+        
+        laravelServer.stderr.on('data', (data) => {
+            logger.error(`[LARAVEL ERR]: ${data.toString().trim()}`);
+        });
+        
+        // Monitor for early crash and auto-restart
+        let earlyExit = false;
+        laravelServer.on('exit', (code, signal) => {
+            if (!app.isQuitting) {
+                logger.error(`Laravel server exited unexpectedly: code=${code}, signal=${signal}`);
+                earlyExit = true;
+                // Auto-restart Laravel on crash
+                if (code !== 0) {
+                    logger.warn('Attempting to restart Laravel server in 3 seconds...');
+                    setTimeout(() => {
+                        if (!app.isQuitting) {
+                            startLaravel(port).catch(err => {
+                                logger.error('Laravel restart failed: ' + err.message);
+                            });
+                        }
+                    }, 3000);
+                }
+            }
+        });
+        
+        // Give PHP 2 seconds to fail or start
+        setTimeout(() => {
+            if (earlyExit) {
+                reject(new Error(`Laravel server failed to start (exited immediately). Check logs for details.`));
+            } else {
+                resolve();
+            }
+        }, 2000);
     });
 }
 
@@ -372,12 +574,11 @@ function createDatabase() {
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysql.exe');
         
         // Check if database exists first - DON'T drop existing data!
-        const checkDbProcess = spawn(mysqlPath, [
-            '-u', 'root',
-            '-P', MYSQL_PORT,
-            '--protocol=TCP',
-            '-e', 'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "spos";'
-        ], { 
+        const dbConfig = getDbConfig();
+        const checkDbArgs = buildMysqlCliArgs([
+            '-e', `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = "${dbConfig.database}";`
+        ]);
+        const checkDbProcess = spawn(mysqlPath, checkDbArgs, { 
             cwd: basePath, 
             windowsHide: true
         });
@@ -387,9 +588,15 @@ function createDatabase() {
             checkOutput += data.toString();
         });
 
+        const checkTimeout = setTimeout(() => {
+            try { checkDbProcess.kill(); } catch (e) {}
+            reject(new Error('Database check timeout'));
+        }, 10000);
+
         checkDbProcess.on('close', (code) => {
+            clearTimeout(checkTimeout);
             // If database exists (output contains 'spos'), skip creation
-            if (checkOutput.includes('spos')) {
+            if (checkOutput.includes(dbConfig.database)) {
                 logger.log('Database already exists - keeping existing data');
                 resolve();
                 return;
@@ -397,12 +604,10 @@ function createDatabase() {
 
             // Database doesn't exist - create it
             logger.log('Creating new database...');
-            const createDbProcess = spawn(mysqlPath, [
-                '-u', 'root',
-                '-P', MYSQL_PORT,
-                '--protocol=TCP',
-                '-e', 'CREATE DATABASE spos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
-            ], { 
+            const createDbArgs = buildMysqlCliArgs([
+                '-e', `CREATE DATABASE ${dbConfig.database} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+            ]);
+            const createDbProcess = spawn(mysqlPath, createDbArgs, { 
                 cwd: basePath, 
                 windowsHide: true
             });
@@ -424,7 +629,13 @@ function createDatabase() {
                 }
             });
 
+            const createTimeout = setTimeout(() => {
+                try { createDbProcess.kill(); } catch (e) {}
+                reject(new Error('Database creation timeout'));
+            }, 10000);
+
             createDbProcess.on('close', (code) => {
+                clearTimeout(createTimeout);
                 if (code !== 0 && dbErrors) {
                     logger.error('Failed to create database');
                     reject(new Error('Database creation failed'));
@@ -458,7 +669,7 @@ function runMigrations() {
         const healthCheckProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=echo json_encode((new \\App\\Services\\HealthCheckService())->runAllChecks());'], { 
             cwd: basePath, 
             windowsHide: true,
-            env: { ...process.env, DB_PORT: MYSQL_PORT }
+            env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
         });
 
         let healthOutput = '';
@@ -502,7 +713,7 @@ function runMigrations() {
             const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
                 cwd: basePath, 
                 windowsHide: true,
-                env: { ...process.env, DB_PORT: MYSQL_PORT }
+                env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
             });
 
             let migrationOutput = '';
@@ -538,7 +749,7 @@ function runMigrations() {
                     const markFailedProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationFailed("Migration exited with code ' + code + '");'], {
                         cwd: basePath,
                         windowsHide: true,
-                        env: { ...process.env, DB_PORT: MYSQL_PORT }
+                        env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
                     });
                     
                     markFailedProcess.on('close', () => {
@@ -556,7 +767,7 @@ function runMigrations() {
                 const markSuccessProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationSuccess();'], {
                     cwd: basePath,
                     windowsHide: true,
-                    env: { ...process.env, DB_PORT: MYSQL_PORT }
+                    env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
                 });
 
                 markSuccessProcess.on('close', () => {
@@ -613,7 +824,7 @@ function runMigrations() {
                     const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {
                         cwd: basePath, 
                         windowsHide: true,
-                        env: { ...process.env, DB_PORT: MYSQL_PORT }
+                        env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
                     });
                     
                     let seederErrors = '';
@@ -639,7 +850,7 @@ function runMigrations() {
                         const permClearProcess = spawn(phpPath, ['artisan', 'permission:cache-reset'], {
                             cwd: basePath, 
                             windowsHide: true,
-                            env: { ...process.env, DB_PORT: MYSQL_PORT } 
+                            env: { ...process.env, DB_PORT: String(MYSQL_PORT) } 
                         });
                         
                         permClearProcess.on('close', () => {
@@ -979,20 +1190,30 @@ function setupAutoUpdater() {
  * Gracefully shutdown MySQL using mysqladmin
  * This ensures data integrity and proper cleanup
  */
+let shutdownInProgress = false;
+
 async function shutdownMySQL() {
     return new Promise((resolve) => {
+        // Prevent concurrent shutdown attempts
+        if (shutdownInProgress) {
+            logger.log('Shutdown already in progress, skipping duplicate call');
+            resolve();
+            return;
+        }
+        
         if (!mysqlServer || mysqlServer.killed) {
             resolve();
             return;
         }
         
+        shutdownInProgress = true;
         logger.log('Gracefully shutting down MySQL...');
         const mysqlAdminPath = path.join(basePath, 'mysql', 'bin', 'mysqladmin.exe');
         
         // Try graceful shutdown first with mysqladmin
         const shutdownProcess = spawn(mysqlAdminPath, [
             '-u', 'root',
-            '-P', MYSQL_PORT,
+            '-P', String(MYSQL_PORT),
             '--protocol=TCP',
             'shutdown'
         ], { cwd: basePath, windowsHide: true });
@@ -1016,6 +1237,7 @@ async function shutdownMySQL() {
                     treeKill(mysqlServer.pid, 'SIGKILL');
                 }
             }
+            shutdownInProgress = false;
             resolve();
         });
         
@@ -1025,6 +1247,7 @@ async function shutdownMySQL() {
             if (mysqlServer && !mysqlServer.killed) {
                 treeKill(mysqlServer.pid, 'SIGKILL');
             }
+            shutdownInProgress = false;
             resolve();
         });
     });
@@ -1052,7 +1275,26 @@ async function startApp() {
         // Boost Process Priority (Apple Power-Mode Optimization)
         os.setPriority(os.constants.priority.PRIORITY_HIGH);
         
-        await checkDiskSpace(200);
+        // Create required directories (prevent file write errors)
+        const requiredDirs = [
+            path.join(basePath, 'storage', 'logs'),
+            path.join(basePath, 'storage', 'app', 'backups'),
+            path.join(basePath, 'storage', 'app', 'diagnostics'),
+            path.join(basePath, 'storage', 'framework', 'cache', 'data'),
+            path.join(basePath, 'storage', 'framework', 'sessions'),
+            path.join(basePath, 'storage', 'framework', 'views'),
+            path.join(basePath, 'mysql', 'data'),
+            path.join(basePath, 'mysql', 'tmp')
+        ];
+        
+        requiredDirs.forEach(dir => {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+                logger.log(`Created required directory: ${dir}`);
+            }
+        });
+        
+        await checkDiskSpace(1024);
         logger.cleanup(); // Self-healing: Cleanup old logs and temp data
 
         // --- NEW: Clear Session Cache (Ensures Asset Freshness) ---
@@ -1067,17 +1309,37 @@ async function startApp() {
 
         await new Promise(r => setTimeout(r, 700));
 
+        // Resolve MySQL port conflicts before starting
+        MYSQL_PORT = await resolveMySQLPort(MYSQL_PORT);
+        process.env.DB_PORT = MYSQL_PORT.toString();
+        process.env.DB_HOST = process.env.DB_HOST || '127.0.0.1';
+        process.env.DB_DATABASE = process.env.DB_DATABASE || 'spos';
+        process.env.DB_USERNAME = process.env.DB_USERNAME || 'root';
+        process.env.DB_PASSWORD = process.env.DB_PASSWORD || '';
+
         await startMySQL();
 
         updateSplashStatus('Loading database...');
 
         await new Promise(r => setTimeout(r, 700));
 
+        // Check if Laravel port is free
+        if (await isPortOpen(laravelPort)) {
+            logger.warn(`Port ${laravelPort} is already in use. Finding available port...`);
+            for (let p = laravelPort + 1; p <= laravelPort + 10; p++) {
+                if (!(await isPortOpen(p))) {
+                    logger.log(`Using fallback Laravel port: ${p}`);
+                    laravelPort = p;
+                    break;
+                }
+            }
+        }
+
         await startLaravel(laravelPort);
 
         updateSplashStatus('Initializing application...');
 
-        await waitForMySQL(MYSQL_PORT, 45000);
+        await waitForMySQLReady(MYSQL_PORT, 45000);
         logger.log('MySQL connection confirmed - proceeding with database setup');
         
         // --- Create database if it doesn't exist ---
@@ -1096,7 +1358,7 @@ async function startApp() {
         ], {
             cwd: basePath,
             windowsHide: true,
-            env: { ...process.env, DB_PORT: MYSQL_PORT }
+            env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
         });
 
         let updateInProgress = false;
@@ -1133,7 +1395,7 @@ async function startApp() {
             ], {
                 cwd: basePath,
                 windowsHide: true,
-                env: { ...process.env, DB_PORT: MYSQL_PORT }
+                env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
             });
 
             let recoveryOutput = '';
@@ -1158,40 +1420,56 @@ async function startApp() {
             });
         }
 
-        // --- Create automatic backup before migrations ---
-        updateSplashStatus('Creating safety backup...');
-        logger.log('Creating pre-migration backup...');
+        // --- Detect fresh installation ---
+        const dataDir = path.join(basePath, 'mysql', 'data');
+        const dbExists = fs.existsSync(path.join(dataDir, 'spos'));
+        const isFreshInstall = !dbExists;
         
-        const backupProcess = spawn(phpPath, [
-            'artisan',
-            'tinker',
-            '--execute=echo json_encode((new \\App\\Services\\UpdateService())->createBackup());'
-        ], {
-            cwd: basePath,
-            windowsHide: true,
-            env: { ...process.env, DB_PORT: MYSQL_PORT }
-        });
-
-        let backupOutput = '';
-        backupProcess.stdout.on('data', (data) => {
-            backupOutput += data.toString();
-        });
-
-        await new Promise((resolve) => {
-            backupProcess.on('close', () => {
-                try {
-                    const result = JSON.parse(backupOutput.trim());
-                    if (result.success) {
-                        logger.log('Backup created: ' + result.backup_id);
-                    } else {
-                        logger.warn('Backup creation failed: ' + result.message);
-                    }
-                } catch (e) {
-                    logger.warn('Could not create backup, continuing...');
-                }
-                resolve();
+        if (isFreshInstall) {
+            logger.log('Fresh installation detected - skipping health checks and backups');
+            updateSplashStatus('Fresh installation - preparing database...');
+        }
+        
+        // --- Create automatic backup before migrations (skip on fresh install) ---
+        if (!isFreshInstall) {
+            updateSplashStatus('Creating safety backup...');
+            logger.log('Creating pre-migration backup...');
+            
+            let backupOutput = '';
+            const backupProcess = spawn(phpPath, [
+                'artisan',
+                'tinker',
+                '--execute=echo json_encode((new \\App\\Services\\UpdateService())->createBackup());'
+            ], {
+                cwd: basePath,
+                windowsHide: true,
+                env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
             });
-        });
+            
+            backupProcess.stdout.on('data', (data) => {
+                backupOutput += data.toString();
+            });
+            
+            await new Promise((resolve, reject) => {
+                backupProcess.on('close', () => {
+                    try {
+                        const result = JSON.parse(backupOutput.trim());
+                        if (result.success) {
+                            logger.log('Backup created: ' + result.backup_id);
+                            resolve();
+                        } else {
+                            logger.error('Backup creation failed: ' + result.message);
+                            reject(new Error('Failed to create backup: ' + result.message));
+                        }
+                    } catch (e) {
+                        logger.error('Could not parse backup result');
+                        reject(new Error('Backup validation failed'));
+                    }
+                });
+            });
+        } else {
+            logger.log('Skipping backup for fresh installation');
+        }
         
         // --- Perform Auto-Migrations with Professional Error Handling ---
         updateSplashStatus('Checking database integrity...');

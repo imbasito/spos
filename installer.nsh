@@ -10,8 +10,12 @@ Var DatabaseBackup
 Var StorageBackup
 
 !macro customInit
-  ; Initialize variables
+  ; Initialize all variables (prevent NSIS warning 6001)
   StrCpy $IsUpdate "0"
+  StrCpy $StateFileBackup "0"
+  StrCpy $ConfigBackup "0"
+  StrCpy $DatabaseBackup "0"
+  StrCpy $StorageBackup "0"
   StrCpy $R0 "$TEMP\SPOS_Backup_${__TIMESTAMP__}"
   
   ; Check if installation already exists
@@ -56,6 +60,13 @@ Var StorageBackup
       CopyFiles /SILENT "$INSTDIR\resources\storage\app\*.*" "$R0\storage_app\"
       StrCpy $StorageBackup "1"
       DetailPrint "✓ User data backed up"
+    ${EndIf}
+    
+    ; Backup MySQL data directory (CRITICAL - contains all database data)
+    ${If} ${FileExists} "$INSTDIR\resources\mysql\data\*.*"
+      CreateDirectory "$R0\mysql_data"
+      CopyFiles /SILENT "$INSTDIR\resources\mysql\data\*.*" "$R0\mysql_data\"
+      DetailPrint "✓ MySQL data backed up"
     ${EndIf}
     
     ; Create installation metadata for version tracking
@@ -119,6 +130,13 @@ Var StorageBackup
       CreateDirectory "$INSTDIR\resources\storage\app"
       CopyFiles /SILENT "$R0\storage_app\*.*" "$INSTDIR\resources\storage\app\"
       DetailPrint "✓ User data restored"
+    ${EndIf}
+    
+    ; Restore MySQL data directory (CRITICAL - restores all database data)
+    ${If} ${FileExists} "$R0\mysql_data\*.*"
+      CreateDirectory "$INSTDIR\resources\mysql\data"
+      CopyFiles /SILENT "$R0\mysql_data\*.*" "$INSTDIR\resources\mysql\data\"
+      DetailPrint "✓ MySQL data restored"
     ${EndIf}
     
     ; Copy installation metadata to track update
