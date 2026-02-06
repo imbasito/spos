@@ -29,7 +29,18 @@ if exist "dist" (
 )
 
 echo.
-echo [2/5] Running cleanup script...
+echo [2/5] Stopping running processes...
+echo       Stopping MySQL to release locked files...
+taskkill /F /IM mysqld.exe >nul 2>&1
+echo       Stopping Electron...
+taskkill /F /IM SPOS.exe >nul 2>&1
+taskkill /F /IM electron.exe >nul 2>&1
+echo       Waiting for processes to close...
+timeout /t 3 /nobreak >nul
+echo       All processes stopped
+
+echo.
+echo [3/5] Running cleanup script...
 php\php.exe .build-scripts\cleanup.php
 if errorlevel 1 (
     echo ERROR: Cleanup script failed!
@@ -39,7 +50,7 @@ if errorlevel 1 (
 echo       Cleanup completed successfully
 
 echo.
-echo [3/5] Building frontend assets...
+echo [4/5] Building frontend assets...
 nodejs\node.exe node_modules\vite\bin\vite.js build --config vite.config.js
 if errorlevel 1 (
     echo ERROR: Frontend build failed!
@@ -49,7 +60,7 @@ if errorlevel 1 (
 echo       Frontend build completed
 
 echo.
-echo [4/5] Building Electron installer...
+echo [5/5] Building Electron installer...
 echo       This may take several minutes...
 nodejs\node.exe node_modules\electron-builder\out\cli\cli.js --win nsis
 if errorlevel 1 (

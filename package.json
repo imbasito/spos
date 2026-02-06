@@ -93,7 +93,12 @@
       },
       {
         "from": "mysql/",
-        "to": "mysql/"
+        "to": "mysql/",
+        "filter": [
+          "**/*",
+          "!data/**/*",
+          "!tmp/**/*"
+        ]
       },
       {
         "from": "nodejs/",
