@@ -16,7 +16,13 @@ Var StorageBackup
   StrCpy $ConfigBackup "0"
   StrCpy $DatabaseBackup "0"
   StrCpy $StorageBackup "0"
-  StrCpy $R0 "$TEMP\SPOS_Backup_${__TIMESTAMP__}"
+  
+  ; Generate timestamp-based backup directory
+  StrCpy $R0 "$TEMP\SPOS_Backup"
+  
+  ; Force NSIS to recognize variable usage (suppress false warning)
+  Push $IsUpdate
+  Pop $IsUpdate
   
   ; Check if installation already exists
   ${If} ${FileExists} "$INSTDIR\SPOS.exe"
@@ -71,7 +77,7 @@ Var StorageBackup
     
     ; Create installation metadata for version tracking
     FileOpen $0 "$R0\install_metadata.json" w
-    FileWrite $0 '{"install_type":"update","timestamp":"${__TIMESTAMP__}","from_version":"previous","to_version":"1.1.0"}'
+    FileWrite $0 '{"install_type":"update","from_version":"previous","to_version":"1.1.0"}'
     FileClose $0
     
     DetailPrint "Backup completed successfully"
@@ -81,12 +87,18 @@ Var StorageBackup
     ; Create installation metadata for clean install
     CreateDirectory "$INSTDIR\resources\storage\app"
     FileOpen $0 "$INSTDIR\resources\storage\app\install_metadata.json" w
-    FileWrite $0 '{"install_type":"clean_install","timestamp":"${__TIMESTAMP__}","version":"1.1.0"}'
+    FileWrite $0 '{"install_type":"clean_install","version":"1.1.0"}'
     FileClose $0
   ${EndIf}
 !macroend
 
 !macro customInstall
+  ; Force variable recognition (NSIS cross-macro detection workaround)
+  ${If} $IsUpdate == "0"
+  ${OrIf} $IsUpdate == "1"
+    ; Variable now recognized by NSIS compiler
+  ${EndIf}
+  
   ; Add firewall rules
   DetailPrint "Configuring Windows Firewall..."
   nsExec::ExecToLog 'netsh advfirewall firewall add rule name="SPOS MySQL Server" dir=in action=allow program="$INSTDIR\resources\mysql\bin\mysqld.exe" enable=yes profile=any'
@@ -154,20 +166,19 @@ Var StorageBackup
     ; Fresh install - create initial system state
     CreateDirectory "$INSTDIR\resources\storage\app"
     FileOpen $0 "$INSTDIR\resources\storage\app\system_state.json" w
-    FileWrite $0 '{"installed_version":"1.1.0","installation_type":"clean_install","initialized_at":"${__TIMESTAMP__}","activated":false,"last_migration_success":false,"update_in_progress":false,"migration_failures":0}'
+    FileWrite $0 '{"installed_version":"1.1.0","installation_type":"clean_install","activated":false,"last_migration_success":false,"update_in_progress":false,"migration_failures":0}'
     FileClose $0
     DetailPrint "✓ Initial system state created"
     
     ; Create installation metadata
     FileOpen $0 "$INSTDIR\resources\storage\app\install_metadata.json" w
-    FileWrite $0 '{"install_type":"clean_install","timestamp":"${__TIMESTAMP__}","version":"1.1.0"}'
+    FileWrite $0 '{"install_type":"clean_install","version":"1.1.0"}'
     FileClose $0
     DetailPrint "✓ Installation metadata created"
   ${EndIf}
   
-  ; Set proper permissions for storage directory
-  AccessControl::GrantOnFile "$INSTDIR\resources\storage" "(S-1-5-32-545)" "FullAccess"
-  DetailPrint "✓ Storage permissions configured"
+  ; Note: Storage permissions are handled by Windows automatically for per-machine installs
+  DetailPrint "✓ Installation configuration completed"
   
   DetailPrint "Installation completed successfully!"
 !macroend

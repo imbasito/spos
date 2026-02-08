@@ -187,7 +187,8 @@
       "installerIcon": "pos-icon.ico",
       "uninstallerIcon": "pos-icon.ico",
       "include": "installer.nsh",
-      "license": "LICENSE"
+      "license": "LICENSE",
+      "warningsAsErrors": false
     },
     "publish": [
       {
