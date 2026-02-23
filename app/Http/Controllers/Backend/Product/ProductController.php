@@ -108,10 +108,11 @@ class ProductController extends Controller
             // Apply filters based on the search term
             $products = $products->where(function ($query) use ($request) {
                 $query->where('name', 'LIKE', "%{$request->search}%")
-                    ->orWhere('sku', $request->search);
+                    ->orWhere('sku', $request->search)
+                    ->orWhere('barcode', $request->search);
             });
-            // Get the results
-            $products = $products->get();
+            // Get the results (capped at 50 to prevent memory exhaustion in the POS tab)
+            $products = $products->limit(50)->get();
             // Return the results as a JSON response
             return ProductResource::collection($products);
         }
@@ -144,7 +145,9 @@ class ProductController extends Controller
             $product->image = $this->fileHandler->fileUploadAndGetPath($request->file("product_image"), "/public/media/products");
             $product->save();
         }
-        \Illuminate\Support\Facades\Cache::flush();
+        for ($i = 1; $i <= 10; $i++) {
+            \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+        }
         return redirect()->route('backend.admin.products.index')->with('success', 'Product created successfully!');
     }
 
@@ -187,7 +190,9 @@ class ProductController extends Controller
             $product->save();
             $this->fileHandler->secureUnlink($oldImage);
         }
-        \Illuminate\Support\Facades\Cache::flush();
+        for ($i = 1; $i <= 10; $i++) {
+            \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+        }
         return redirect()->route('backend.admin.products.index')->with('success', 'Product updated successfully!');
     }
 
@@ -203,7 +208,9 @@ class ProductController extends Controller
             $this->fileHandler->secureUnlink($product->image);
         }
         $product->delete();
-        \Illuminate\Support\Facades\Cache::flush();
+        for ($i = 1; $i <= 10; $i++) {
+            \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+        }
         return redirect()->back()->with('success', 'Product Deleted Successfully');
     }
     public function import(Request $request)

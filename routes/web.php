@@ -37,14 +37,7 @@ use App\Models\Supplier;
 // ====================== FRONTEND ======================
 
 // homepage
-Route::get('/', function () {
-    // Check license activation
-    if (!\App\Helpers\LicenseHelper::isActivated()) {
-        return redirect()->route('license.activate.show');
-    }
-    
-    return to_route('login');
-})->name('frontend.home');
+Route::get('/', [AuthController::class, 'home'])->name('frontend.home');
 
 // API endpoint for license check (used by Electron)
 Route::get('/api/license-check', function () {
@@ -105,7 +98,6 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('purchase/products/{id}', [PurchaseController::class, 'purchaseProducts'])->name('purchase.products');
     Route::get('orders/pos-invoice/preview', [OrderController::class, 'previewInvoice'])->name('orders.pos-invoice.preview');
     Route::get('orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
-    Route::get('orders/orders/invoice/{id}', [OrderController::class,'invoice'])->name('orders.invoice');
     Route::get('orders/receipt-details/{id}', [OrderController::class, 'receiptDetails'])->name('orders.receipt-details'); // Headless JSON
     // Route::get('orders/pos-invoice/{id}', [OrderController::class, 'posInvoice'])->name('orders.pos-invoice'); -- Moved to Public
     Route::get('orders/transactions/{id}', [OrderController::class, 'transactions'])->name('orders.transactions');

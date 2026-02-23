@@ -15,30 +15,30 @@ docker-up-build:
 	docker compose up -d --build
 
 composer-install:
-	docker exec qpos-app bash -c "composer install"
+	docker compose exec app sh -lc "composer install"
 
 composer-update:
-	docker exec qpos-app bash -c "composer update"
+	docker compose exec app sh -lc "composer update"
 
 set-permissions:
-	docker exec qpos-app bash -c "chmod -R 777 /var/www/storage"
-	docker exec qpos-app bash -c "chmod -R 777 /var/www/bootstrap"
+	docker compose exec app sh -lc "chmod -R 777 /var/www/storage"
+	docker compose exec app sh -lc "chmod -R 777 /var/www/bootstrap"
 
 setup-env:
-	docker exec qpos-app bash -c "cp .env.docker .env"
+	docker compose exec app sh -lc "cp .env.docker .env"
 
 npm-install-build:
-	docker exec qpos-node bash -c "npm install"
-	docker exec qpos-node bash -c "npm run build:docker"
+	docker compose exec node sh -lc "npm install"
+	docker compose exec node sh -lc "npm run build"
 
 npm-run-dev:
-	docker exec qpos-node bash -c "npm run dev:docker"
+	docker compose exec node sh -lc "npm run dev -- --host 0.0.0.0 --port 5173"
 
 npm-run-build:
-	docker exec qpos-node bash -c "npm run build:docker"
+	docker compose exec node sh -lc "npm run build"
 
 generate-key:
-	docker exec qpos-app bash -c "php artisan key:generate"
+	docker compose exec app sh -lc "php artisan key:generate"
 
 migrate-fresh-seed:
-	docker exec qpos-app bash -c "php artisan migrate:fresh --seed"
+	docker compose exec app sh -lc "php artisan migrate:fresh --seed"

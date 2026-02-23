@@ -20,32 +20,24 @@
               value="{{ old('name', $product->name) }}" required>
           </div>
           <div class="mb-3 col-md-6">
-            <label for="urdu_name" class="form-label">
-              Urdu Name <small class="text-muted">(Optional)</small>
+            <label for="barcode" class="form-label">
+              Barcode
             </label>
-            <input type="text" class="form-control" placeholder="اردو نام" name="urdu_name"
-              value="{{ old('urdu_name', $product->urdu_name) }}" dir="rtl">
+            <input type="text" class="form-control" name="barcode" id="barcodeInput" placeholder="Scan barcode" value="{{ old('barcode', $product->barcode) }}">
           </div>
           <div class="mb-3 col-md-6">
             <label for="sku" class="form-label">
-              SKU / Barcode
+              SKU
+              <small class="text-muted ml-2">(Optional - auto-generated if empty)</small>
             </label>
             <div class="input-group">
-                <input type="text" class="form-control" name="sku" id="skuInput" value="{{ $product->sku }}" placeholder="Scan barcode or click Generate">
+                <input type="text" class="form-control" name="sku" id="skuInput" value="{{ $product->sku }}" placeholder="Enter SKU or click Generate">
                 <div class="input-group-append">
                     <button class="btn btn-outline-secondary" type="button" id="generateSkuBtn" title="Generate Random SKU">
                         <i class="fas fa-random"></i> Generate
                     </button>
                 </div>
             </div>
-          </div>
-          <div class="mb-3 col-md-6">
-            <label for="hs_code" class="form-label">
-              HS Code <small class="text-muted">(Optional - for imports)</small>
-            </label>
-            <input type="text" class="form-control" placeholder="e.g., 8471.30" name="hs_code"
-              value="{{ old('hs_code', $product->hs_code) }}" maxlength="20">
-            <small class="text-muted">Harmonized System code for customs</small>
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">
@@ -207,8 +199,12 @@
 
     // Generate SKU
     $('#generateSkuBtn').on('click', function() {
-        const randomSku = Math.floor(100000000000 + Math.random() * 900000000000);
-        $('#skuInput').val(randomSku);
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let randomString = '';
+        for (let i = 0; i < 6; i++) {
+            randomString += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        $('#skuInput').val('SKU-' + randomString);
     });
   })
 </script>

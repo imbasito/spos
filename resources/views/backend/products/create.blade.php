@@ -19,33 +19,24 @@
               value="{{ old('name') }}" required>
           </div>
           <div class="mb-3 col-md-6">
-            <label for="urdu_name" class="form-label">
-              Urdu Name <small class="text-muted">(Optional)</small>
+            <label for="barcode" class="form-label">
+              Barcode
             </label>
-            <input type="text" class="form-control" placeholder="اردو نام" name="urdu_name"
-              value="{{ old('urdu_name') }}" dir="rtl">
+            <input type="text" class="form-control" name="barcode" id="barcodeInput" placeholder="Scan barcode" value="{{ old('barcode') }}">
           </div>
           <div class="mb-3 col-md-6">
             <label for="sku" class="form-label">
-              SKU / Barcode
-              <small class="text-muted ml-2">(Scan or leave empty to auto-generate)</small>
+              SKU
+              <small class="text-muted ml-2">(Optional - auto-generated if empty)</small>
             </label>
             <div class="input-group">
-                <input type="text" class="form-control" name="sku" id="skuInput" placeholder="Scan barcode or click Generate" value="{{ old('sku') }}">
+                <input type="text" class="form-control" name="sku" id="skuInput" placeholder="Enter SKU or click Generate" value="{{ old('sku') }}">
                 <div class="input-group-append">
                     <button class="btn btn-outline-secondary" type="button" id="generateSkuBtn" title="Generate Random SKU">
                         <i class="fas fa-random"></i> Generate
                     </button>
                 </div>
             </div>
-          </div>
-          <div class="mb-3 col-md-6">
-            <label for="hs_code" class="form-label">
-              HS Code <small class="text-muted">(Optional - for imports)</small>
-            </label>
-            <input type="text" class="form-control" placeholder="e.g., 8471.30" name="hs_code"
-              value="{{ old('hs_code') }}" maxlength="20">
-            <small class="text-muted">Harmonized System code for customs</small>
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">
@@ -214,14 +205,17 @@
 
     // Generate SKU
     $('#generateSkuBtn').on('click', function() {
-        // Generate a random 12-digit number
-        const randomSku = Math.floor(100000000000 + Math.random() * 900000000000);
-        $('#skuInput').val(randomSku);
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let randomString = '';
+        for (let i = 0; i < 6; i++) {
+            randomString += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        $('#skuInput').val('SKU-' + randomString);
     });
 
-    // Scanner Compatibility: Prevent Form Submit on Enter for SKU Field
+    // Scanner Compatibility: Prevent Form Submit on Enter for Barcode Field
     // Instead, move focus to the Name field so user can keep typing.
-    $('#skuInput').on('keydown', function(e) {
+    $('#barcodeInput').on('keydown', function(e) {
         if (e.key === 'Enter' || e.keyCode === 13) {
             e.preventDefault();
             // Move focus to Name field (first required field usually)
@@ -230,12 +224,12 @@
         }
     });
 
-    // Auto-focus SKU on load for quick scanning
+    // Auto-focus Barcode on load for quick scanning
     setTimeout(() => {
-        $('#skuInput').focus();
+        $('#barcodeInput').focus();
         // Ensure cursor is at end if there's value
-        const val = $('#skuInput').val();
-        $('#skuInput').val('').val(val);
+        const val = $('#barcodeInput').val();
+        $('#barcodeInput').val('').val(val);
     }, 500);
   })
 </script>

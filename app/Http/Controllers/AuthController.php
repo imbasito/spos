@@ -25,6 +25,16 @@ class AuthController extends Controller
         $this->fileHandler = $fileHandler;
     }
 
+    public function home()
+    {
+        // Check license activation
+        if (!\App\Helpers\LicenseHelper::isActivated()) {
+            return redirect()->route('license.activate.show');
+        }
+        
+        return redirect()->route('login');
+    }
+
     public function login(Request $request)
     {
         // Check license activation status

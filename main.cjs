@@ -902,7 +902,13 @@ function createMainWindow() {
             zoomFactor: 0.85 
         }
     });
-    mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
+
+    // Force clear all aggressive Service Worker and Cache Storage data to prevent ghost UI bugs
+    mainWindow.webContents.session.clearStorageData({
+        storages: ['serviceworkers', 'cachestorage', 'appcache', 'indexdb']
+    }).then(() => {
+        mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
+    });
     
     // Check license after page loads and redirect if not activated
     mainWindow.webContents.on('did-finish-load', () => {

@@ -13,10 +13,8 @@ class Product extends Model
     protected $fillable = [
         'image',
         'name',
-        'urdu_name',
         'slug',
         'sku',
-        'hs_code',
         'barcode',
         'description',
         'category_id',
@@ -63,23 +61,47 @@ class Product extends Model
         parent::boot();
 
         static::creating(function ($product) {
-            // Auto-generate SKU if not provided
+            // Auto-generate Barcode if not provided
+            if (empty($product->barcode)) {
+                $product->barcode = self::generateUniqueBarcode();
+            }
+            // Auto-generate SKU if not provided (to satisfy DB schema requirements)
+            if (empty($product->sku)) {
+                $product->sku = self::generateUniqueSku();
+            }
+        });
+
+        static::updating(function ($product) {
+            if (empty($product->barcode)) {
+                $product->barcode = self::generateUniqueBarcode();
+            }
             if (empty($product->sku)) {
                 $product->sku = self::generateUniqueSku();
             }
         });
     }
 
+    public static function generateUniqueBarcode(): string
+    {
+        do {
+            $barcode = str_pad(mt_rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+        } while (static::where('barcode', $barcode)->exists());
+
+        return $barcode;
+    }
+
     /**
-     * Generate a unique 12-digit EAN-like SKU.
+     * Generate a professional alphanumeric SKU.
+     * Example: SKU-A8B9C2
      *
      * @return string
      */
     public static function generateUniqueSku(): string
     {
         do {
-            // Generate random 12-digit number
-            $sku = str_pad(mt_rand(0, 999999999999), 12, '0', STR_PAD_LEFT);
+            // Generate a random 6-character uppercase alphanumeric string
+            $randomString = strtoupper(Str::random(6));
+            $sku = 'SKU-' . $randomString;
         } while (static::where('sku', $sku)->exists());
 
         return $sku;

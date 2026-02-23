@@ -23,16 +23,15 @@ class DashboardController extends Controller
             return redirect('/admin/cart');
         }
 
-        $orders = Order::get();
-        // Calculate totals
+        // Calculate totals using database aggregation instead of loading all into memory
         $data = [
-            'sub_total' => $orders->sum('sub_total'),
-            'discount' => $orders->sum('discount'),
-            'total' => $orders->sum('total'),
-            'paid' => $orders->sum('paid'),
-            'due' => $orders->sum('due'),
+            'sub_total' => Order::sum('sub_total'),
+            'discount' => Order::sum('discount'),
+            'total' => Order::sum('total'),
+            'paid' => Order::sum('paid'),
+            'due' => Order::sum('due'),
             'total_customer' => Customer::count(),
-            'total_order' => $orders->count(),
+            'total_order' => Order::count(),
             'total_product' => Product::count(),
             'total_sale_item' => OrderProduct::sum('quantity'),
             // New analytics

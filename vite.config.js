@@ -10,5 +10,10 @@ export default defineConfig({
         }),
         react(),
     ],
+    server: {
+        hmr: {
+            host: 'localhost',
+        },
+    },
 });
 // FORCE CACHE BUST
