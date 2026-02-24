@@ -21,22 +21,23 @@
           <div class="mb-3 col-md-6">
             <label for="barcode" class="form-label">
               Barcode
+              <small class="text-muted ml-2">(Scan or click Generate)</small>
             </label>
-            <input type="text" class="form-control" name="barcode" id="barcodeInput" placeholder="Scan barcode" value="{{ old('barcode') }}">
+            <div class="input-group">
+                <input type="text" class="form-control" name="barcode" id="barcodeInput" placeholder="Scan barcode" value="{{ old('barcode') }}">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" id="generateBarcodeBtn" title="Generate Random Barcode">
+                        <i class="fas fa-random"></i> Generate
+                    </button>
+                </div>
+            </div>
           </div>
           <div class="mb-3 col-md-6">
             <label for="sku" class="form-label">
               SKU
               <small class="text-muted ml-2">(Optional - auto-generated if empty)</small>
             </label>
-            <div class="input-group">
-                <input type="text" class="form-control" name="sku" id="skuInput" placeholder="Enter SKU or click Generate" value="{{ old('sku') }}">
-                <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" id="generateSkuBtn" title="Generate Random SKU">
-                        <i class="fas fa-random"></i> Generate
-                    </button>
-                </div>
-            </div>
+            <input type="text" class="form-control" name="sku" id="skuInput" placeholder="Enter SKU" value="{{ old('sku') }}">
           </div>
           <div class="mb-3 col-md-6">
             <label for="brand_id" class="form-label">
@@ -203,14 +204,11 @@
       format: 'YYYY-MM-DD'
     });
 
-    // Generate SKU
-    $('#generateSkuBtn').on('click', function() {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let randomString = '';
-        for (let i = 0; i < 6; i++) {
-            randomString += characters.charAt(Math.floor(Math.random() * characters.length));
-        }
-        $('#skuInput').val('SKU-' + randomString);
+    // Generate Barcode
+    $('#generateBarcodeBtn').on('click', function() {
+        // Generate a random 12-digit barcode
+        const randomBarcode = Math.floor(100000000000 + Math.random() * 900000000000);
+        $('#barcodeInput').val(randomBarcode);
     });
 
     // Scanner Compatibility: Prevent Form Submit on Enter for Barcode Field

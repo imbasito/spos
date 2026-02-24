@@ -10,11 +10,12 @@
         <h3 class="card-title font-weight-bold text-white mb-0">
           <i class="fas fa-box mr-2"></i> Products List
         </h3>
-        @can('product_create')
-        <a href="{{ route('backend.admin.products.create') }}" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon">
+        <a href="{{ route('backend.admin.products.import') }}" class="btn btn-light btn-md px-4 ml-auto mr-2 shadow-sm hover-lift font-weight-bold text-maroon">
+          <i class="fas fa-file-import mr-1"></i> Import Products
+        </a>
+        <a href="{{ route('backend.admin.products.create') }}" class="btn btn-light btn-md px-4 shadow-sm hover-lift font-weight-bold text-maroon">
           <i class="fas fa-plus-circle mr-1"></i> Add New Product
         </a>
-        @endcan
       </div>
 
       <div class="card-body p-4">

@@ -34,20 +34,23 @@ class ProductController extends Controller
 
         abort_if(!auth()->user()->can('product_view'), 403);
         if ($request->ajax()) {
-            $products = Product::with('unit')->select('products.*'); // Use Query Builder for true server-side pagination
+            // Memory Protection: Cap the length to 500 to prevent browser crash/server lag
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
+            $products = Product::with('unit')->select('products.*'); 
             return DataTables::of($products)
                 ->addIndexColumn()
                 ->filter(function ($query) {
                     if (request()->has('search.value')) {
                         $keyword = request('search.value');
                         if (!empty($keyword)) {
-                            // Only search REAL columns
+                            // Only search REAL/INDEXED columns for performance
                             $query->where(function ($q) use ($keyword) {
                                 $q->where('name', 'like', "%{$keyword}%")
-                                  ->orWhere('sku', 'like', "%{$keyword}%")
-                                  ->orWhere('barcode', 'like', "%{$keyword}%")
-                                  ->orWhere('description', 'like', "%{$keyword}%")
-                                  ->orWhere('status', 'like', "%{$keyword}%");
+                                  ->orWhere('sku', 'like', "{$keyword}%")
+                                  ->orWhere('barcode', 'like', "{$keyword}%");
                             });
                         }
                     }
@@ -220,6 +223,9 @@ class ProductController extends Controller
         }
         if ($request->isMethod('post') && $request->hasFile('file')) {
             Excel::import(new ProductsImport, $request->file('file'));
+            for ($i = 1; $i <= 10; $i++) {
+                \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+            }
             return redirect()->back()->with('success', 'Products imported successfully.');
         }
         return view('backend.products.import');
