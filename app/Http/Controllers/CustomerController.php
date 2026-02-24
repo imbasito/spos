@@ -15,9 +15,26 @@ class CustomerController extends Controller
     {
         abort_if(!auth()->user()->can('customer_view'), 403);
         if ($request->ajax()) {
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
             $customers = Customer::query(); // Optimized: Server-side query
             return DataTables::of($customers)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Only search REAL/INDEXED columns (Name, Phone) for performance
+                            $query->where(function ($q) use ($keyword) {
+                                $q->where('name', 'like', "{$keyword}%")
+                                  ->orWhere('phone', 'like', "{$keyword}%");
+                            });
+                        }
+                    }
+                }, true)
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn('phone', fn($data) => $data->phone)
                 ->addColumn('address', fn($data) => $data->address)
@@ -185,7 +202,8 @@ class CustomerController extends Controller
     public function getCustomers(Request $request)
     {
         if ($request->wantsJson()) {
-            return response()->json(Customer::latest()->get());
+            // Memory Protection: Limit to latest 100 customers for POS performance
+            return response()->json(Customer::latest()->limit(100)->get());
         }
     }
     //get orders by customer id

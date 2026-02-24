@@ -8,7 +8,7 @@
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
       <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
         <h3 class="card-title font-weight-bold text-white mb-0">
-          <i class="fas fa-users mr-2"></i> People List
+          <i class="fas fa-users mr-2"></i> Customer List
         </h3>
         @can('customer_create')
         <a href="{{ route('backend.admin.customers.create') }}" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon">

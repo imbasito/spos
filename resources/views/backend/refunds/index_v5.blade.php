@@ -13,9 +13,21 @@
       </div>
 
       <div class="card-body p-4">
-        <div class="row g-4">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
           <div class="col-md-12">
-            <div class="table-responsive">
+            <div class="input-group shadow-sm spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-0 py-4 apple-input" placeholder="Search refunds by return number or order ID..." autofocus style="font-size: 1rem; box-shadow: none;">
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
               <table id="refundDatatables" class="table table-hover mb-0 custom-premium-table">
                 <thead class="bg-dark text-white text-uppercase font-weight-bold small">
                   <tr>
@@ -29,8 +41,6 @@
                   </tr>
                 </thead>
               </table>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -79,28 +89,26 @@
         url: "{{ route('backend.admin.refunds.index') }}"
       },
       columns: [
-        { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4' },
+        { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'pl-4' },
         { data: 'return_number', name: 'return_number', className: 'font-weight-bold' },
         { data: 'order_id', name: 'order_id' },
         { data: 'total_refund', name: 'total_refund', className: 'font-weight-bold text-danger' },
         { data: 'processed_by', name: 'processed_by' },
         { data: 'created_at', name: 'created_at' },
-        { data: 'action', name: 'action', className: 'text-right pr-4' },
+        { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' },
       ],
+      dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',
       language: {
-        search: "_INPUT_",
-        searchPlaceholder: "Search refunds...",
-        lengthMenu: "_MENU_ per page",
         paginate: {
             previous: '<i class="fas fa-chevron-left"></i>',
             next: '<i class="fas fa-chevron-right"></i>'
         }
       }
     });
-    
-    // Style Inputs
-    $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
-    $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
+
+    $('#quickSearchInput').on('keyup input', function() {
+        table.search(this.value).draw();
+    });
   });
 
   // Global Helper to Hide Spinner

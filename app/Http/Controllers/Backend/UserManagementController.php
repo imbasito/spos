@@ -24,10 +24,27 @@ class UserManagementController extends Controller
 
         abort_if(!auth()->user()->can('user_view'), 403);
         if ($request->ajax()) {
-            $users = User::with('roles')->select('users.*'); // Optimized: Server-side query
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
+            $users = User::with('roles')->select('users.*'); 
 
             return DataTables::of($users)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Search by name or email only
+                            $query->where(function($q) use ($keyword) {
+                                $q->where('name', 'like', "%{$keyword}%")
+                                  ->orWhere('email', 'like', "%{$keyword}%");
+                            });
+                        }
+                    }
+                })
                 ->addColumn(
                     'thumb',
                     function($data) {

@@ -28,8 +28,13 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            $orders = Order::with('customer', 'products.product')->orderBy('id', 'desc'); 
+            // Memory Protection: Cap the length to 500 to prevent browser crash/server lag
+            // This protects the app from "Show All" or very large per-page requests
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
 
+            $orders = Order::with('customer', 'products.product')->orderBy('id', 'desc'); 
 
             return DataTables::of($orders)
                 ->addIndexColumn()
@@ -38,11 +43,12 @@ class OrderController extends Controller
                         $keyword = request('search.value');
                         if (!empty($keyword)) {
                             $query->where(function ($q) use ($keyword) {
-                                $q->where('id', 'like', "%{$keyword}%")
-                                  ->orWhere('total', 'like', "%{$keyword}%")
-                                  ->orWhere('status', 'like', "%{$keyword}%")
+                                // Optimized search: using 'keyword%' for ID allows index usage if it's a prefix
+                                $q->where('id', 'like', "{$keyword}%")
+                                  ->orWhere('total', 'like', "{$keyword}%")
+                                  ->orWhere('status', 'like', "{$keyword}%")
                                   ->orWhereHas('customer', function($sub) use ($keyword) {
-                                      $sub->where('name', 'like', "%{$keyword}%");
+                                      $sub->where('name', 'like', "{$keyword}%");
                                   });
                             });
                         }

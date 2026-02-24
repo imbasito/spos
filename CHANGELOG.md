@@ -12,7 +12,7 @@ This release introduces comprehensive support for the market, including localize
 
 ### Added
 
-- **Supplier Ledger (Khata System)**: Implementation of a comprehensive debt tracking system for product purchases.
+- **Supplier Ledger ( System)**: Implementation of a comprehensive debt tracking system for product purchases.
 - **Payment Tracking**: Added support for recording partial and full payments during the purchase process.
 - **Payment Status Management**: Automatic classification of purchase orders as Paid, Partial, or Unpaid.
 - **Supplier Ledger Report**: A new reporting interface providing real-time oversight of all outstanding liabilities across suppliers.

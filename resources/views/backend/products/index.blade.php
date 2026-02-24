@@ -35,16 +35,16 @@
 
         <div class="table-responsive">
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
-            <thead class="bg-light text-uppercase font-weight-bold small">
+            <thead class="bg-dark text-white text-uppercase font-weight-bold small">
               <tr>
-                <th class="pl-4">#</th>
-                <th>Image</th>
-                <th>Product Name</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Created</th>
-                <th>Status</th>
-                <th class="text-right pr-4">Action</th>
+                <th width="50" class="pl-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">#</th>
+                <th width="80" class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Image</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Product Name</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Price</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Stock</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Created</th>
+                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Status</th>
+                <th width="120" class="text-right pr-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
               </tr>
             </thead>
             <tbody>

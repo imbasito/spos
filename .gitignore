@@ -55,3 +55,7 @@ last_logs.txt
 /~
 .DS_Store
 Thumbs.db
+CHANGELOG.md
+tasks/DEPLOYMENT_GUIDE.md
+tasks/PAKISTAN_IMPORT.md
+tasks/PAKISTAN_IMPLEMENTATION_SUMMARY.md

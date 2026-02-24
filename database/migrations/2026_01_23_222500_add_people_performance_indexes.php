@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Add indexes for People module performance
+     * Add indexes for Customer & Supplier module performance
      */
     public function up(): void
     {

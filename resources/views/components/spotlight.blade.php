@@ -184,11 +184,11 @@
             { name: 'Dashboard', icon: 'fas fa-tachometer-alt', url: '{{ route("backend.admin.dashboard") }}', breadcrumb: 'System', tags: ['home', 'main', 'start', 'stats', 'analytics'] },
             { name: 'POS (Point of Sale)', icon: 'fas fa-cart-plus', url: '{{ route("backend.admin.cart.index") }}', breadcrumb: 'Sales', tags: ['cart', 'billing', 'billing desk', 'sale', 'checkout', 'mithai'] },
             
-            // --- PEOPLE ---
-            { name: 'Customer List', icon: 'fas fa-users', url: '{{ route("backend.admin.customers.index") }}', breadcrumb: 'People', tags: ['customers', 'clients', 'due payment', 'customer ledger'] },
-            { name: 'Add New Customer', icon: 'fas fa-user-plus', url: '{{ route("backend.admin.customers.create") }}', breadcrumb: 'People', tags: ['new customer', 'register client'] },
-            { name: 'Supplier List', icon: 'fas fa-truck', url: '{{ route("backend.admin.suppliers.index") }}', breadcrumb: 'People', tags: ['suppliers', 'vendors', 'purchase from', 'supplier ledger'] },
-            { name: 'Add New Supplier', icon: 'fas fa-plus', url: '{{ route("backend.admin.suppliers.create") }}', breadcrumb: 'People', tags: ['new supplier', 'vendor register'] },
+            // --- Customer & Supplier ---
+            { name: 'Customer List', icon: 'fas fa-users', url: '{{ route("backend.admin.customers.index") }}', breadcrumb: 'Customers', tags: ['customers', 'clients', 'due payment', 'customer ledger'] },
+            { name: 'Add New Customer', icon: 'fas fa-user-plus', url: '{{ route("backend.admin.customers.create") }}', breadcrumb: 'Customers', tags: ['new customer', 'register client'] },
+            { name: 'Supplier List', icon: 'fas fa-truck', url: '{{ route("backend.admin.suppliers.index") }}', breadcrumb: 'Suppliers', tags: ['suppliers', 'vendors', 'purchase from', 'supplier ledger'] },
+            { name: 'Add New Supplier', icon: 'fas fa-plus', url: '{{ route("backend.admin.suppliers.create") }}', breadcrumb: 'Suppliers', tags: ['new supplier', 'vendor register'] },
             
             // --- PRODUCTS ---
             { name: 'Product List', icon: 'fas fa-box', url: '{{ route("backend.admin.products.index") }}', breadcrumb: 'Items', tags: ['products', 'stock', 'inventory', 'mithai list', 'price list'] },

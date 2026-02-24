@@ -21,7 +21,12 @@ class PurchaseController extends Controller
 
         abort_if(!auth()->user()->can('purchase_view'), 403);
         if ($request->ajax()) {
-            $purchases = Purchase::with('supplier', 'items.product')->latest(); // Use Query Builder
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
+            $purchases = Purchase::with('supplier', 'items.product')->latest(); 
             return DataTables::of($purchases)
                 ->addIndexColumn()
                 ->filter(function ($query) {
@@ -29,14 +34,14 @@ class PurchaseController extends Controller
                         $keyword = request('search.value');
                         if (!empty($keyword)) {
                             $query->where(function ($q) use ($keyword) {
-                                $q->where('id', 'like', "%{$keyword}%")
+                                $q->where('id', 'like', "{$keyword}%")
                                   ->orWhereHas('supplier', function($sub) use ($keyword) {
                                       $sub->where('name', 'like', "%{$keyword}%");
                                   })
                                   ->orWhereHas('items.product', function($sub) use ($keyword) {
                                       $sub->where('name', 'like', "%{$keyword}%")
-                                         ->orWhere('sku', 'like', "%{$keyword}%")
-                                         ->orWhere('barcode', 'like', "%{$keyword}%");
+                                         ->orWhere('sku', 'like', "{$keyword}%")
+                                         ->orWhere('barcode', 'like', "{$keyword}%");
                                   });
                             });
                         }
@@ -193,7 +198,10 @@ class PurchaseController extends Controller
                         $existingProduct->decrement('quantity', $oldQuantity);
                         $existingProduct->increment('quantity', $product['qty']);
                     }
-                    \Illuminate\Support\Facades\Cache::flush();
+                    // Targeted Cache Clear: refresh POS product pages 1-10
+                    for ($i = 1; $i <= 10; $i++) {
+                        \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+                    }
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();

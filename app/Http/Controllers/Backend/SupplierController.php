@@ -16,9 +16,26 @@ class SupplierController extends Controller
     {
     abort_if(!auth()->user()->can('supplier_view'), 403);
         if ($request->ajax()) {
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
             $suppliers = Supplier::query(); // Optimized: Server-side query
             return DataTables::of($suppliers)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Only search REAL/INDEXED columns (Name, Phone) for performance
+                            $query->where(function ($q) use ($keyword) {
+                                $q->where('name', 'like', "{$keyword}%")
+                                  ->orWhere('phone', 'like', "{$keyword}%");
+                            });
+                        }
+                    }
+                }, true)
                 ->addColumn('name', fn($data) => $data->name)
                 ->addColumn('phone', fn($data) => $data->phone)
                 ->addColumn('address', fn($data) => $data->address)
@@ -45,7 +62,8 @@ class SupplierController extends Controller
                 ->toJson();
         }
         if ($request->wantsJson()) {
-            return response()->json(Supplier::latest()->get());
+            // Memory Protection: Limit background loading to latest 100 suppliers
+            return response()->json(Supplier::latest()->limit(100)->get());
         }
 
 
@@ -141,10 +159,11 @@ class SupplierController extends Controller
         session()->flash('success', 'Supplier deleted successfully.');
         return to_route('backend.admin.suppliers.index');
     }
-    public function getCustomers(Request $request)
+    public function getSuppliers(Request $request)
     {
         if ($request->wantsJson()) {
-            return response()->json(Supplier::latest()->get());
+            // Memory Protection: Limit background loading to latest 100 suppliers
+            return response()->json(Supplier::latest()->limit(100)->get());
         }
     }
     //get orders by supplier id

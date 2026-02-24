@@ -23,9 +23,26 @@ class RefundController extends Controller
         abort_if(!auth()->user()->can('refund_view'), 403);
 
         if ($request->ajax()) {
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
             $returns = ProductReturn::with(['order', 'processedBy'])->latest('id'); // Simplified: Eloquent handles table resolution
             return DataTables::of($returns)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Search by return_number or order_id only (indexed columns)
+                            $query->where(function($q) use ($keyword) {
+                                $q->where('return_number', 'like', "{$keyword}%")
+                                  ->orWhere('order_id', 'like', "{$keyword}%");
+                            });
+                        }
+                    }
+                })
                 ->addColumn('return_number', fn($data) => '<span class="text-maroon font-weight-bold">' . $data->return_number . '</span>')
                 ->addColumn('order_id', fn($data) => '<strong>#' . $data->order_id . '</strong>')
                 ->addColumn('total_refund', fn($data) => '<span class="text-danger font-weight-bold">' . number_format($data->total_refund, 2) . '</span>')

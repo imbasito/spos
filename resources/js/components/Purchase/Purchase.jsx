@@ -538,7 +538,7 @@ export default function Purchase() {
                                                 </td>
                                             </tr>
                                             <tr className="table-danger">
-                                                <th>Due (Khata):</th>
+                                                <th>Due:</th>
                                                 <td className="text-right">
                                                     {totals.dueAmount.toFixed(2)}
                                                 </td>

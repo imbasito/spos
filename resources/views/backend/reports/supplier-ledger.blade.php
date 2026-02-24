@@ -1,6 +1,6 @@
 @extends('backend.master')
 
-@section('title', 'Supplier Ledger (Khata)')
+@section('title', 'Supplier Ledger')
 
 @section('content')
 <div class="row animate__animated animate__fadeIn">
@@ -8,7 +8,7 @@
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
       <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
         <h3 class="card-title font-weight-bold text-white mb-0">
-          <i class="fas fa-file-invoice-dollar mr-2"></i> Supplier Ledger (Khata)
+          <i class="fas fa-file-invoice-dollar mr-2"></i> Supplier Ledger
         </h3>
       </div>
       <div class="card-body p-4">

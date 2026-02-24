@@ -16,9 +16,26 @@ class UnitController extends Controller
     {
         abort_if(!auth()->user()->can('unit_view'), 403);
         if ($request->ajax()) {
-            $units = Unit::query()->latest()->get();
+            // Memory Protection: Cap the length to 500
+            if ($request->has('length') && $request->length > 500) {
+                $request->merge(['length' => 500]);
+            }
+
+            $units = Unit::query(); // Optimized: Server-side query
             return DataTables::of($units)
                 ->addIndexColumn()
+                ->filter(function ($query) {
+                    if (request()->has('search.value')) {
+                        $keyword = request('search.value');
+                        if (!empty($keyword)) {
+                            // Search by title or short_name only
+                            $query->where(function($q) use ($keyword) {
+                                $q->where('title', 'like', "{$keyword}%")
+                                  ->orWhere('short_name', 'like', "{$keyword}%");
+                            });
+                        }
+                    }
+                })
                 ->addColumn('title', fn($data) => $data->title)
                 ->addColumn('short_name', fn($data) => $data->short_name)
                ->addColumn('action', function ($data) {

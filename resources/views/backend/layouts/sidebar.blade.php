@@ -67,7 +67,7 @@ $route = request()->route()->getName();
                 <a href="{{route('backend.admin.customers.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.customers.*']) ? 'active' : '' }}">
                     <i class="fas fa-users nav-icon"></i>
-                    <p>People</p>
+                    <p>Customers</p>
                 </a>
             </li>
             @endif

@@ -211,6 +211,7 @@ class ProductController extends Controller
             $this->fileHandler->secureUnlink($product->image);
         }
         $product->delete();
+        // Targeted Cache Clear: refresh POS product pages 1-10
         for ($i = 1; $i <= 10; $i++) {
             \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
         }
