@@ -180,7 +180,7 @@ npm run dist:quick
 - ✅ Credit limit tracking
 - ✅ Pakistani phone number validation (03XXXXXXXXX)
 
-### Supplier Ledger (Khata)
+### Supplier Ledger ()
 - ✅ Track credit purchases
 - ✅ Payment status (Paid/Partial/Unpaid)
 - ✅ Supplier debt report

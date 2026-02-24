@@ -58,15 +58,15 @@
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 custom-premium-table">
-                        <thead class="bg-light text-uppercase font-weight-bold small">
+                        <thead class="bg-dark text-white text-uppercase font-weight-bold small">
                             <tr>
-                                <th class="pl-4">Date Time</th>
-                                <th>Closed By</th>
-                                <th class="text-right">Sales</th>
-                                <th class="text-right">Returns</th>
-                                <th class="text-right">System Cash</th>
-                                <th class="text-right">In Hand</th>
-                                <th class="text-right pr-4">Result</th>
+                                <th class="pl-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Date Time</th>
+                                <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Closed By</th>
+                                <th class="text-right text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Sales</th>
+                                <th class="text-right text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Returns</th>
+                                <th class="text-right text-white" style="color: #ffffff !important; background-color: #4E342E !important;">System Cash</th>
+                                <th class="text-right text-white" style="color: #ffffff !important; background-color: #4E342E !important;">In Hand</th>
+                                <th class="text-right pr-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Result</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -14,7 +14,21 @@
             <!-- Buttons will be appended here -->
         </div>
       </div>
-      <div class="card-body p-3">
+      <div class="card-body p-4">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="input-group shadow-sm spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-0 py-4 apple-input" placeholder="Search inventory by name or SKU..." autofocus style="font-size: 1rem; box-shadow: none;">
+            </div>
+          </div>
+        </div>
+
         <div class="table-responsive">
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
             <thead class="bg-dark text-white text-uppercase font-weight-bold small">
@@ -131,20 +145,20 @@
           name: 'quantity'
         },
       ],
-      dom: '<"row p-3"<"col-md-6"l><"col-md-6"f>>rt<"row p-3"<"col-md-6"i><"col-md-6"p>>', // Custom dom layout
+      dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>', 
       buttons: [
-          { extend: 'excel', text: '<i class="fas fa-file-excel mr-2 text-success"></i> Excel', className: 'btn btn-light btn-md' },
-          { extend: 'pdf', text: '<i class="fas fa-file-pdf mr-2 text-danger"></i> PDF', className: 'btn btn-light btn-md' },
-          { extend: 'print', text: '<i class="fas fa-print mr-2 text-primary"></i> Print', className: 'btn btn-light btn-md' }
+          { extend: 'excel', text: '<i class="fas fa-file-excel mr-2 text-success"></i> Excel', className: 'btn btn-light btn-md shadow-sm border-0 font-weight-bold text-maroon' },
+          { extend: 'pdf', text: '<i class="fas fa-file-pdf mr-2 text-danger"></i> PDF', className: 'btn btn-light btn-md shadow-sm border-0 font-weight-bold text-maroon' },
+          { extend: 'print', text: '<i class="fas fa-print mr-2 text-primary"></i> Print', className: 'btn btn-light btn-md shadow-sm border-0 font-weight-bold text-maroon' }
       ],
       initComplete: function() {
         // Move buttons to the header container
         table.buttons().container().appendTo('#export_buttons');
-        
-        // Enhance inputs
-        $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px').attr('placeholder', 'Search...');
-        $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
       }
+    });
+
+    $('#quickSearchInput').on('keyup input', function() {
+        table.search(this.value).draw();
     });
   });
 </script>

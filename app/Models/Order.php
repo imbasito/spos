@@ -34,7 +34,7 @@ class Order extends Model
     }
     public function getTotalItemAttribute()
     {
-        return $this->products()->sum('quantity');
+        return $this->products()->sum('quantity') ?? 0;
     }
    
 }

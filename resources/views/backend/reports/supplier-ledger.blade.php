@@ -6,12 +6,29 @@
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
-      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
         <h3 class="card-title font-weight-bold text-white mb-0">
           <i class="fas fa-file-invoice-dollar mr-2"></i> Supplier Ledger
         </h3>
+        <button type="button" onclick="window.print()" class="btn btn-light btn-md px-4 ml-auto shadow-sm hover-lift font-weight-bold text-maroon" style="border-radius: 10px;">
+          <i class="fas fa-print mr-1"></i> Print Report
+        </button>
       </div>
       <div class="card-body p-4">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="input-group shadow-sm spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-0 py-4 apple-input" placeholder="Search suppliers by name or phone..." autofocus style="font-size: 1rem; box-shadow: none;">
+            </div>
+          </div>
+        </div>
+
     <div class="row g-4">
       <div class="col-md-12">
         <div class="card-body p-0">
@@ -48,12 +65,6 @@
               <!-- /.col -->
             </div>
             <!-- /.row -->
-            <div class="row no-print mt-4">
-              <div class="col-12">
-                <button type="button" onclick="window.print()" class="btn btn-outline-secondary float-right"><i class="fas fa-print"></i> Print Report</a>
-                </button>
-              </div>
-            </div>
             <!-- /.row -->
           </section>
         </div>
@@ -114,21 +125,19 @@
         { data: 'total_paid', name: 'total_paid', searchable: false },
         { data: 'balance_due', name: 'balance_due', searchable: false },
       ],
-      order: [[1, 'asc']], // Order by Name
-      dom: 'lfrtip',
+      order: [[1, 'asc']], 
+      dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',
       language: {
-        search: "_INPUT_",
-        searchPlaceholder: "Search supplier...",
-        lengthMenu: "_MENU_ per page",
         paginate: {
             previous: '<i class="fas fa-chevron-left"></i>',
             next: '<i class="fas fa-chevron-right"></i>'
         }
-      },
-      initComplete: function() {
-          $('.dataTables_filter input').addClass('form-control form-control-sm border bg-light px-3').css('border-radius', '20px');
-          $('.dataTables_length select').addClass('form-control form-control-sm border bg-light').css('border-radius', '10px');
       }
+    });
+
+    $('#quickSearchInput').on('keyup input', function() {
+        table.search(this.value).draw();
+    });
     });
   });
 </script>

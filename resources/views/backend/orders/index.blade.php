@@ -111,8 +111,8 @@
       columns: [
         { data: 'DT_RowIndex', name: 'DT_RowIndex', className: 'pl-4', orderable: false, searchable: false },
         { data: 'saleId', name: 'id', className: 'font-weight-bold' },
-        { data: 'customer', name: 'customer' },
-        { data: 'item', name: 'item' },
+        { data: 'customer', name: 'customers.name' },
+        { data: 'item', name: 'item', orderable: false },
         { data: 'sub_total', name: 'sub_total' },
         { data: 'discount', name: 'discount' },
         { data: 'total', name: 'total', className: 'font-weight-bold text-maroon' }, 

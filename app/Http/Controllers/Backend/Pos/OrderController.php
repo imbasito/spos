@@ -34,7 +34,11 @@ class OrderController extends Controller
                 $request->merge(['length' => 500]);
             }
 
-            $orders = Order::with('customer', 'products.product')->orderBy('id', 'desc'); 
+            $orders = Order::query()
+                ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
+                ->withSum('products as total_quantity', 'quantity')
+                ->select('orders.*', 'customers.name as customer_name')
+                ->orderBy('orders.id', 'desc'); 
 
             return DataTables::of($orders)
                 ->addIndexColumn()
@@ -48,16 +52,17 @@ class OrderController extends Controller
                                   ->orWhere('total', 'like', "{$keyword}%")
                                   ->orWhere('status', 'like', "{$keyword}%")
                                   ->orWhereHas('customer', function($sub) use ($keyword) {
-                                      $sub->where('name', 'like', "{$keyword}%");
-                                  });
+                                      $sub->where('name', 'like', "%{$keyword}%");
+                                  })
+                                  ->orWhere('customers.name', 'like', "%{$keyword}%");
                             });
                         }
                     }
                 }, true)
 
                 ->addColumn('saleId', fn($data) => "#" . $data->id)
-                ->addColumn('customer', fn($data) => $data->customer->name ?? '-')
-                ->addColumn('item', fn($data) => $data->total_item)
+                ->addColumn('customer', fn($data) => $data->customer_name ?? '-')
+                ->addColumn('item', fn($data) => number_format($data->total_quantity ?? 0, 2))
                 ->addColumn('sub_total', fn($data) => number_format($data->sub_total, 2, '.', ','))
                 ->addColumn('discount', fn($data) => number_format($data->discount, 2, '.', ','))
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))

@@ -3,17 +3,34 @@
 @section('title', 'Refund Report')
 
 @section('content')
-@section('content')
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
-      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
         <h3 class="card-title font-weight-bold text-white mb-0">
           <i class="fas fa-undo mr-2"></i> Refund Report
         </h3>
-        <span class="badge bg-white text-maroon shadow-sm px-3 py-2">{{ $start_date }} - {{ $end_date }}</span>
+        <div class="ml-auto d-flex align-items-center">
+            <span class="badge bg-white text-maroon shadow-sm px-3 py-2 font-weight-bold mr-2">{{ $start_date }} - {{ $end_date }}</span>
+            <button type="button" onclick="window.print()" class="btn btn-light btn-md px-4 shadow-sm hover-lift font-weight-bold text-maroon" style="border-radius: 10px;">
+              <i class="fas fa-print mr-1"></i> Print Report
+            </button>
+        </div>
       </div>
       <div class="card-body p-4">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="input-group shadow-sm spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
+              </div>
+              <input type="text" id="refundSearchInput" class="form-control border-0 py-4 apple-input" placeholder="Search refunds by return number, order ID or customer..." autofocus style="font-size: 1rem; box-shadow: none;">
+            </div>
+          </div>
+        </div>
         <!-- Date Filter Form -->
         <form method="GET" class="mb-4">
             <div class="row align-items-end">
@@ -118,6 +135,18 @@
     </div>
 </div>
 </div>
+@push('script')
+<script>
+  $(function() {
+    $('#refundSearchInput').on('keyup input', function() {
+        var value = $(this).val().toLowerCase();
+        $(".custom-premium-table tbody tr").filter(function() {
+            $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+        });
+    });
+  });
+</script>
+@endpush
 @endsection
 
 <style>

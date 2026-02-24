@@ -31,7 +31,7 @@ All changes have been successfully implemented to adapt the POS system for the P
   - Added `getTotalDueAttribute()` accessor to Customer model
   - Calculates outstanding balance across all orders
 
-### 3. **Supplier Ledger System (Khata)**
+### 3. **Supplier Ledger System ()**
 - ✅ **Purchase Tracking**:
   - Added `paid_amount` column to `purchases` table
   - Added `payment_status` column (`unpaid`, `partial`, `paid`)
@@ -48,7 +48,7 @@ All changes have been successfully implemented to adapt the POS system for the P
   
 - ✅ **UI Updates**:
   - Purchase form (`Purchase.jsx`) now includes "Paid Amount" field
-  - Shows real-time "Due (Khata)" calculation
+  - Shows real-time "Due ()" calculation
   - Visual indicators for credit purchases
   - Loads existing `paid_amount` when editing purchases
   

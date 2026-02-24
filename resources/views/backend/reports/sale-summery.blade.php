@@ -6,14 +6,17 @@
 <div class="row animate__animated animate__fadeIn">
   <div class="col-12">
     <div class="card shadow-sm border-0 border-radius-15 overflow-hidden" style="min-height: 70vh;">
-      <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-gradient-maroon py-3 d-flex align-items-center">
         <h3 class="card-title font-weight-bold text-white mb-0">
           <i class="fas fa-chart-pie mr-2"></i> Sale Summary
         </h3>
-        <div class="form-group mb-0 ml-auto">
-            <button type="button" class="btn btn-light btn-sm text-maroon font-weight-bold shadow-sm" id="daterange-btn" style="border-radius: 20px;">
+        <div class="ml-auto d-flex align-items-center">
+            <button type="button" class="btn btn-light btn-md px-4 shadow-sm hover-lift font-weight-bold text-maroon mr-2" id="daterange-btn" style="border-radius: 10px;">
               <i class="far fa-calendar-alt mr-2"></i> <span>Filter by date</span>
               <i class="fas fa-caret-down ml-2"></i>
+            </button>
+            <button type="button" onclick="window.print()" class="btn btn-light btn-md px-4 shadow-sm hover-lift font-weight-bold text-maroon" style="border-radius: 10px;">
+              <i class="fas fa-print mr-1"></i> Print
             </button>
         </div>
       </div>
@@ -75,13 +78,6 @@
                 </div>
               </div>
               <!-- /.col -->
-            </div>
-            <!-- /.row -->
-            <div class="row no-print">
-              <div class="col-12">
-                <button type="button" onclick="window.print()" class="btn btn-success float-right"><i class="fas fa-print"></i> Print</a>
-                </button>
-              </div>
             </div>
             <!-- /.row -->
           </section>
