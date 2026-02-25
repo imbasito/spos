@@ -1,20 +1,17 @@
-<form action="{{ route('backend.admin.settings.website.notification.settings.update') }}" method="post">
+<form action="{{ route('backend.admin.settings.website.notification.settings.update') }}" method="post" data-ajax-save>
     @csrf
     <div class="card shadow-sm border-0 border-radius-15 mb-4">
-        <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-gradient-maroon py-3">
             <h5 class="text-white mb-0 font-weight-bold">
                 <i class="fas fa-envelope mr-2"></i> Notification Settings
             </h5>
-            <button type="submit" class="btn btn-light text-maroon font-weight-bold shadow-sm ml-auto">
-                <i class="fas fa-save mr-1"></i> Save Changes
-            </button>
         </div>
         <div class="card-body p-4">
             <div class="row">
                 <div class="col-md-12">
                     <div class="form-group mb-4">
                         <label class="font-weight-bold text-dark">Admin Notification Email</label>
-                        <input class="form-control border-radius-10" name="notify_email_address" type="email"
+                        <input class="form-control apple-input" name="notify_email_address" type="email"
                             value="{{ readConfig('notify_email_address') }}" placeholder="admin@example.com">
                         <small class="text-muted">System alerts will be sent to this address.</small>
                     </div>
@@ -55,6 +52,11 @@
                 </div>
 
             </div>
+        </div>
+        <div class="card-footer bg-white border-top-0 pt-0 px-4 pb-4">
+            <button type="submit" class="btn bg-gradient-primary">
+                <i class="fas fa-save mr-1"></i> Save Changes
+            </button>
         </div>
     </div>
 </form>

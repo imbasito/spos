@@ -1,13 +1,10 @@
-<form action="{{ route('backend.admin.settings.website.tax.update') }}" method="post">
+<form action="{{ route('backend.admin.settings.website.tax.update') }}" method="post" data-ajax-save>
     @csrf
     <div class="card shadow-sm border-0 border-radius-15 mb-4">
-        <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-gradient-maroon py-3">
             <h5 class="text-white mb-0 font-weight-bold">
                 <i class="fas fa-landmark mr-2"></i> Tax & FBR Settings
             </h5>
-            <button type="submit" class="btn btn-light text-maroon font-weight-bold shadow-sm ml-auto">
-                <i class="fas fa-save mr-1"></i> Save Changes
-            </button>
         </div>
         <div class="card-body p-4">
             
@@ -19,7 +16,7 @@
                     
                     <div class="form-group">
                         <label class="font-weight-bold">NTN (National Tax Number) <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="tax_ntn" 
+                        <input type="text" class="form-control apple-input" name="tax_ntn" 
                                value="{{ readConfig('tax_ntn') }}" 
                                placeholder="e.g., 1234567-8">
                         <small class="text-muted">Your business NTN for tax compliance</small>
@@ -27,7 +24,7 @@
 
                     <div class="form-group">
                         <label class="font-weight-bold">STRN (Sales Tax Registration Number)</label>
-                        <input type="text" class="form-control" name="tax_strn" 
+                        <input type="text" class="form-control apple-input" name="tax_strn" 
                                value="{{ readConfig('tax_strn') }}" 
                                placeholder="e.g., 3277876543210">
                         <small class="text-muted">Required for GST-registered businesses</small>
@@ -35,7 +32,7 @@
 
                     <div class="form-group">
                         <label class="font-weight-bold">FBR POS ID</label>
-                        <input type="text" class="form-control" name="fbr_pos_id" 
+                        <input type="text" class="form-control apple-input" name="fbr_pos_id" 
                                value="{{ readConfig('fbr_pos_id') }}" 
                                placeholder="Assigned by FBR">
                         <small class="text-muted">For Tier-1 retailers with FBR integration</small>
@@ -49,7 +46,7 @@
                     
                     <div class="form-group">
                         <label class="font-weight-bold">GST Rate (%)</label>
-                        <input type="number" step="0.01" min="0" max="100" class="form-control" name="tax_gst_rate" 
+                        <input type="number" step="0.01" min="0" max="100" class="form-control apple-input" name="tax_gst_rate" 
                                value="{{ readConfig('tax_gst_rate') ?? '17' }}" 
                                placeholder="17">
                         <small class="text-muted">Standard GST rate in Pakistan is 17%</small>
@@ -138,7 +135,7 @@
 
                     <div class="form-group" id="api_url_group">
                         <label class="font-weight-bold">FBR API URL</label>
-                        <input type="url" class="form-control fbr-field" name="fbr_api_url" id="fbr_api_url"
+                        <input type="url" class="form-control apple-input fbr-field" name="fbr_api_url" id="fbr_api_url"
                                value="{{ readConfig('fbr_api_url') ?? 'https://gw.fbr.gov.pk/pdi/v1/api/DigitalInvoicing/PostInvoiceData_v1' }}" 
                                placeholder="Auto-set based on environment"
                                {{ readConfig('fbr_integration_enabled') != 1 ? 'disabled' : '' }}>
@@ -240,6 +237,11 @@
                 </div>
             </div>
 
+        </div>
+        <div class="card-footer bg-white border-top-0 pt-0 px-4 pb-4">
+            <button type="submit" class="btn bg-gradient-primary">
+                <i class="fas fa-save mr-1"></i> Save Changes
+            </button>
         </div>
     </div>
 </form>

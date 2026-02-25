@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Backend;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use App\Rules\ValidImageType;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Artisan;
 use App\Trait\FileHandler;
 
 class WebsiteSettingController extends Controller
@@ -17,157 +18,154 @@ class WebsiteSettingController extends Controller
         $this->fileHandler = $fileHandler;
     }
 
+    // ─── Main Page ─────────────────────────────────────────────────────────────
+
     public function websiteGeneral(Request $request)
     {
-        return view('backend.settings.website-settings.general');
+        $activeTab = $request->query('active-tab', 'website-info'); // Default to first tab
+        return view('backend.settings.website-settings.general', compact('activeTab'));
     }
 
-    public function websiteInfoUpdate(Request $request)
+    // ─── Shared helper ─────────────────────────────────────────────────────────
+
+    /**
+     * Persist all request fields (except _token) via writeConfig, then respond.
+     * writeConfig() already handles cache-busting — no Artisan::call needed.
+     */
+    private function saveTab(Request $request, string $tab, ?string $message = null): JsonResponse|RedirectResponse
+    {
+        foreach ($request->except('_token') as $key => $value) {
+            writeConfig($key, $value);
+        }
+
+        $msg = $message ?? 'Settings updated successfully';
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => $msg]);
+        }
+
+        return to_route('backend.admin.settings.website.general', ['active-tab' => $tab])
+            ->with('success', $msg);
+    }
+
+    // ─── Update methods ────────────────────────────────────────────────────────
+
+    public function websiteInfoUpdate(Request $request): JsonResponse|RedirectResponse
     {
         $request->validate([
             'site_name' => 'required',
-            'site_url' => 'nullable|url'
+            'site_url'  => 'nullable|url',
         ]);
-
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'website-info'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'website-info');
     }
 
-    public function websiteContactsUpdate(Request $request)
+    public function websiteContactsUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'contacts'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'contacts');
     }
 
-    public function websiteSocialLinkUpdate(Request $request)
+    public function websiteSocialLinkUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'social-links'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'social-links');
     }
 
-    public function websiteStyleSettingsUpdate(Request $request)
+    public function websiteCustomCssUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        $request->validate([
-            'site_logo' => ['file', new ValidImageType],
-            'favicon_icon' => ['file', new ValidImageType],
-            'favicon_icon_apple' => ['file', new ValidImageType],
-        ]);
-
-        writeConfig('newsletter_subscribe', $request->newsletter_subscribe);
-
-        if ($request->hasFile("site_logo")) {
-            $this->fileHandler->securePublicUnlink(readConfig('site_logo'));
-            $site_logo = $this->fileHandler->uploadToPublic($request->file("site_logo"), "/assets/images/logo");
-            writeConfig('site_logo', $site_logo);
-        }
-        if ($request->hasFile("favicon_icon")) {
-            $this->fileHandler->securePublicUnlink(readConfig('favicon_icon'));
-            $favicon_icon = $this->fileHandler->uploadToPublic($request->file("favicon_icon"), "/assets/images/logo");
-            writeConfig('favicon_icon', $favicon_icon);
-        }
-        if ($request->hasFile("favicon_icon_apple")) {
-            $this->fileHandler->securePublicUnlink(readConfig('favicon_icon_apple'));
-            $favicon_icon_apple = $this->fileHandler->uploadToPublic($request->file("favicon_icon_apple"), "/assets/images/logo");
-            writeConfig('favicon_icon_apple', $favicon_icon_apple);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'style-settings'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'custom-css');
     }
 
-    public function websiteCustomCssUpdate(Request $request)
+    public function websiteNotificationSettingsUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        writeConfig('custom_css', $request->custom_css);
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'custom-css'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'notification-settings');
     }
 
-    public function websiteNotificationSettingsUpdate(Request $request)
+    public function websiteStatusUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'notification-settings'])
-            ->with('success', 'Updated successfully');
-    }
-    
-
-    public function websiteStatusUpdate(Request $request)
-    {
-        writeConfig('is_live', $request->is_live);
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'website-status'])
-            ->with('success', 'Updated successfully');
-    }
-    public function websiteInvoiceUpdate(Request $request)
-    {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'invoice-settings'])
-            ->with('success', 'Updated successfully');
+        return $this->saveTab($request, 'website-status');
     }
 
-    public function websiteTaxUpdate(Request $request)
+    public function websiteInvoiceUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        foreach ($request->except('_token') as $key => $value) {
-            writeConfig($key, $value);
-        }
-        Artisan::call('config:clear');
-        return to_route('backend.admin.settings.website.general', ['active-tab' => 'tax-settings'])
-            ->with('success', 'Tax & FBR settings updated successfully');
+        return $this->saveTab($request, 'invoice-settings');
     }
 
-    public function websitePrinterUpdate(Request $request)
+    public function websiteTaxUpdate(Request $request): JsonResponse|RedirectResponse
     {
-        // Explicitly handle fields to ensure they are captured even if null/empty
+        return $this->saveTab($request, 'tax-settings', 'Tax & FBR settings updated successfully');
+    }
+
+    /**
+     * Printer: explicit field list so empty values are captured correctly.
+     * (Stays a traditional POST — no AJAX needed for this one.)
+     */
+    public function websitePrinterUpdate(Request $request): JsonResponse|RedirectResponse
+    {
         $data = [
             'receipt_printer' => $request->input('receipt_printer'),
-            'tag_printer' => $request->input('tag_printer'),
+            'tag_printer'     => $request->input('tag_printer'),
         ];
 
         foreach ($data as $key => $value) {
             writeConfig($key, $value);
         }
-        
-        Artisan::call('config:clear');
-        
-        // Detailed feedback for the user
+
         $msg = 'Printer settings updated.';
-        if($data['receipt_printer']) $msg .= ' Receipt: ' . $data['receipt_printer'] . '.';
-        if($data['tag_printer']) $msg .= ' Tag: ' . $data['tag_printer'] . '.';
-        
+        if ($data['receipt_printer']) $msg .= ' Receipt: ' . $data['receipt_printer'] . '.';
+        if ($data['tag_printer'])     $msg .= ' Tag: '     . $data['tag_printer']     . '.';
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => $msg]);
+        }
+
         return to_route('backend.admin.settings.website.general', ['active-tab' => 'printer-settings'])
             ->with('success', $msg);
     }
 
     /**
+     * Style Settings: handles file uploads — must stay as multipart POST.
+     * No AJAX (browser can't AJAX file uploads without FormData).
+     */
+    public function websiteStyleSettingsUpdate(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'site_logo'         => ['file', new ValidImageType],
+            'favicon_icon'      => ['file', new ValidImageType],
+            'favicon_icon_apple'=> ['file', new ValidImageType],
+        ]);
+
+        writeConfig('newsletter_subscribe', $request->newsletter_subscribe);
+
+        if ($request->hasFile('site_logo')) {
+            $this->fileHandler->securePublicUnlink(readConfig('site_logo'));
+            writeConfig('site_logo', $this->fileHandler->uploadToPublic($request->file('site_logo'), '/assets/images/logo'));
+        }
+        if ($request->hasFile('favicon_icon')) {
+            $this->fileHandler->securePublicUnlink(readConfig('favicon_icon'));
+            writeConfig('favicon_icon', $this->fileHandler->uploadToPublic($request->file('favicon_icon'), '/assets/images/logo'));
+        }
+        if ($request->hasFile('favicon_icon_apple')) {
+            $this->fileHandler->securePublicUnlink(readConfig('favicon_icon_apple'));
+            writeConfig('favicon_icon_apple', $this->fileHandler->uploadToPublic($request->file('favicon_icon_apple'), '/assets/images/logo'));
+        }
+
+        return to_route('backend.admin.settings.website.general', ['active-tab' => 'style-settings'])
+            ->with('success', 'Branding & visuals updated successfully');
+    }
+
+    // ─── API: Electron printer discovery ───────────────────────────────────────
+
+    /**
      * API Endpoint for Electron to fetch remote printer configurations.
      */
-    public function getPrinterSettings()
+    public function getPrinterSettings(): JsonResponse
     {
         return response()->json([
             'receipt_printer' => readConfig('receipt_printer'),
-            'tag_printer' => readConfig('tag_printer'),
-            'receipt_cpl' => readConfig('receipt_cpl', 42),
+            'tag_printer'     => readConfig('tag_printer'),
+            'receipt_cpl'     => readConfig('receipt_cpl', 42),
             'currency_symbol' => readConfig('currency_symbol', 'Rs.'),
-            'site_name' => readConfig('site_name'),
-            'address' => readConfig('address'),
+            'site_name'       => readConfig('site_name'),
+            'address'         => readConfig('address'),
         ]);
     }
 }

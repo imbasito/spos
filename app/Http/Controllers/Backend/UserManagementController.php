@@ -12,24 +12,26 @@ use App\Trait\FileHandler;
 
 class UserManagementController extends Controller
 {
-    public $fileHandler;
+    protected $fileHandler;
 
     public function __construct(FileHandler $fileHandler)
     {
         $this->fileHandler = $fileHandler;
     }
 
+    // ── Index (DataTable) ────────────────────────────────────────────────────────
+
     public function index(Request $request)
     {
-
         abort_if(!auth()->user()->can('user_view'), 403);
+
         if ($request->ajax()) {
-            // Memory Protection: Cap the length to 500
+            // Memory protection: cap DataTable length
             if ($request->has('length') && $request->length > 500) {
                 $request->merge(['length' => 500]);
             }
 
-            $users = User::with('roles')->select('users.*'); 
+            $users = User::with('roles')->select('users.*');
 
             return DataTables::of($users)
                 ->addIndexColumn()
@@ -37,69 +39,67 @@ class UserManagementController extends Controller
                     if (request()->has('search.value')) {
                         $keyword = request('search.value');
                         if (!empty($keyword)) {
-                            // Search by name or email only
-                            $query->where(function($q) use ($keyword) {
+                            $query->where(function ($q) use ($keyword) {
                                 $q->where('name', 'like', "%{$keyword}%")
                                   ->orWhere('email', 'like', "%{$keyword}%");
                             });
                         }
                     }
                 })
-                ->addColumn(
-                    'thumb',
-                    function($data) {
-                        $url = $data->profile_image ? asset('storage/' . $data->profile_image) : asset('assets/images/no-image.png');
-                        return '<img class="img-circle shadow-sm" src="' . $url . '" width="40" height="40" style="object-fit: cover; border: 2px solid #fff;">';
-                    }
-                )
+                ->addColumn('thumb', function ($data) {
+                    $url = $data->profile_image
+                        ? asset('storage/' . $data->profile_image)
+                        : asset('assets/images/no-image.png');
+                    return '<img class="img-circle shadow-sm" src="' . $url . '" width="40" height="40" style="object-fit:cover;border:2px solid #fff;">';
+                })
                 ->addColumn('created', function ($data) {
                     return date('d M, Y', strtotime($data->created_at));
                 })
-                ->addColumn(
-                    'action',
-                    '<div class="action-wrapper">
-                    <a class="btn btn-sm bg-gradient-primary"
-                        href="{{ route(\'backend.admin.user.edit\', $id) }}">
-                        <i class="fas fa-edit"></i>
-                        Edit
-                    </a>
-                    <a class="btn btn-sm bg-gradient-danger"
-                        href="{{ route(\'backend.admin.user.delete\', $id) }}"
-                        onclick="return confirm(\'Are you sure ?\')">
-                        <i class="fas fa-trash-alt"></i>
-                        Delete
-                    </a>
-                    @if ($is_suspended)
-                        <a class="btn btn-sm bg-gradient-success"
-                            href="{{ route(\'backend.admin.user.suspend\', [\'id\' => $id, \'status\' => 0]) }}">
-                            <i class="fas fa-check-square"></i>
-                            Activate
-                        </a>
-                    @else
-                        <a class="btn btn-sm bg-gradient-warning"
-                            href="{{ route(\'backend.admin.user.suspend\', [\'id\' => $id, \'status\' => 1]) }}"
-                            onclick="return confirm(\'Are you sure ?\')">
-                            <i class="far fa-times-circle"></i>
-                            Suspend
-                        </a>
-                    @endif
-                    
-                </div>'
-                )
-                ->addColumn('suspend', function ($data) {
-                    if ($data->is_suspended == 0) {
-                        return '<span class="badge badge-pill badge-success">Active</span>';
-                    } else {
-                        return '<span class="badge badge-pill badge-danger">Suspended</span>';
-                    }
-                })
                 ->addColumn('roles', function ($data) {
-                    foreach ($data->roles as $key => $role) {
-                        return $role->name;
-                        if (!$key + 1 != count($data->roles)) {
-                            return "<br>";
-                        }
+                    // Fixed: was returning inside foreach causing dead code after return
+                    return $data->roles->pluck('name')->implode(', ') ?: '<span class="text-muted">—</span>';
+                })
+                ->addColumn('suspend', function ($data) {
+                    return $data->is_suspended == 0
+                        ? '<span class="badge badge-pill badge-success">Active</span>'
+                        : '<span class="badge badge-pill badge-danger">Suspended</span>';
+                })
+                ->addColumn('action', function ($data) {
+                    $editBtn = '<a class="btn btn-sm bg-gradient-primary mr-1"
+                        href="' . route('backend.admin.user.edit', $data->id) . '">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>';
+
+                    $deleteBtn = '';
+                    $suspendBtn = '';
+
+                    // Guard: cannot delete self or the seeded admin (ID=1)
+                    if ($data->id !== auth()->id() && $data->id !== 1) {
+                        $deleteBtn = '<form action="' . route('backend.admin.user.delete', $data->id) . '"
+                            method="POST" class="d-inline"
+                            onsubmit="return confirm(\'Delete user ' . e($data->name) . '? This cannot be undone.\')">
+                            <input type="hidden" name="_token" value="' . csrf_token() . '">
+                            <input type="hidden" name="_method" value="DELETE">
+                            <button type="submit" class="btn btn-sm bg-gradient-danger">
+                                <i class="fas fa-trash-alt"></i> Delete
+                            </button>
+                        </form>';
                     }
+
+                    if ($data->is_suspended == 0) {
+                        $suspendBtn = '<a class="btn btn-sm bg-gradient-warning ml-1"
+                            href="' . route('backend.admin.user.suspend', ['id' => $data->id, 'status' => 1]) . '"
+                            onclick="return confirm(\'Suspend this user?\')">
+                            <i class="far fa-times-circle"></i> Suspend
+                        </a>';
+                    } else {
+                        $suspendBtn = '<a class="btn btn-sm bg-gradient-success ml-1"
+                            href="' . route('backend.admin.user.suspend', ['id' => $data->id, 'status' => 0]) . '">
+                            <i class="fas fa-check-square"></i> Activate
+                        </a>';
+                    }
+
+                    return '<div class="d-flex flex-wrap gap-1">' . $editBtn . $deleteBtn . $suspendBtn . '</div>';
                 })
                 ->rawColumns(['thumb', 'created', 'action', 'suspend', 'roles'])
                 ->toJson();
@@ -108,63 +108,69 @@ class UserManagementController extends Controller
         return view('backend.users.index');
     }
 
+    // ── AJAX data endpoint (kept for legacy compatibility) ───────────────────────
+
     public function fetchPageData(Request $request)
     {
-        if ($request->ajax()) {
-            $users = User::where('type', 'User')->latest()->paginate(10);
-
-            return view('backend.users.user-table-data', compact('users'))->render();
-        }
+        return $this->index($request);
     }
+
+    // ── Suspend / Activate ───────────────────────────────────────────────────────
 
     public function suspend($id, $status)
     {
         abort_if(!auth()->user()->can('user_suspend'), 403);
+
         $user = User::findOrFail($id);
 
         if ($user->is_suspended == $status) {
-            return back()->with('error', 'User already suspended');
-        } else {
-            $user->is_suspended = $status;
-            $user->save();
-
-            return back()->with('success', 'User suspended successfully');
+            return back()->with('error', 'User status is already set to that state.');
         }
+
+        $user->is_suspended = $status;
+        $user->save();
+
+        return back()->with('success', 'User "' . $user->name . '" ' . ($status ? 'suspended' : 'activated') . ' successfully.');
     }
+
+    // ── Create ───────────────────────────────────────────────────────────────────
 
     public function create(Request $request)
     {
-        abort_if(!auth()->user()->can(
-        'user_create'), 403);
+        abort_if(!auth()->user()->can('user_create'), 403);
+
         if ($request->isMethod('post')) {
             $request->validate([
-                'name' => 'required',
-                'email' => 'required|email|unique:users,email',
-                'role' => 'required',
-                'password' => 'required',
-                'profile_image' => ['file', new ValidImageType]
+                'name'          => 'required',
+                'email'         => 'required|email|unique:users,email',
+                'role'          => 'required',
+                'password'      => 'required|min:6',
+                'profile_image' => ['nullable', 'file', new ValidImageType],
             ]);
 
-            $newUser = new User();
-            $newUser->name = $request->name;
-            $newUser->email = $request->email;
-            $newUser->password = bcrypt($request->password);
-            $newUser->username = uniqid();
+            $user           = new User();
+            $user->name     = $request->name;
+            $user->email    = $request->email;
+            $user->password = bcrypt($request->password);
+            $user->username = uniqid();
 
-            if ($request->hasFile("profile_image")) {
-                $newUser->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
+            if ($request->hasFile('profile_image')) {
+                $user->profile_image = $this->fileHandler->fileUploadAndGetPath(
+                    $request->file('profile_image'), '/public/media/users'
+                );
             }
-            $newUser->save();
 
-            $role = Role::find($request->role);
-            $newUser->syncRoles($role);
+            $user->save();
+            $user->syncRoles(Role::findOrFail($request->role));
 
-            return to_route('backend.admin.users')->with('success', 'User added successfully');
-        } else {
-            $roles = Role::all();
-            return view('backend.users.create', compact('roles'));
+            return to_route('backend.admin.users')->with('success', 'User "' . $user->name . '" created successfully.');
         }
+
+        $roles = Role::all();
+        return view('backend.users.create', compact('roles'));
     }
+
+    // ── Edit ─────────────────────────────────────────────────────────────────────
 
     public function edit(Request $request, $id)
     {
@@ -172,64 +178,67 @@ class UserManagementController extends Controller
 
         $user = User::with('roles')->findOrFail($id);
 
+        // Redirect to own profile page when editing self
+        if ($request->isMethod('get') && $id == auth()->id()) {
+            return to_route('backend.admin.profile');
+        }
+
         if ($request->isMethod('post')) {
             $request->validate([
-                'name' => 'required',
-                'email' => 'required|email|unique:users,email,' . $id,
-                'role' => 'required',
-                'password' => 'required',
-                'profile_image' => ['file', new ValidImageType]
+                'name'          => 'required',
+                'email'         => 'required|email|unique:users,email,' . $id,
+                'role'          => 'required',
+                'password'      => 'nullable|min:6', // Optional on edit
+                'profile_image' => ['nullable', 'file', new ValidImageType],
             ]);
 
-            if ($request->name !== $user->name) {
-                $user->name = $request->name;
-            }
+            $user->name = $request->name;
 
             if ($request->email !== $user->email) {
-                $user->email = $request->email;
-                $user->google_id = null;
+                $user->email                = $request->email;
+                $user->google_id            = null;
                 $user->is_google_registered = false;
             }
 
-            if ($request->password) {
+            // Only update password if a new one is provided
+            if ($request->filled('password')) {
                 $user->password = bcrypt($request->password);
             }
 
-            if ($request->hasFile("profile_image")) {
+            if ($request->hasFile('profile_image')) {
                 $this->fileHandler->secureUnlink($user->profile_image);
-
-                $user->profile_image = $this->fileHandler->fileUploadAndGetPath($request->file("profile_image"), "/public/media/users");
+                $user->profile_image = $this->fileHandler->fileUploadAndGetPath(
+                    $request->file('profile_image'), '/public/media/users'
+                );
             }
+
             $user->save();
+            $user->syncRoles(Role::findOrFail($request->role));
 
-            $role = Role::find($request->role);
-            $user->syncRoles($role);
-            
-            return to_route('backend.admin.users')->with('success', 'User updated successfully');
-        } else {
-            if ($id == auth()->id()) {
-                return to_route('backend.admin.profile');
-            }
-
-            $roles = Role::all();
-            return view('backend.users.edit', compact('user', 'roles'));
+            return to_route('backend.admin.users')->with('success', 'User "' . $user->name . '" updated successfully.');
         }
+
+        $roles = Role::all();
+        return view('backend.users.edit', compact('user', 'roles'));
     }
+
+    // ── Delete ───────────────────────────────────────────────────────────────────
 
     public function delete($id)
     {
         abort_if(!auth()->user()->can('user_delete'), 403);
 
         if ($id == auth()->id()) {
-            return back()->with('error', 'Can not delete your self');
+            return back()->with('error', 'You cannot delete your own account.');
         }
         if ($id == 1) {
-            return back()->with('error', 'Can not delete master account');
+            return back()->with('error', 'The master admin account cannot be deleted.');
         }
 
         $user = User::findOrFail($id);
+        $name = $user->name;
         $user->delete();
 
-        return back()->with('success', 'User deleted successfully');
+        return back()->with('success', 'User "' . $name . '" deleted successfully.');
     }
 }

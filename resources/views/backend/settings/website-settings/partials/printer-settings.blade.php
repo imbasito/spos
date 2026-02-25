@@ -1,18 +1,10 @@
-<form action="{{ route('backend.admin.settings.website.printer.update') }}" method="post">
+<form action="{{ route('backend.admin.settings.website.printer.update') }}" method="post" data-ajax-save>
     @csrf
     <div class="card shadow-sm border-0 border-radius-15 mb-4">
-        <div class="card-header bg-gradient-maroon py-3 d-flex justify-content-between align-items-center">
+        <div class="card-header bg-gradient-maroon py-3">
             <h5 class="text-white mb-0 font-weight-bold">
                 <i class="fas fa-print mr-2"></i> Printer Configuration
             </h5>
-            <div class="ml-auto">
-                <button type="button" class="btn btn-secondary btn-sm mr-2 shadow-sm font-weight-bold" onclick="loadPrinters()">
-                    <i class="fas fa-sync-alt mr-1"></i> Refresh
-                </button>
-                <button type="submit" class="btn btn-light btn-sm text-maroon font-weight-bold shadow-sm">
-                    <i class="fas fa-save mr-1"></i> Save
-                </button>
-            </div>
         </div>
         <div class="card-body p-4">
             
@@ -71,6 +63,14 @@
             <div class="text-center mt-4">
                 <span id="printer_status_msg" class="text-muted font-italic small"><i class="fas fa-spinner fa-spin mr-1"></i> Waiting for check...</span>
             </div>
+        </div>
+        <div class="card-footer bg-white border-top-0 px-4 pb-4 pt-0 d-flex align-items-center">
+            <button type="button" class="btn btn-secondary mr-2" onclick="loadPrinters()">
+                <i class="fas fa-sync-alt mr-1"></i> Refresh Printers
+            </button>
+            <button type="submit" class="btn bg-gradient-primary">
+                <i class="fas fa-save mr-1"></i> Save Changes
+            </button>
         </div>
     </div>
 </form>

@@ -147,7 +147,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
         Route::get('suspend/{id}/{status}', [UserManagementController::class, 'suspend'])->name('user.suspend');
         Route::match(['get', 'post'], 'create', [UserManagementController::class, 'create'])->name('user.create');
         Route::match(['get', 'post'], 'edit/{id}', [UserManagementController::class, 'edit'])->name('user.edit');
-        Route::get('delete/{id}', [UserManagementController::class, 'delete'])->name('user.delete');
+        Route::delete('delete/{id}', [UserManagementController::class, 'delete'])->name('user.delete');
     });
 
     // settings
@@ -174,8 +174,8 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::get('/', 'index')->name('settings.backup');
                 Route::post('settings', 'saveSettings')->name('settings.backup.save');
                 Route::post('create', 'createBackup')->name('settings.backup.create');
-                Route::get('restore/{filename}', 'restoreBackup')->name('settings.backup.restore');
-                Route::get('delete/{filename}', 'deleteBackup')->name('settings.backup.delete');
+                Route::post('restore/{filename}', 'restoreBackup')->name('settings.backup.restore');
+                Route::delete('delete/{filename}', 'deleteBackup')->name('settings.backup.delete');
                 Route::get('download/{filename}', 'downloadBackup')->name('settings.backup.download');
             });
 
@@ -184,7 +184,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::post('create', 'store')->name('roles.create');
                 Route::get('show/{id}', 'show')->name('roles.show');
                 Route::put('update/{id}', 'update')->name('roles.update');
-                Route::get('delete/{id}', 'destroy')->name('roles.delete');
+                Route::delete('delete/{id}', 'destroy')->name('roles.delete');
                 Route::post('role-permission/{id}', 'updatePermission')->name('update.role-permissions');
                 Route::get('role-wise-permissions/{id?}', 'roleWisePermissions')->name('role-wise-permissions');
             });
@@ -207,6 +207,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
             // Audit Logs
             Route::controller(\App\Http\Controllers\Backend\ActivityLogController::class)->prefix('audit')->group(function () {
                 Route::get('logs', 'index')->name('activity.logs.index');
+                Route::get('logs/data', 'data')->name('activity.logs.data'); // AJAX data endpoint
             });
         });
     });

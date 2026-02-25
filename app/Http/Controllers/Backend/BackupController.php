@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Symfony\Component\Process\Process;
 
 class BackupController extends Controller
@@ -29,12 +30,12 @@ class BackupController extends Controller
             }
         }
 
-        $backups = [];
+        $allFiles = [];
         try {
             $files = glob($backupPath . '/*.sql');
             if ($files) {
                 foreach ($files as $file) {
-                    $backups[] = [
+                    $allFiles[] = [
                         'filename' => basename($file),
                         'path' => $file,
                         'size' => $this->humanFilesize(filesize($file)),
@@ -43,12 +44,29 @@ class BackupController extends Controller
                     ];
                 }
                 // Sort by newest first
-                usort($backups, function($a, $b) {
+                usort($allFiles, function($a, $b) {
                     return $b['timestamp'] - $a['timestamp'];
                 });
+
+                // Manual Pagination
+                $perPage = 10;
+                $currentPage = request()->get('page', 1);
+                $offset = ($currentPage - 1) * $perPage;
+                
+                $items = array_slice($allFiles, $offset, $perPage);
+                
+                $backups = new LengthAwarePaginator(
+                    $items,
+                    count($allFiles),
+                    $perPage,
+                    $currentPage,
+                    ['path' => request()->url(), 'query' => request()->query()]
+                );
+            } else {
+                $backups = new LengthAwarePaginator([], 0, 10);
             }
         } catch (\Exception $e) {
-            // Log error but show empty list
+            $backups = new LengthAwarePaginator([], 0, 10);
         }
 
         return view('backend.settings.backup', compact('backups', 'backupPath', 'autoBackup'));
@@ -142,9 +160,14 @@ class BackupController extends Controller
     /**
      * Restore Backup
      */
-    public function restoreBackup($filename)
+    public function restoreBackup(Request $request, $filename)
     {
         try {
+            // Check for POST method if we want to enforce it via controller too
+            if (!$request->isMethod('post')) {
+                return redirect()->back()->with('error', 'Invalid request method.');
+            }
+
             $backupPath = $this->getSafeConfig('backup_path', storage_path('app/backups'));
             $fullPath = $backupPath . '/' . $filename;
 
@@ -290,8 +313,12 @@ class BackupController extends Controller
     /**
      * Delete a backup
      */
-    public function deleteBackup($filename)
+    public function deleteBackup(Request $request, $filename)
     {
+        if (!$request->isMethod('delete')) {
+            return redirect()->back()->with('error', 'Invalid request method.');
+        }
+
         $backupPath = $this->getSafeConfig('backup_path', storage_path('app/backups'));
         $path = $backupPath . '/' . $filename;
         if (File::exists($path)) {
