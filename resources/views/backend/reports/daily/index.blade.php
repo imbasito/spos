@@ -41,7 +41,7 @@
                 </div>
             </div>
             <div class="col-md-3 text-right">
-                <button type="button" class="btn px-4 py-3 shadow-sm h-100 w-100" style="background-color: #800000; color: white; font-weight: 600; border-radius: 8px; border: none;" data-toggle="modal" data-target="#newClosingModal">
+                <button type="button" class="btn bg-gradient-primary px-4 py-3 shadow-sm h-100 w-100 font-weight-bold" style="border-radius: 8px; border: none; color: white;" data-toggle="modal" data-target="#newClosingModal">
                     <i class="fas fa-cash-register mr-2"></i> Close Register Now
                 </button>
             </div>
@@ -49,10 +49,10 @@
 
         <!-- History Table -->
         <div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
-            <div class="card-header bg-white py-3 border-bottom">
-                <h3 class="card-title font-weight-bold text-dark mb-0">
-                    <i class="fas fa-history mr-2 text-maroon"></i> Register Closing History
-                </h3>
+            <div class="card-header bg-gradient-maroon py-3 border-bottom-0">
+                <h5 class="card-title font-weight-bold text-white mb-0">
+                    <i class="fas fa-history mr-2"></i> Register Closing History
+                </h5>
             </div>
             
             <div class="card-body p-0">
@@ -114,8 +114,8 @@
 <div class="modal fade animate__animated animate__fadeInUp" id="newClosingModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
         <div class="modal-content border-0 border-radius-20 overflow-hidden shadow-2xl">
-            <div class="modal-header bg-maroon text-white border-0 py-4">
-                <h5 class="modal-title font-weight-bold"><i class="fas fa-cash-register mr-3"></i> Finalize Register Shift</h5>
+            <div class="modal-header bg-gradient-maroon text-white border-0 py-4">
+                <h5 class="modal-title font-weight-bold"><i class="fas fa-cash-register mr-2"></i> Finalize Register Shift</h5>
                 <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -168,8 +168,8 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-white border-0 p-4">
-                    <button type="button" class="btn btn-secondary btn-apple px-4" data-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-maroon btn-apple px-4 shadow-sm" onclick="return confirm('Complete register closing and log out session?')">
+                    <button type="button" class="btn btn-secondary px-4 font-weight-bold" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" class="btn bg-gradient-primary px-4 shadow-sm font-weight-bold" style="border-radius: 8px; color: white;" onclick="return confirm('Complete register closing and log out session?')">
                         <i class="fas fa-check-circle mr-2"></i> Confirm Closing
                     </button>
                 </div>
@@ -184,6 +184,7 @@
     .bg-light-red { background: rgba(220, 53, 69, 0.05); }
     .text-maroon { color: #800000 !important; }
     .bg-maroon { background-color: #800000 !important; }
+    .bg-gradient-maroon { background: linear-gradient(45deg, #800000, #A01010) !important; }
     .bg-success-light { background-color: rgba(40, 167, 69, 0.1); }
     .bg-danger-light { background-color: rgba(220, 53, 69, 0.1); }
     .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
