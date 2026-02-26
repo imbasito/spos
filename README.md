@@ -294,18 +294,6 @@ For private repositories, set `GH_TOKEN` environment variable before building.
 
 ---
 
-## 👤 Default Users
-
-| Role | Username | Password | Permissions |
-|------|----------|----------|-------------|
-| **Admin** | admin | admin123 | Full system access, user management, settings |
-| **Cashier** | cashier | cashier123 | POS operations, sales, returns, customer management |
-| **Sales Associate** | sales | sales123 | Limited POS access, customer lookup only |
-
-> ⚠️ **Security Warning**: Change all default passwords immediately after first login via User Management settings.
-
----
-
 ## 🔒 Security Features
 
 - ✅ Role-based access control (RBAC)
