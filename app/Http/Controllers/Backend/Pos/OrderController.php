@@ -36,9 +36,9 @@ class OrderController extends Controller
 
             $orders = Order::query()
                 ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
-                ->withSum('products as total_quantity', 'quantity')
                 ->select('orders.*', 'customers.name as customer_name')
-                ->orderBy('orders.id', 'desc'); 
+                ->withSum('products as total_quantity', 'quantity')
+                ->orderBy('orders.id', 'desc');
 
             return DataTables::of($orders)
                 ->addIndexColumn()
@@ -210,9 +210,17 @@ class OrderController extends Controller
         $order = Order::findOrFail($id);
         if ($request->isMethod('post')) {
             $data = $request->validate([
-                'amount' => 'required|numeric|min:1',
+                'amount' => [
+                    'required',
+                    'numeric',
+                    'min:0.01',
+                    'max:' . $order->due, // Server-side guard: cannot pay more than what's due
+                ],
                 'payment_method' => 'nullable|string|in:cash,card,online',
                 'transaction_id' => 'nullable|string|max:255',
+            ],
+            [
+                'amount.max' => 'Collection amount cannot exceed the outstanding due of ' . number_format($order->due, 2) . '.',
             ]);
 
             try {
@@ -299,7 +307,7 @@ class OrderController extends Controller
                     'show_email' => readConfig('is_show_email_invoice'),
                     'show_customer' => readConfig('is_show_customer_invoice'),
                     'show_note' => readConfig('is_show_note_invoice'),
-                    'logo_url' => assetImage(readconfig('site_logo'))
+                    'logo_url' => assetImage(readConfig('site_logo'))
                 ]
             ]
         ]);

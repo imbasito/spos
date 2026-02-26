@@ -88,47 +88,49 @@
 
     {{-- Update Section --}}
     <div class="col-md-6">
-        <div class="card shadow-sm border-0 border-radius-15 h-100" id="update-card">
-            <div class="card-header bg-dark py-3">
-                <h5 class="card-title text-white font-weight-bold mb-0">
-                    <i class="fas fa-sync-alt mr-2"></i> Software Update
-                </h5>
-            </div>
-            <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
-                <div id="update-status-container" class="py-3">
-                    <div class="mb-4">
-                        <div class="icon-circle bg-light text-info shadow-sm mx-auto" style="width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-cloud-download-alt fa-3x update-icon"></i>
-                        </div>
+        <div class="card shadow-sm border-0 h-100 win-update-card">
+            <div class="card-body p-4 d-flex flex-column">
+                
+                <div class="win-header mb-4">
+                    <div class="win-header-icon">
+                        <i class="fas fa-sync-alt"></i>
                     </div>
-                    <h4 id="update-text" class="font-weight-bold mb-2">Check for Updates</h4>
-                    <p id="update-subtext" class="text-muted small mb-4">Current Version: <span class="badge badge-secondary ml-1">{{ config('app.version', '1.0.0') }}</span></p>
+                    <div>
+                        <h5 class="mb-0 font-weight-bold" style="color:#111; font-size:16px;">System Updates</h5>
+                        <p class="text-muted small mb-0">Current Version: v{{ config('app.version', '1.1.0') }}</p>
+                    </div>
+                </div>
+
+                <div id="update-status-container" class="win-status-area flex-grow-1 d-flex flex-column justify-content-center align-items-center text-center p-4 mb-4">
+                    <i id="update-icon" class="fas fa-cloud win-status-icon mb-3"></i>
+                    <h6 id="update-text" class="font-weight-bold mb-1" style="color:#111; font-size:14px;">Ready to Check</h6>
+                    <p id="update-subtext" class="text-muted small mb-0">Querying update servers for the latest release.</p>
                     
-                    <div id="update-progress-container" class="d-none mt-4 text-left">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span class="font-weight-bold small">Downloading...</span>
-                            <small id="update-progress-text" class="font-weight-bold">0%</small>
+                    <div id="update-progress-container" class="d-none w-100 mt-4 text-left">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="font-weight-bold" style="font-size:12px; color:#111;">Downloading payload...</span>
+                            <span id="update-progress-text" class="font-weight-bold" style="font-size:12px; color:#0078D4;">0%</span>
                         </div>
-                        <div class="progress progress-sm" style="height: 10px; border-radius: 5px;">
-                            <div id="update-progress-bar" class="progress-bar bg-maroon progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        <div class="win-progress-track">
+                            <div id="update-progress-bar" class="win-progress-fill" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
 
                 <div id="update-actions" class="mt-auto w-100">
-                    <button id="btn-check-update" class="btn btn-dark btn-block py-3 font-weight-bold border-radius-10 shadow-sm transition-hover">
-                        <i class="fas fa-search mr-2"></i> Check Now
+                    <button id="btn-check-update" class="win-btn win-btn-primary w-100 justify-content-center">
+                        <i class="fas fa-search"></i> Check for Updates
                     </button>
                     
-                    <div id="post-check-actions" class="d-none">
-                        <button id="btn-download-update" class="btn btn-success btn-block py-3 font-weight-bold border-radius-10 shadow-sm transition-hover">
-                            <i class="fas fa-download mr-2"></i> Download Update
+                    <div id="post-check-actions" class="d-none mt-2">
+                        <button id="btn-download-update" class="win-btn win-btn-success w-100 justify-content-center">
+                            <i class="fas fa-download"></i> Download Update
                         </button>
                     </div>
 
-                    <div id="ready-actions" class="d-none">
-                        <button id="btn-install-update" class="btn btn-primary btn-block py-3 font-weight-bold border-radius-10 shadow-sm transition-hover">
-                            <i class="fas fa-rocket mr-2"></i> Restart & Install
+                    <div id="ready-actions" class="d-none mt-2">
+                        <button id="btn-install-update" class="win-btn win-btn-danger w-100 justify-content-center">
+                            <i class="fas fa-power-off"></i> Install & Restart
                         </button>
                     </div>
                 </div>
@@ -153,29 +155,107 @@
 </div>
 
 <style>
-    .bg-gradient-maroon {
-        background: linear-gradient(45deg, #800000, #A01010) !important;
+    /* Windows 11 Update Card Styles */
+    .win-update-card {
+        border-radius: 12px !important;
+        background: #ffffff;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+        border: 1px solid rgba(0, 0, 0, 0.06) !important;
+        font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .text-maroon {
-        color: #800000 !important;
+
+    .win-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
-    .btn-maroon {
-        background-color: #800000;
-        color: white;
-        transition: all 0.3s;
+
+    .win-header-icon {
+        color: #0078D4;
+        background: rgba(0, 120, 212, 0.1);
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
     }
-    .btn-maroon:hover {
-        background-color: #600000;
-        color: white;
-        transform: translateY(-2px);
+
+    .win-status-area {
+        background: #fafafa;
+        border: 1px dashed rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        transition: all 0.3s ease;
     }
+
+    .win-status-icon {
+        font-size: 32px;
+        color: #8e8e8e;
+    }
+
+    /* Win Actions */
+    .win-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.1s ease;
+    }
+
+    .win-btn-primary { background: #0078D4; color: white; }
+    .win-btn-primary:not(:disabled):hover { background: #006CBE; }
+    
+    .win-btn-success { background: #107C41; color: white; }
+    .win-btn-success:not(:disabled):hover { background: #0E6C39; }
+    
+    .win-btn-danger { background: #D13438; color: white; }
+    .win-btn-danger:not(:disabled):hover { background: #BA2D31; }
+
+    .win-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Progress Track */
+    .win-progress-track {
+        height: 6px;
+        background: #e1dfdd;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .win-progress-fill {
+        height: 100%;
+        background: #0078D4;
+        border-radius: 3px;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Existing Legacy Styles */
+    .bg-gradient-maroon { background: linear-gradient(45deg, #800000, #A01010) !important; }
+    .text-maroon { color: #800000 !important; }
+    .btn-maroon { background-color: #800000; color: white; transition: all 0.3s; }
+    .btn-maroon:hover { background-color: #600000; color: white; transform: translateY(-2px); }
     .border-radius-10 { border-radius: 10px; }
     .border-radius-15 { border-radius: 15px; }
     .border-radius-25 { border-radius: 25px; }
-    .transition-hover:hover { transform: translateY(-3px); }
     .hover-underline:hover { text-decoration: underline; }
-    .blink { animation: blink-animation 1s steps(5, start) infinite; }
-    @keyframes blink-animation { to { visibility: hidden; } }
+    
+    .win-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: winSpin 1s linear infinite;
+        display: inline-block;
+    }
+
+    @keyframes winSpin { to { transform: rotate(360deg); } }
 </style>
 @endsection
 
@@ -187,55 +267,94 @@
         const btnInstall = document.getElementById('btn-install-update');
         const updateText = document.getElementById('update-text');
         const updateSubtext = document.getElementById('update-subtext');
-        const updateIcon = document.querySelector('.update-icon');
+        const updateIcon = document.getElementById('update-icon');
         const progressContainer = document.getElementById('update-progress-container');
         const progressBar = document.getElementById('update-progress-bar');
         const progressText = document.getElementById('update-progress-text');
         const postCheckActions = document.getElementById('post-check-actions');
         const readyActions = document.getElementById('ready-actions');
+        const statusArea = document.getElementById('update-status-container');
 
         if (typeof window.updater === 'undefined') {
             btnCheck.disabled = true;
-            btnCheck.classList.add('opacity-50');
-            updateSubtext.innerText = "Updater available in Desktop App only.";
+            statusArea.style.border = "none";
+            statusArea.style.background = "rgba(209, 52, 56, 0.05)";
+            updateIcon.className = 'fas fa-exclamation-triangle win-status-icon mb-3';
+            updateIcon.style.color = '#D13438';
+            updateText.innerText = 'Environment Mismatch';
+            updateSubtext.innerText = "The update engine runs via Desktop App only. Web instances cannot update binaries.";
             return;
         }
 
         btnCheck.addEventListener('click', () => {
             btnCheck.disabled = true;
-            btnCheck.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Checking...';
+            btnCheck.innerHTML = '<span class="win-spinner mr-2"></span> Checking...';
+            updateIcon.className = 'fas fa-sync win-status-icon mb-3 fa-spin';
+            updateIcon.style.color = '#0078D4';
+            updateText.innerText = 'Checking Servers';
+            updateSubtext.innerText = 'Looking for the latest stable release...';
+            
             window.updater.check();
         });
 
         btnDownload.addEventListener('click', () => {
             postCheckActions.classList.add('d-none');
             progressContainer.classList.remove('d-none');
-            updateText.innerText = 'Downloading Update...';
+            updateIcon.className = 'fas fa-cloud-download-alt win-status-icon mb-3';
+            updateIcon.style.color = '#0078D4';
+            updateText.innerText = 'Downloading Payload';
+            updateSubtext.innerText = 'Fetching files silently in the background.';
+            
             window.updater.download();
         });
 
         btnInstall.addEventListener('click', () => {
-            window.updater.install();
+            if(confirm("The application will immediately close to apply the update.\n\nPlease ensure all work is saved.")) {
+                btnInstall.disabled = true;
+                btnInstall.innerHTML = '<span class="win-spinner mr-2"></span> Restarting...';
+                window.updater.install();
+            }
         });
 
         window.updater.onStatus((status, info) => {
             btnCheck.disabled = false;
-            btnCheck.innerHTML = '<i class="fas fa-search mr-2"></i>Check Again';
+            btnCheck.innerHTML = '<i class="fas fa-search"></i> Check Again';
+            updateIcon.classList.remove('fa-spin');
 
             if (status === 'available') {
+                statusArea.style.background = "rgba(16, 124, 65, 0.05)";
+                statusArea.style.border = "1px solid rgba(16, 124, 65, 0.15)";
+                updateIcon.className = 'fas fa-arrow-alt-circle-down mb-3';
+                updateIcon.style.color = '#107C41';
+                updateIcon.style.fontSize = '36px';
+                
                 updateText.innerText = 'New Version Available!';
-                updateSubtext.innerHTML = `Version <strong class="text-success">${info.version}</strong> ready to download.`;
-                updateIcon.className = 'fas fa-arrow-alt-circle-up text-success update-icon fa-3x';
-                btnCheck.classList.add('d-none');
+                updateSubtext.innerHTML = `Version <strong style="color:#107C41;">v${info.version}</strong> is ready to cache.`;
+                
+                btnCheck.parentElement.classList.add('d-none'); // Hide check btn wrapper
                 postCheckActions.classList.remove('d-none');
+                
             } else if (status === 'latest') {
-                updateText.innerText = 'You are up to date!';
-                updateSubtext.innerText = 'Running the latest version.';
-                updateIcon.className = 'fas fa-check-circle text-success update-icon fa-3x';
+                statusArea.style.background = "rgba(0, 120, 212, 0.05)";
+                statusArea.style.border = "1px solid rgba(0, 120, 212, 0.15)";
+                updateIcon.className = 'fas fa-check-circle mb-3';
+                updateIcon.style.color = '#0078D4';
+                
+                updateText.innerText = 'System is Up to Date';
+                updateSubtext.innerText = 'You are already running the latest optimized version.';
+                
             } else if (status === 'error') {
-                updateText.innerText = 'Connection Failed';
-                updateSubtext.innerText = 'Could not reach update server.';
-                updateIcon.className = 'fas fa-exclamation-triangle text-danger update-icon fa-3x';
+                statusArea.style.background = "rgba(209, 52, 56, 0.05)";
+                statusArea.style.border = "1px solid rgba(209, 52, 56, 0.15)";
+                updateIcon.className = 'fas fa-times-circle mb-3';
+                updateIcon.style.color = '#D13438';
+                
+                updateText.innerText = 'Connection Error';
+                updateSubtext.innerText = 'Could not reach the update server securely.';
+                
+                progressContainer.classList.add('d-none');
+                postCheckActions.classList.remove('d-none'); // Allow retry download
+                btnDownload.innerHTML = '<i class="fas fa-redo"></i> Retry Download';
             }
         });
 
@@ -248,9 +367,14 @@
         window.updater.onReady((info) => {
             progressContainer.classList.add('d-none');
             readyActions.classList.remove('d-none');
-            updateText.innerText = 'Ready to Install!';
-            updateSubtext.innerText = 'Download complete. Restart to apply.';
-            updateIcon.className = 'fas fa-rocket text-primary update-icon fa-3x blink';
+            
+            statusArea.style.background = "rgba(16, 124, 65, 0.05)";
+            statusArea.style.border = "1px solid rgba(16, 124, 65, 0.15)";
+            updateIcon.className = 'fas fa-box-open mb-3';
+            updateIcon.style.color = '#107C41';
+            
+            updateText.innerText = 'Payload Cached Successfully';
+            updateSubtext.innerText = 'Click Install & Restart to safely apply the binary swap.';
         });
     });
 </script>

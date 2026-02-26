@@ -28,7 +28,7 @@ $route = request()->route()->getName();
 
             <li class="nav-header">CORE</li>
 
-            @if (auth()->user()->hasAnyPermission(['product_view','category_view']))
+            @canany(['product_view','category_view'])
             <li class="nav-item">
                 <a href="{{route('backend.admin.products.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.products.*']) ? 'active' : '' }}">
@@ -43,14 +43,14 @@ $route = request()->route()->getName();
                     <p>Categories</p>
                 </a>
             </li>
-             <li class="nav-item">
+            <li class="nav-item">
                 <a href="{{route('backend.admin.brands.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.brands.*']) ? 'active' : '' }}">
                     <i class="fas fa-star nav-icon"></i>
                     <p>Brands</p>
                 </a>
             </li>
-            @endif
+            @endcanany
 
             @can('unit_view')
             <li class="nav-item">
@@ -62,7 +62,7 @@ $route = request()->route()->getName();
             </li>
             @endcan
 
-            @if (auth()->user()->hasAnyPermission(['customer_view','supplier_view']))
+            @canany(['customer_view','supplier_view'])
             <li class="nav-item">
                 <a href="{{route('backend.admin.customers.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.customers.*']) ? 'active' : '' }}">
@@ -70,9 +70,9 @@ $route = request()->route()->getName();
                     <p>Customers</p>
                 </a>
             </li>
-            @endif
+            @endcanany
 
-            @if (auth()->user()->hasAnyPermission(['supplier_view']))
+            @can('supplier_view')
             <li class="nav-item">
                 <a href="{{route('backend.admin.suppliers.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.suppliers.*']) ? 'active' : '' }}">
@@ -80,7 +80,7 @@ $route = request()->route()->getName();
                     <p>Suppliers</p>
                 </a>
             </li>
-            @endif
+            @endcan
 
             <li class="nav-header">MANAGEMENT</li>
 
@@ -94,6 +94,7 @@ $route = request()->route()->getName();
             </li>
             @endcan
             
+            @can('refund_view')
             <li class="nav-item">
                 <a href="{{route('backend.admin.refunds.index')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.refunds.*']) ? 'active' : '' }}">
@@ -101,6 +102,7 @@ $route = request()->route()->getName();
                     <p>Refunds</p>
                 </a>
             </li>
+            @endcan
 
             @can('purchase_view')
             <li class="nav-item">
@@ -144,7 +146,7 @@ $route = request()->route()->getName();
 
             <li class="nav-header">SETTINGS</li>
 
-            @if (auth()->user()->hasAnyPermission(['website_settings','role_view','user_view']))
+            @canany(['website_settings','role_view','user_view'])
             <li class="nav-item">
                 <a href="{{ route('backend.admin.settings.website.general') }}"
                     class="nav-link {{ request()->routeIs(['backend.admin.settings.website.*']) ? 'active' : '' }}">
@@ -152,7 +154,7 @@ $route = request()->route()->getName();
                     <p>General</p>
                 </a>
             </li>
-            
+
             <li class="nav-item">
                 <a href="{{ route('backend.admin.roles') }}"
                     class="nav-link {{ request()->routeIs(['backend.admin.roles', 'backend.admin.permissions']) ? 'active' : '' }}">
@@ -176,7 +178,7 @@ $route = request()->route()->getName();
                     <p>Currency</p>
                 </a>
             </li>
-            @endif
+            @endcanany
 
             @role('Admin')
             <li class="nav-header">SYSTEM</li>
@@ -231,48 +233,11 @@ $route = request()->route()->getName();
         }
     });
 
-    /* Persistence State (localStorage) */
+    /* Sidebar Collapse Persistence (read on load) */
     document.addEventListener('DOMContentLoaded', function() {
         const sidebarState = localStorage.getItem('apple_sidebar_collapsed');
         if (sidebarState === 'true') {
             document.body.classList.add('sidebar-collapse');
         }
-
-        /* Spotlight Search Logic */
-        const searchInput = document.getElementById('sidebar-search-input');
-        const menuList = document.getElementById('sidebar-menu-list');
-        const navItems = menuList.querySelectorAll('.nav-item');
-        const navHeaders = menuList.querySelectorAll('.nav-header');
-
-        // Hotkey: Ctrl+K / Cmd+K
-        document.addEventListener('keydown', function(e) {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                searchInput.focus();
-            }
-        });
-
-        searchInput.addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase();
-
-            // Filter Items
-            navItems.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(query)) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            // Handle Headers (Hide if all children are hidden)
-            // Note: This is a simple implementation. For perfect header logic, we'd need to group them.
-            // For now, if searching, we hide headers to reduce clutter.
-            if (query.length > 0) {
-                navHeaders.forEach(header => header.style.display = 'none');
-            } else {
-                navHeaders.forEach(header => header.style.display = '');
-            }
-        });
     });
 </script>

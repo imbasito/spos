@@ -159,7 +159,8 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        //
+        $product = Product::with('unit')->findOrFail($id);
+        return response()->json(['product' => $product]);
     }
 
     /**

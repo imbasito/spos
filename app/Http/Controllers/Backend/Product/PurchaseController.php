@@ -153,6 +153,14 @@ class PurchaseController extends Controller
 
                         $existingProduct->increment('quantity', $product['qty']);
                     }
+
+                    // Cache clear: new stock additions must immediately reflect in POS product pages
+                    for ($i = 1; $i <= 20; $i++) {
+                        \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+                    }
+                    \Illuminate\Support\Facades\Cache::forget('pos_products_all');
+                    \Illuminate\Support\Facades\Cache::forget('pos_categories');
+
                     DB::commit();
                 } catch (\Exception $e) {
                     DB::rollBack();
@@ -175,28 +183,40 @@ class PurchaseController extends Controller
                         'date' => $validatedData['date'] ?? Carbon::now()->toDateString(),
                         'status' => 1,
                     ]);
-                    // Step 3: Create purchase items
                     foreach ($validatedData['products'] as $product) {
-                        $existingProduct = Product::findOrFail($product['id']); 
-                        // Find the existing purchase item, if any, and get its quantity or set to 0
-                        $oldPurchaseItem = PurchaseItem::find($product['item_id']??0);
+                        $existingProduct = Product::findOrFail($product['id']);
+                        $oldPurchaseItem = PurchaseItem::find($product['item_id'] ?? 0);
                         $oldQuantity = $oldPurchaseItem ? $oldPurchaseItem->quantity : 0;
+
                         PurchaseItem::updateOrCreate(
-                            [
-                                'id' => $product['item_id'] ?? null
-                            ],
+                            ['id' => $product['item_id'] ?? null],
                             [
                                 'purchase_id' => $purchase->id,
-                                'product_id' => $product['id'],
+                                'product_id'  => $product['id'],
                                 'purchase_price' => $product['purchase_price'],
-                                'price' => $product['price'],
-                                'quantity' => $product['qty'],
+                                'price'          => $product['price'],
+                                'quantity'       => $product['qty'],
                             ]
                         );
 
-                        // Adjust product stock: first add back the old quantity, then subtract the new
-                        $existingProduct->decrement('quantity', $oldQuantity);
-                        $existingProduct->increment('quantity', $product['qty']);
+                        // Atomic single-call delta: avoids race condition from two separate DB calls.
+                        // Guard: never allow stock to go negative from a purchase edit.
+                        $delta = $product['qty'] - $oldQuantity;
+                        if ($delta < 0) {
+                            // Reducing purchased quantity — ensure current stock won't go below zero
+                            $affected = DB::table('products')
+                                ->where('id', $existingProduct->id)
+                                ->where('quantity', '>=', abs($delta))
+                                ->decrement('quantity', abs($delta));
+                            if ($affected === 0) {
+                                throw new \Exception(
+                                    "Cannot reduce purchase for '" . $existingProduct->name .
+                                    "' — stock would go negative. Current stock: " . $existingProduct->quantity
+                                );
+                            }
+                        } elseif ($delta > 0) {
+                            $existingProduct->increment('quantity', $delta);
+                        }
                     }
                     // Targeted Cache Clear: refresh POS product pages 1-10
                     for ($i = 1; $i <= 10; $i++) {

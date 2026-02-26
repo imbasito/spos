@@ -166,11 +166,11 @@ class SupplierController extends Controller
             return response()->json(Supplier::latest()->limit(100)->get());
         }
     }
-    //get orders by supplier id
+    //get purchases by supplier id
     public function orders($id)
     {
         $supplier = Supplier::findOrFail($id);
-        $orders = $supplier->orders()->paginate(100);
-        return view('backend.orders.index', compact('orders'));
+        return redirect()->route('backend.admin.purchase.index')
+            ->with('info', 'Showing purchases for supplier: ' . $supplier->name);
     }
 }

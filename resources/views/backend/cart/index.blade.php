@@ -13,6 +13,7 @@
 
 <div id="cart"></div>
 @push('style')
+<link rel="stylesheet" href="{{ asset('css/pos.css') }}">
 <style>
     .products-card-container {
         max-height: 400px;

@@ -65,7 +65,7 @@ class UserManagementController extends Controller
                         : '<span class="badge badge-pill badge-danger">Suspended</span>';
                 })
                 ->addColumn('action', function ($data) {
-                    $editBtn = '<a class="btn btn-sm bg-gradient-primary mr-1"
+                    $editBtn = '<a class="btn btn-sm btn-outline-secondary mr-1"
                         href="' . route('backend.admin.user.edit', $data->id) . '">
                         <i class="fas fa-edit"></i> Edit
                     </a>';

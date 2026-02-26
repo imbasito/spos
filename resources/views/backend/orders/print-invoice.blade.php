@@ -44,7 +44,7 @@
             @if(readConfig('is_show_address_invoice'))Address: {{ readConfig('contact_address') }}<br>@endif
             @if(readConfig('is_show_phone_invoice'))Phone: {{ readConfig('contact_phone') }}<br>@endif
             @if(readConfig('is_show_email_invoice'))Email: {{ readConfig('contact_email') }}<br>@endif
-            <strong>NTN: 1620237071939</strong><br>
+            @if(readConfig('tax_ntn'))<strong>NTN: {{ readConfig('tax_ntn') }}</strong><br>@endif
           </address>
         </div>
         <!-- /.col -->
@@ -188,6 +188,6 @@
 @endpush
 @push('script')
 <script>
-  window.addEventListener("load", window.print());
+  window.addEventListener("load", () => window.print());
 </script>
 @endpush

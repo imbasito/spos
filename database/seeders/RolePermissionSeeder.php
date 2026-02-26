@@ -118,16 +118,16 @@ class RolePermissionSeeder extends Seeder
         $cashierUser = User::firstOrCreate(
             ['email' => 'cashier@spos.com'],
             [
-                'name' => 'Cashier',
-                'password' => bcrypt('cashier123'),
+                'name'     => 'Cashier',
+                'password' => bcrypt(env('CASHIER_DEFAULT_PASSWORD', 'cashier123')),
                 'username' => 'cashier',
             ]
         );
         $salesUser = User::firstOrCreate(
             ['email' => 'sales@spos.com'],
             [
-                'name' => 'Sales',
-                'password' => bcrypt('sales123'),
+                'name'     => 'Sales',
+                'password' => bcrypt(env('SALES_DEFAULT_PASSWORD', 'sales123')),
                 'username' => 'sales',
             ]
         );

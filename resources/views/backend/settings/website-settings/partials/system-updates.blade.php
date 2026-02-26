@@ -1,82 +1,358 @@
-<div class="card shadow-sm border-0 border-radius-15 overflow-hidden">
-    <div class="card-header bg-gradient-maroon py-3">
-        <h5 class="card-title text-white font-weight-bold mb-0">
-            <i class="fas fa-sync-alt mr-2"></i> System Updates
-        </h5>
+<style>
+    /* System Updates - Windows 11 Professional Dashboard UI */
+    .win-card-container {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        font-family: "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+        overflow: hidden;
+    }
+
+    .win-header {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .win-header h5 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #111111;
+        letter-spacing: -0.2px;
+    }
+
+    .win-header-icon {
+        color: #0078D4; /* Windows Blue */
+        background: rgba(0, 120, 212, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .win-body {
+        padding: 24px;
+    }
+
+    /* Version / Info Blocks */
+    .win-info-box {
+        background: #fbfbfb;
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        border-radius: 8px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        transition: background 0.2s ease;
+    }
+
+    .win-info-box:hover {
+        background: #f5f5f5;
+    }
+
+    .win-info-icon {
+        color: #5c5c5c;
+        font-size: 20px;
+    }
+
+    .win-info-content h6 {
+        margin: 0 0 4px 0;
+        font-size: 13px;
+        font-weight: 600;
+        color: #111111;
+    }
+
+    .win-info-content p {
+        margin: 0;
+        font-size: 12px;
+        color: #5c5c5c;
+    }
+
+    /* Status Area */
+    .win-status-area {
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        margin-bottom: 24px;
+        background: #fafafa;
+        padding: 30px;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .win-status-area i {
+        font-size: 32px;
+        color: #8e8e8e;
+        margin-bottom: 12px;
+    }
+
+    .win-status-area p {
+        margin: 0;
+        font-size: 13px;
+        color: #5c5c5c;
+        font-weight: 500;
+    }
+
+    /* Dynamic Alerts inside Status Area */
+    .win-alert {
+        width: 100%;
+        text-align: left;
+        padding: 16px 20px;
+        border-radius: 8px;
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        border: 1px solid transparent;
+    }
+
+    .win-alert-success {
+        background: rgba(16, 124, 65, 0.05); /* Windows Success Green */
+        border-color: rgba(16, 124, 65, 0.15);
+    }
+    .win-alert-success i { color: #107C41; font-size: 24px; margin: 0; }
+    
+    .win-alert-info {
+        background: rgba(0, 120, 212, 0.05);
+        border-color: rgba(0, 120, 212, 0.15);
+    }
+    .win-alert-info i { color: #0078D4; font-size: 24px; margin: 0; }
+
+    .win-alert-danger {
+        background: rgba(209, 52, 56, 0.05);
+        border-color: rgba(209, 52, 56, 0.15);
+    }
+    .win-alert-danger i { color: #D13438; font-size: 24px; margin: 0; }
+
+    .win-alert h5 {
+        margin: 0 0 6px 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: #111111;
+    }
+
+    .win-alert p {
+        color: #3b3b3b;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    /* Buttons */
+    .win-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-start;
+        padding-top: 10px;
+        border-top: 1px solid rgba(0,0,0,0.05);
+        margin-top: 24px;
+        padding-top: 24px;
+    }
+
+    .win-btn {
+        padding: 8px 20px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.1s ease;
+    }
+
+    .win-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .win-btn-primary {
+        background: #0078D4;
+        color: white;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .win-btn-primary:not(:disabled):hover {
+        background: #006CBE;
+    }
+
+    .win-btn-success {
+        background: #107C41;
+        color: white;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .win-btn-success:not(:disabled):hover {
+        background: #0E6C39;
+    }
+
+    .win-btn-danger {
+        background: #D13438;
+        color: white;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .win-btn-danger:not(:disabled):hover {
+        background: #BA2D31;
+    }
+
+    /* Sleek Progress Bar */
+    .win-progress-wrapper {
+        margin-top: 20px;
+    }
+
+    .win-progress-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #111111;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .win-progress-track {
+        height: 6px;
+        background: #f0f0f0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .win-progress-fill {
+        height: 100%;
+        background: #0078D4; /* Windows Blue */
+        width: 0%;
+        border-radius: 3px;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* About Box */
+    .win-about-box {
+        margin-top: 32px;
+        padding: 20px;
+        background: #fafafa;
+        border-radius: 8px;
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+
+    .win-about-box h6 {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111;
+        margin: 0 0 12px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .win-about-box ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .win-about-box li {
+        font-size: 12px;
+        color: #5c5c5c;
+        margin-bottom: 8px;
+        padding-left: 18px;
+        position: relative;
+    }
+
+    .win-about-box li::before {
+        content: '•';
+        position: absolute;
+        left: 4px;
+        color: #0078D4;
+        font-weight: bold;
+    }
+
+    .win-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 120, 212, 0.2);
+        border-top-color: #0078D4;
+        border-radius: 50%;
+        animation: winSpin 1s linear infinite;
+        display: inline-block;
+    }
+
+    @keyframes winSpin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="win-card-container">
+    <div class="win-header">
+        <div class="win-header-icon">
+            <i class="fas fa-sync-alt"></i>
+        </div>
+        <h5>System Updates</h5>
     </div>
-    <div class="card-body p-4">
+
+    <div class="win-body">
+        
         <!-- Current Version Info -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="alert alert-info border-0 shadow-sm">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-info-circle fa-2x mr-3"></i>
-                        <div>
-                            <h6 class="mb-1 font-weight-bold">Current Version</h6>
-                            <p class="mb-0">SPOS v1.0.5 (Build: {{ date('Y-m-d') }})</p>
-                        </div>
-                    </div>
-                </div>
+        <div class="win-info-box">
+            <i class="fas fa-desktop win-info-icon"></i>
+            <div class="win-info-content">
+                <h6>Current Application Version</h6>
+                <p>SPOS v{{ config('app.version', '1.1.0') }} &nbsp;|&nbsp; Channel: Stable &nbsp;|&nbsp; Target: Windows</p>
             </div>
         </div>
 
-        <!-- Update Status Area -->
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div id="update-status-area">
-                    <div class="text-center py-4">
-                        <i class="fas fa-cloud-download-alt fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Click "Check for Updates" to see if a new version is available.</p>
-                    </div>
-                </div>
+        <!-- Dynamic Update Status Area -->
+        <div id="update-status-area" class="win-status-area">
+            <i class="fas fa-cloud"></i>
+            <p>Ready to check for the latest reliable release.</p>
+        </div>
+
+        <!-- Sleek Progress Bar (Hidden by default) -->
+        <div id="download-progress-area" class="win-progress-wrapper" style="display: none;">
+            <div class="win-progress-label">
+                <span>Downloading update...</span>
+                <span id="download-progress-text">0%</span>
+            </div>
+            <div class="win-progress-track">
+                <div id="download-progress-bar" class="win-progress-fill"></div>
             </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="row">
-            <div class="col-md-12">
-                <button type="button" id="btn-check-updates" class="btn btn-primary btn-lg px-5 shadow-sm">
-                    <i class="fas fa-search mr-2"></i> Check for Updates
-                </button>
-                <button type="button" id="btn-download-update" class="btn btn-success btn-lg px-5 shadow-sm ml-2" style="display: none;">
-                    <i class="fas fa-download mr-2"></i> Download Update
-                </button>
-                <button type="button" id="btn-install-update" class="btn btn-maroon btn-lg px-5 shadow-sm ml-2" style="display: none;">
-                    <i class="fas fa-rocket mr-2"></i> Install & Restart
-                </button>
-            </div>
+        <div class="win-actions">
+            <button type="button" id="btn-check-updates" class="win-btn win-btn-primary">
+                <i class="fas fa-search"></i> Check for Updates
+            </button>
+            <button type="button" id="btn-download-update" class="win-btn win-btn-success" style="display: none;">
+                <i class="fas fa-download"></i> Download Update
+            </button>
+            <button type="button" id="btn-install-update" class="win-btn win-btn-danger" style="display: none;">
+                <i class="fas fa-power-off"></i> Install & Restart
+            </button>
         </div>
 
-        <!-- Progress Bar (Hidden by default) -->
-        <div class="row mt-4" id="download-progress-area" style="display: none;">
-            <div class="col-md-12">
-                <h6 class="mb-2">Downloading Update...</h6>
-                <div class="progress" style="height: 30px;">
-                    <div id="download-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
-                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                        <span id="download-progress-text">0%</span>
-                    </div>
-                </div>
-            </div>
+        <!-- Professional Information Box -->
+        <div class="win-about-box">
+            <h6><i class="fas fa-shield-alt" style="color:#0078D4;"></i> Update Lifecycle Safety</h6>
+            <ul>
+                <li>Updates are fetched entirely in the background allowing uninterrupted workflow.</li>
+                <li>Your databases and configuration logs are inherently preserved—updates only swap active binaries.</li>
+                <li>An active internet connection is strictly required for version resolution.</li>
+                <li>Applying the update will initiate an application restart. Please commit pending actions beforehand.</li>
+            </ul>
         </div>
 
-        <!-- Information Box -->
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card bg-light border-0">
-                    <div class="card-body">
-                        <h6 class="font-weight-bold mb-3"><i class="fas fa-question-circle mr-2"></i> About Manual Updates</h6>
-                        <ul class="mb-0 pl-3">
-                            <li>✅ Updates are checked manually - no automatic interruptions</li>
-                            <li>✅ Your data is safe - updates only replace app files</li>
-                            <li>✅ Download happens in background - you can continue working</li>
-                            <li>✅ Installation requires restart - save your work first</li>
-                            <li>⚠️ Internet connection required for checking & downloading</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -90,14 +366,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBar = document.getElementById('download-progress-bar');
     const progressText = document.getElementById('download-progress-text');
 
-    // Check if running in Electron
+    // Check if running in Electron environment
     if (!window.updater) {
         statusArea.innerHTML = `
-            <div class="alert alert-warning border-0">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                Update system is only available in the desktop app.
+            <div class="win-alert win-alert-danger" style="border:none; background:transparent; padding:0;">
+                <i class="fas fa-exclamation-triangle" style="margin-bottom:0; font-size:24px;"></i>
+                <div style="text-align:left;">
+                    <h5 style="margin-bottom:4px;">Execution Environment Mismatch</h5>
+                    <p style="margin:0;">The automated update engine requires the native Windows desktop client. Web-browser instances cannot execute binary updates.</p>
+                </div>
             </div>
         `;
+        statusArea.style.border = "none";
+        statusArea.style.background = "#fff";
         btnCheck.disabled = true;
         return;
     }
@@ -105,136 +386,143 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check for Updates
     btnCheck.addEventListener('click', async function() {
         btnCheck.disabled = true;
-        btnCheck.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Checking...';
+        btnCheck.innerHTML = '<span class="win-spinner"></span> Checking...';
         
         statusArea.innerHTML = `
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="sr-only">Loading...</span>
-                </div>
-                <p class="text-muted mt-3">Checking for updates...</p>
-            </div>
+            <span class="win-spinner" style="width:24px; height:24px; margin-bottom:12px; border-width:3px;"></span>
+            <p>Querying update servers for the latest release...</p>
         `;
+        statusArea.style.border = "1px dashed rgba(0, 0, 0, 0.12)";
+        statusArea.style.background = "#fafafa";
+        statusArea.style.padding = "30px";
 
         try {
             const result = await window.updater.check();
             
+            // Clean padding for alert render
+            statusArea.style.border = "none";
+            statusArea.style.background = "transparent";
+            statusArea.style.padding = "0";
+
             if (result.error) {
                 statusArea.innerHTML = `
-                    <div class="alert alert-danger border-0 shadow-sm">
-                        <i class="fas fa-times-circle mr-2"></i>
-                        <strong>Error:</strong> ${result.error}
+                    <div class="win-alert win-alert-danger">
+                        <i class="fas fa-times-circle"></i>
+                        <div>
+                            <h5>Update Resolution Failed</h5>
+                            <p>${result.error}</p>
+                        </div>
                     </div>
                 `;
             } else if (result.available) {
                 statusArea.innerHTML = `
-                    <div class="alert alert-success border-0 shadow-sm">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-check-circle fa-3x mr-3"></i>
-                            <div>
-                                <h5 class="mb-1 font-weight-bold">Update Available!</h5>
-                                <p class="mb-0">New version <strong>${result.version}</strong> is ready to download.</p>
-                                ${result.releaseNotes ? `<small class="text-muted">Release notes: ${result.releaseNotes.substring(0, 100)}...</small>` : ''}
-                            </div>
+                    <div class="win-alert win-alert-success">
+                        <i class="fas fa-arrow-alt-circle-down"></i>
+                        <div>
+                            <h5>New Version Available: v${result.version}</h5>
+                            <p>A newer stable release has been found. Click download below to cache it.</p>
+                            ${result.releaseNotes ? `<p style="margin-top:8px; font-size:11px; opacity:0.8; font-family:monospace;">Notes: ${result.releaseNotes.substring(0, 80)}...</p>` : ''}
                         </div>
                     </div>
                 `;
-                btnDownload.style.display = 'inline-block';
+                btnDownload.style.display = 'inline-flex';
             } else {
                 statusArea.innerHTML = `
-                    <div class="alert alert-info border-0 shadow-sm">
-                        <i class="fas fa-check mr-2"></i>
-                        You're running the latest version! No updates available.
+                    <div class="win-alert win-alert-info">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <h5>System is Up to Date</h5>
+                            <p>You are already running the latest optimized version.</p>
+                        </div>
                     </div>
                 `;
             }
         } catch (error) {
+            statusArea.style.border = "none";
+            statusArea.style.background = "transparent";
+            statusArea.style.padding = "0";
             statusArea.innerHTML = `
-                <div class="alert alert-danger border-0 shadow-sm">
-                    <i class="fas fa-times-circle mr-2"></i>
-                    <strong>Error:</strong> ${error.message}
+                <div class="win-alert win-alert-danger">
+                    <i class="fas fa-times-circle"></i>
+                    <div>
+                        <h5>Connection Error</h5>
+                        <p>${error.message}</p>
+                    </div>
                 </div>
             `;
         } finally {
             btnCheck.disabled = false;
-            btnCheck.innerHTML = '<i class="fas fa-search mr-2"></i> Check Again';
+            btnCheck.innerHTML = '<i class="fas fa-search"></i> Check Again';
         }
     });
 
     // Download Update
     btnDownload.addEventListener('click', function() {
         btnDownload.disabled = true;
-        btnDownload.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Starting Download...';
+        btnDownload.innerHTML = '<span class="win-spinner" style="border-top-color:#fff; border-right-color:rgba(255,255,255,0.3); border-bottom-color:rgba(255,255,255,0.3); border-left-color:rgba(255,255,255,0.3);"></span> Downloading...';
         progressArea.style.display = 'block';
         
         window.updater.download();
         
         statusArea.innerHTML = `
-            <div class="alert alert-info border-0 shadow-sm">
-                <i class="fas fa-download mr-2"></i>
-                Downloading update in background... You can continue working.
+            <div class="win-alert win-alert-info">
+                <i class="fas fa-cloud-download-alt"></i>
+                <div>
+                    <h5>Caching Update Payload</h5>
+                    <p>Fetching files silently in the background. You may safely resume other operations.</p>
+                </div>
             </div>
         `;
     });
 
     // Install Update
     btnInstall.addEventListener('click', function() {
-        if (confirm('Application will restart to install the update. Make sure all work is saved!\n\nContinue?')) {
+        if (confirm('The POS application will immediately close to execute the binary swap.\n\nPlease confirm all critical data is saved.')) {
             btnInstall.disabled = true;
-            btnInstall.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Installing...';
+            btnInstall.innerHTML = '<span class="win-spinner" style="border-top-color:#fff; border-right-color:rgba(255,255,255,0.3); border-bottom-color:rgba(255,255,255,0.3); border-left-color:rgba(255,255,255,0.3);"></span> Restarting...';
             window.updater.install();
         }
     });
 
-    // Listen for update events
+    // IPC Progress Events
     window.updater.onProgress((percent) => {
         const rounded = Math.round(percent);
         progressBar.style.width = rounded + '%';
-        progressBar.setAttribute('aria-valuenow', rounded);
         progressText.textContent = rounded + '%';
     });
 
     window.updater.onReady(() => {
         progressArea.style.display = 'none';
+        btnDownload.style.display = 'none';
+        btnInstall.style.display = 'inline-flex';
+
         statusArea.innerHTML = `
-            <div class="alert alert-success border-0 shadow-sm">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-check-circle fa-3x mr-3"></i>
-                    <div>
-                        <h5 class="mb-1 font-weight-bold">Update Downloaded!</h5>
-                        <p class="mb-0">Click "Install & Restart" to complete the update.</p>
-                    </div>
+            <div class="win-alert win-alert-success">
+                <i class="fas fa-box-open"></i>
+                <div>
+                    <h5>Payload Ready</h5>
+                    <p>The update binary is successfully cached. Click Install & Restart to apply.</p>
                 </div>
             </div>
         `;
-        btnDownload.style.display = 'none';
-        btnInstall.style.display = 'inline-block';
     });
 
     window.updater.onStatus((status, ...args) => {
         if (status === 'error') {
             progressArea.style.display = 'none';
+            btnDownload.disabled = false;
+            btnDownload.innerHTML = '<i class="fas fa-download"></i> Retry Download';
+
             statusArea.innerHTML = `
-                <div class="alert alert-danger border-0 shadow-sm">
-                    <i class="fas fa-times-circle mr-2"></i>
-                    <strong>Error:</strong> ${args[0] || 'Unknown error occurred'}
+                <div class="win-alert win-alert-danger">
+                    <i class="fas fa-times-circle"></i>
+                    <div>
+                        <h5>Download Interrupted</h5>
+                        <p>${args[0] || 'Unknown network error occurred.'}</p>
+                    </div>
                 </div>
             `;
-            btnDownload.disabled = false;
-            btnDownload.innerHTML = '<i class="fas fa-download mr-2"></i> Retry Download';
         }
     });
 });
 </script>
-
-<style>
-.btn-maroon {
-    background: linear-gradient(180deg, #800000, #600000) !important;
-    border-color: #800000 !important;
-    color: #ffffff !important;
-}
-.btn-maroon:hover {
-    background: linear-gradient(180deg, #a00000, #800000) !important;
-    border-color: #a00000 !important;
-}
-</style>

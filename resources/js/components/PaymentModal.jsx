@@ -104,7 +104,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
                         <small className="text-muted text-uppercase font-weight-bold">Total Payable Amount</small>
                         <h1 className="display-4 font-weight-bolder text-dark m-0">
                             {parseInt(total) === total ? parseInt(total) : total}
-                            <small className="text-muted" style={{ fontSize: '0.4em', verticalAlign: 'top' }}> PKR</small>
+                            <small className="text-muted" style={{ fontSize: '0.4em', verticalAlign: 'top' }}>{window.posSettings?.currencySymbol ?? 'PKR'}</small>
                         </h1>
                     </div>
 
@@ -189,7 +189,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
                 {/* Footer Actions */}
                 <div className="modal-footer bg-light p-3">
                     <button type="button" className="btn btn-lg btn-secondary px-4" onClick={onCancel}>Cancel (Esc)</button>
-                    <button type="button" className="btn btn-lg btn-primary px-5 font-weight-bold shadow" onClick={handleConfirm}>
+                    <button type="button" className="btn btn-lg bg-gradient-maroon text-white px-5 font-weight-bold shadow" onClick={handleConfirm}>
                         <i className="fas fa-check-circle mr-2"></i> CONFIRM & PRINT (Enter)
                     </button>
                 </div>

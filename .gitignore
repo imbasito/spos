@@ -59,3 +59,9 @@ CHANGELOG.md
 tasks/DEPLOYMENT_GUIDE.md
 tasks/PAKISTAN_IMPORT.md
 tasks/PAKISTAN_IMPLEMENTATION_SUMMARY.md
+
+# Database files (must never be committed — contain live data)
+database/*.sqlite
+database/*.sqlite-bak
+database/*.sqlite-journal
+database/database.sqlite.bak

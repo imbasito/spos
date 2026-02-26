@@ -174,149 +174,7 @@
             display: block;
         }
 
-        /* ========= POS APP SHELL (Fixed Layout) ========== */
-        .pos-app-container {
-            height: calc(100vh - 57px);
-            overflow: hidden;
-            display: flex;
-            zoom: 0.9; /* Fixed 90% Zoom for Desktop Experience */
-        }
 
-        /* Prevent page-level scroll when POS is active */
-        body:has(.pos-app-container) {
-            overflow: hidden !important;
-            height: 100vh !important;
-        }
-
-        /* Custom Scrollbar */
-        .custom-scroll {
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #adb5bd #f1f1f1;
-        }
-
-        /* Hidden Scrollbar while keeping scroll enabled */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-            overflow-y: auto;
-        }
-
-        .custom-scroll::-webkit-scrollbar {
-            width: 8px; /* Slightly thicker for ease of use */
-        }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: #f8f9fa;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background-color: #ced4da;
-            border-radius: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background-color: #adb5bd;
-        }
-
-        /* Professional Product Grid Styles */
-        .pos-product-card {
-            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-            border: 1px solid transparent; /* Cleaner look */
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-            height: 100%;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        .pos-product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
-            z-index: 10;
-        }
-        .pos-product-img-wrapper {
-            height: 140px; /* Slightly taller */
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #fff;
-            padding: 10px;
-            border-bottom: 1px solid #f1f1f1;
-        }
-        .pos-product-img {
-            max-height: 100%;
-            max-width: 100%;
-            object-fit: contain;
-            transition: transform 0.3s;
-        }
-        .pos-product-card:hover .pos-product-img {
-            transform: scale(1.05); /* Subtle zoom on hover */
-        }
-
-        /* POS Premium Refinements */
-        .pos-search-group {
-            transition: all 0.3s ease;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 2px solid #eee;
-            background: #fff;
-        }
-        .pos-search-group:focus-within {
-            border-color: #007bff;
-            box-shadow: 0 0 15px rgba(0, 123, 255, 0.25);
-            transform: translateY(-1px);
-        }
-        .pos-search-input {
-            border: none !important;
-            font-size: 1.1rem !important;
-        }
-        .pos-search-icon {
-            border: none !important;
-            background: #fff !important;
-            padding-right: 0 !important;
-        }
-
-        .btn-pay-premium {
-            background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-            border: none;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
-            color: white !important;
-        }
-        .btn-pay-premium:hover:not(:disabled) {
-            transform: scale(1.02) translateY(-2px);
-            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.4);
-            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-        }
-        .btn-pay-premium:active:not(:disabled) {
-            transform: scale(0.98);
-        }
-        .btn-pay-premium::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: rgba(255,255,255,0.1);
-            transform: rotate(45deg);
-            transition: 0.5s;
-            pointer-events: none;
-        }
-        .btn-pay-premium:hover::after {
-            left: 120%;
-        }
-
-        .empty-state-container {
-            padding: 40px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 20px;
-            border: 2px dashed #dee2e6;
-            margin-top: 50px;
-            text-align: center;
-        }
         
         /* BUTTON COLOR FIX */
         .btn-primary, .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
@@ -386,6 +244,8 @@
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed">
+    {{-- Synchronous collapse: apply before paint to prevent sidebar flash --}}
+    <script>if (localStorage.getItem('apple_sidebar_collapsed') === 'true') { document.body.classList.add('sidebar-collapse'); }</script>
 
     <x-simple-alert />
 
@@ -495,19 +355,6 @@
 
         <!-- Content Wrapper. Contains page content -->
         <div class="content-wrapper">
-            <!-- Content Header (Page header) -->
-            <div class="content-header">
-                <div class="container-fluid">
-                    <div class="row mb-2">
-                        <div class="col-sm-6">
-                            <h1 class="m-0">
-                                @yield('title')
-                            </h1>
-                        </div><!-- /.col -->
-                    </div><!-- /.row -->
-                </div><!-- /.container-fluid -->
-            </div>
-            <!-- /.content-header -->
 
 
             <!-- Main content -->

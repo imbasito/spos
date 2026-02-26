@@ -70,7 +70,7 @@ const CustomerSelect = ({ setCustomerId }) => {
             </div>
             <button 
                 type="button" 
-                className="btn bg-gradient-primary text-white shadow-sm"
+                className="btn bg-gradient-maroon text-white shadow-sm"
                 onClick={() => setShowModal(true)}
                 title="Add New Customer"
                 style={{ width: '45px', height: '38px', borderRadius: '8px' }}

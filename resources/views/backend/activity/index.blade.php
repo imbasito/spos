@@ -7,26 +7,6 @@
 /* ── Premium Audit Log Styles ─────────────────────────────────────── */
 .audit-header    { background: linear-gradient(45deg, #800000, #A01010); }
 
-.audit-stat-card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 2px 12px rgba(0,0,0,.07);
-    padding: 1.1rem 1.4rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: box-shadow .2s;
-}
-.audit-stat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.12); }
-.audit-stat-icon {
-    width: 48px; height: 48px;
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; flex-shrink: 0;
-}
-.audit-stat-card h3 { font-size: 1.6rem; font-weight: 700; margin: 0; line-height: 1; }
-.audit-stat-card p  { margin: 0; font-size: .8rem; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
-
 /* Filters */
 .audit-filter-bar {
     background: #f8fafc;
@@ -91,8 +71,10 @@
 /* Cap warning */
 #capWarning { border-radius: 10px; }
 
-/* Pagination */
-#auditPaginator .page-link { border-radius: 6px; margin: 0 2px; }
+/* Pagination — matches backup history maroon style */
+#auditPaginator .page-link { border-radius: 6px; margin: 0 2px; color: #800000; }
+#auditPaginator .page-item.active .page-link { background-color: #800000 !important; border-color: #800000 !important; color: #fff !important; }
+#auditPaginator .page-link:hover { color: #600000; }
 </style>
 @endpush
 
@@ -114,43 +96,6 @@
       </div>
 
       <div class="card-body p-4">
-
-        {{-- ── Summary Cards ───────────────────────────────────────────────── --}}
-        <div class="row mb-4">
-          <div class="col-md-4 mb-3 mb-md-0">
-            <div class="audit-stat-card">
-              <div class="audit-stat-icon" style="background: #fff0f0;">
-                <i class="fas fa-list-alt" style="color: #800000;"></i>
-              </div>
-              <div>
-                <h3 style="color: #800000;">{{ number_format($stats['total']) }}</h3>
-                <p>Total Events</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-3 mb-md-0">
-            <div class="audit-stat-card">
-              <div class="audit-stat-icon" style="background: #e8f4fd;">
-                <i class="fas fa-calendar-day" style="color: #2980b9;"></i>
-              </div>
-              <div>
-                <h3 style="color: #2980b9;">{{ number_format($stats['today']) }}</h3>
-                <p>Today's Activity</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="audit-stat-card">
-              <div class="audit-stat-icon" style="background: #eafaf1;">
-                <i class="fas fa-users" style="color: #27ae60;"></i>
-              </div>
-              <div>
-                <h3 style="color: #27ae60;">{{ number_format($stats['active_users']) }}</h3>
-                <p>Active Users</p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {{-- ── Spotlight Search ─────────────────────────────────────────────── --}}
         <div class="audit-search-wrap input-group shadow-sm mb-3">
@@ -254,8 +199,8 @@
           <div class="d-flex align-items-center gap-2">
             <small class="text-muted font-weight-bold">Per page:</small>
             <select id="perPage" class="form-control form-control-sm" style="width: 70px; border-radius: 6px;">
-              <option value="25">25</option>
-              <option value="50" selected>50</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
               <option value="100">100</option>
               <option value="200">200</option>
             </select>

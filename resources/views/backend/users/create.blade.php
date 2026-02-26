@@ -4,20 +4,17 @@
 
 @section('content')
 
-{{-- Back button --}}
-<div class="mt-n5 mb-3">
-    <a href="{{ route('backend.admin.users') }}" class="btn btn-secondary btn-sm">
-        <i class="fas fa-arrow-left mr-1"></i> Back to Users
-    </a>
-</div>
 
 <div class="card shadow-sm border-0" style="border-radius: 12px; overflow: hidden;">
 
     {{-- Premium Header --}}
-    <div class="card-header py-3" style="background: linear-gradient(45deg, #800000, #A01010);">
+    <div class="card-header py-3 d-flex align-items-center" style="background: linear-gradient(45deg, #800000, #A01010);">
         <h5 class="text-white font-weight-bold mb-0">
             <i class="fas fa-user-plus mr-2"></i> Create New User
         </h5>
+        <a href="{{ route('backend.admin.users') }}" class="btn btn-light btn-sm ml-auto font-weight-bold text-maroon">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Users
+        </a>
     </div>
 
     {{-- Validation errors --}}
@@ -103,7 +100,7 @@
         </div>
 
         <div class="card-footer bg-white border-top-0 px-4 pb-4 pt-0">
-            <button type="submit" class="btn bg-gradient-primary">
+            <button type="submit" class="btn bg-gradient-maroon text-white px-5 font-weight-bold">
                 <i class="fas fa-user-plus mr-1"></i> Create User
             </button>
         </div>

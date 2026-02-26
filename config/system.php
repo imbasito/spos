@@ -49,7 +49,7 @@
   'receipt_printer' => 'POS80',
   'tag_printer' => 'POS80',
   'tax_ntn' => '31659849213216566',
-  'tax_strn' => '651658432323213217',
+  'tax_strn' => '65165843232321321',
   'fbr_pos_id' => NULL,
   'tax_gst_rate' => '17',
   'tax_gst_enabled' => '1',

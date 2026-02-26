@@ -279,18 +279,9 @@ function waitForLaravel(port, timeout = 30000) {
 // ============================================
 // SPLASH SCREEN
 // ============================================
-// ============================================
-// SPLASH SCREEN
-// ============================================
-// ============================================
-// SPLASH SCREEN
-// ============================================
-// ============================================
-// SPLASH SCREEN
-// ============================================
 function createSplashWindow() {
     splashWindow = new BrowserWindow({
-        width: 650, height: 600, // Increased to prevent clipping of bottom radius
+        width: 500, height: 320, // Sleek compact bounds
         frame: false, 
         transparent: true, 
         alwaysOnTop: true, 
@@ -983,16 +974,76 @@ async function triggerCashDrawer(printerName) {
 // ============================================
 function setupAutoUpdater() {
     autoUpdater.autoDownload = false;
-    ipcMain.on('updater:check', () => autoUpdater.checkForUpdates());
-    ipcMain.on('updater:download', () => autoUpdater.downloadUpdate());
+    
+    // Hardened Update Check
+    ipcMain.on('updater:check', () => {
+        try {
+            const checkPromise = autoUpdater.checkForUpdates();
+            if (checkPromise && checkPromise.catch) {
+                checkPromise.catch(err => {
+                    logger.error(`Update check failed: ${err.message}`);
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('updater:status', 'error', err.message);
+                    }
+                });
+            }
+        } catch (err) {
+            logger.error(`Update sync check failed: ${err.message}`);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('updater:status', 'error', err.message);
+            }
+        }
+    });
+
+    // Hardened Update Download
+    ipcMain.on('updater:download', () => {
+        try {
+            const dnPromise = autoUpdater.downloadUpdate();
+            if (dnPromise && dnPromise.catch) {
+                dnPromise.catch(err => {
+                    logger.error(`Update download failed: ${err.message}`);
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('updater:status', 'error', err.message);
+                    }
+                });
+            }
+        } catch (err) {
+            logger.error(`Update sync download failed: ${err.message}`);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('updater:status', 'error', err.message);
+            }
+        }
+    });
+
     ipcMain.on('updater:install', () => { killProcesses(); autoUpdater.quitAndInstall(); });
     
     // Hardened Updater Events
-    autoUpdater.on('update-available', (info) => mainWindow.webContents.send('updater:status', 'available', info.version));
-    autoUpdater.on('update-not-available', () => mainWindow.webContents.send('updater:status', 'latest'));
-    autoUpdater.on('error', (err) => mainWindow.webContents.send('updater:status', 'error', err.message));
-    autoUpdater.on('download-progress', (progress) => mainWindow.webContents.send('updater:progress', progress.percent));
-    autoUpdater.on('update-downloaded', () => mainWindow.webContents.send('updater:ready'));
+    autoUpdater.on('update-available', (info) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:status', 'available', info.version);
+        }
+    });
+    autoUpdater.on('update-not-available', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:status', 'latest');
+        }
+    });
+    autoUpdater.on('error', (err) => {
+        logger.error(`AutoUpdater Event Error: ${err.message}`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:status', 'error', err.message);
+        }
+    });
+    autoUpdater.on('download-progress', (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:progress', progress.percent);
+        }
+    });
+    autoUpdater.on('update-downloaded', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:ready');
+        }
+    });
 
     // Initialization Recovery IPC Handlers
     ipcMain.handle('init:retry', async () => {
@@ -1052,6 +1103,16 @@ function setupAutoUpdater() {
 
     // Config IPC
     ipcMain.handle('config:get-remote', () => global.posConfig || null);
+
+    // Directory Picker (used by Backup Manager path selector)
+    ipcMain.handle('dialog:openDirectory', async (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        const result = await dialog.showOpenDialog(win, {
+            title: 'Select Backup Storage Folder',
+            properties: ['openDirectory', 'createDirectory']
+        });
+        return result.canceled ? null : result.filePaths[0];
+    });
 
     // Diagnostic Log from Render
     ipcMain.on('log-from-render', (event, msg) => { console.log(`[RENDER LOG]: ${msg}`); });

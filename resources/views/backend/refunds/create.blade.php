@@ -118,8 +118,8 @@ $(function() {
     // Quantity change
     $('.return-qty').on('input change', function() {
         const row = $(this).closest('tr');
-        const max = parseInt($(this).attr('max'));
-        const val = parseInt($(this).val());
+        const max = parseFloat($(this).attr('max'));
+        const val = parseFloat($(this).val());
         
         if(val > max) $(this).val(max);
         
@@ -191,12 +191,12 @@ $(function() {
         }
         
         // Show confirmation with cash back details
-        let confirmMsg = 'Total Refund: Rs.' + totalRefundAmount.toFixed(2);
+        let confirmMsg = 'Total Refund: {{ currency()->symbol }}' + totalRefundAmount.toFixed(2);
         if (debtClearance > 0) {
-            confirmMsg += '\n\nDebt Cleared: Rs.' + debtClearance.toFixed(2);
+            confirmMsg += '\n\nDebt Cleared: {{ currency()->symbol }}' + debtClearance.toFixed(2);
         }
         if (cashBackAmount > 0) {
-            confirmMsg += '\nCash to Return: Rs.' + cashBackAmount.toFixed(2);
+            confirmMsg += '\nCash to Return: {{ currency()->symbol }}' + cashBackAmount.toFixed(2);
         }
         
         Swal.fire({

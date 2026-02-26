@@ -22,8 +22,8 @@ class StartUpSeeder extends Seeder
             $user = User::firstOrCreate(
                 ['email' => 'admin@spos.com'],
                 [
-                    'name' => 'Administrator',
-                    'password' => bcrypt('admin123'),
+                    'name'     => 'Administrator',
+                    'password' => bcrypt(env('ADMIN_DEFAULT_PASSWORD', 'admin123')),
                     'username' => 'admin'
                 ]
             );

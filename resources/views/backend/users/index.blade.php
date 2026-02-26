@@ -39,7 +39,20 @@
 
       <div class="card-body p-4">
 
-        <div class="table-responsive">
+        <!-- Spotlight Search -->
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <div class="input-group shadow-sm spotlight-search-group">
+              <div class="input-group-prepend">
+                <span class="input-group-text bg-white border-0 pl-3">
+                  <i class="fas fa-search text-maroon"></i>
+                </span>
+              </div>
+              <input type="text" id="quickSearchInput" class="form-control border-0 py-4 apple-input"
+                placeholder="Search by name or email..." autofocus style="font-size: 1rem; box-shadow: none;">
+            </div>
+          </div>
+        </div>
           <table id="datatables" class="table table-hover mb-0 custom-premium-table">
             <thead>
               <tr>

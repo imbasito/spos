@@ -1,6 +1,6 @@
 import axios from "axios";
 import React, { useState, useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import SuccessSound from "../sounds/beep-07a.mp3";
 import WarningSound from "../sounds/beep-02.mp3";
@@ -38,10 +38,9 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
     }
 
     return (
-        <>
-            <div className="user-cart">
-                <div className="card shadow-soft apple-card-refinement" style={{ borderRadius: 'var(--radius-md)', border: 'var(--apple-border)' }}>
-                    <div className="card-body">
+        <div className="user-cart">
+            <div className="card shadow-soft apple-card-refinement" style={{ borderRadius: 'var(--radius-md)', border: 'var(--apple-border)' }}>
+                <div className="card-body">
                         {carts.length === 0 ? (
                             <div className="empty-state-container py-5 text-center animate__animated animate__fadeIn">
                                 {/* Bismillah Calligraphy SVG - Premium Apple Decoration */}
@@ -148,43 +147,16 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                                                     ) : <span style={{ color: '#c7c7cc', fontSize: '0.8rem' }}>—</span>}
                                                 </td>
                                                 <td className="py-2 px-1 text-center">
-                                                    <input
-                                                        key={`rate-${item.id}-${item.product.discounted_price}`}
-                                                        type="number"
-                                                        className="form-control form-control-sm text-center"
-                                                        defaultValue={parseFloat(item.product.discounted_price).toFixed(2)}
-                                                        step="0.01"
-                                                        style={{ 
-                                                            width: '100%',
-                                                            borderRadius: '6px', 
-                                                            border: '1.5px solid #d1d1d6', 
-                                                            fontWeight: '700', 
-                                                            fontSize: '0.85rem',
-                                                            color: '#1d1d1f',
-                                                            padding: '4px 6px',
-                                                            height: '32px',
-                                                            backgroundColor: '#fafafa'
-                                                        }}
-                                                        onBlur={(e) => {
-                                                            const val = parseFloat(e.target.value);
-                                                            if (!isNaN(val) && val >= 0) {
-                                                                handleRateChange(item.id, val);
-                                                            } else {
-                                                                e.target.value = parseFloat(item.product.discounted_price).toFixed(2);
-                                                            }
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                                e.preventDefault();
-                                                                e.target.blur();
-                                                            }
-                                                            if (e.key === 'Escape') {
-                                                                e.preventDefault();
-                                                                e.target.value = parseFloat(item.product.discounted_price).toFixed(2);
-                                                                e.target.blur();
-                                                            }
-                                                        }}
-                                                    />
+                                                    <span style={{
+                                                        display: 'block',
+                                                        fontWeight: '700',
+                                                        fontSize: '0.85rem',
+                                                        color: '#1d1d1f',
+                                                        padding: '6px',
+                                                        lineHeight: '20px'
+                                                    }}>
+                                                        {parseFloat(item.product.discounted_price).toFixed(2)}
+                                                    </span>
                                                 </td>
                                                 <td className="py-2 px-1 text-center">
                                                     <input
@@ -235,7 +207,5 @@ export default function Cart({ carts, setCartUpdated, cartUpdated, onIncrement, 
                     </div>
                 </div>
             </div>
-            <Toaster position="top-right" reverseOrder={false} />
-        </>
     );
 }

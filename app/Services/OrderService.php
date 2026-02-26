@@ -172,9 +172,17 @@ class OrderService
                 ]);
             }
 
-            // 7. Cleanup
+            // 7. Cleanup: Clear Cart + targeted product cache keys only
             PosCart::where('user_id', $userId)->delete();
-            Cache::flush();
+
+            // Surgical cache clear — only evict POS product pages, not the entire app cache.
+            // Cache::flush() would nuke permission caches, config caches, etc on every sale.
+            for ($page = 1; $page <= 20; $page++) {
+                Cache::forget("pos_products_page_{$page}");
+            }
+            Cache::forget('pos_products_all');
+            Cache::forget('pos_categories');
+            Cache::forget("pos_products_user_{$userId}");
 
             return $order;
         });

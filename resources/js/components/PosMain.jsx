@@ -12,7 +12,7 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import Cart from "./Cart";
 import toast, { Toaster } from "react-hot-toast";
-import CustomerSelect from "./CutomerSelect";
+import CustomerSelect from "./CustomerSelect";
 import PaymentModal from "./PaymentModal";
 import ReceiptModal from "./ReceiptModal";
 import debounce from "lodash/debounce";
@@ -135,13 +135,13 @@ const ProductCard = memo(({ product, onClick, onContextMenu, baseUrl }) => (
                                 fontSize: '1rem', fontWeight: '700', color: 'var(--primary-color)' 
                             }}>
                                 <span className="mr-1 text-muted" style={{ textDecoration: 'line-through', fontSize: '0.8rem', fontWeight: 'normal' }}>
-                                    {parseFloat(product.price) > parseFloat(product.discounted_price) ? `Rs.${parseFloat(product.price).toFixed(0)}` : ''}
+                                    {parseFloat(product.price) > parseFloat(product.discounted_price) ? `${window.posSettings?.currencySymbol ?? 'Rs.'}${parseFloat(product.price).toFixed(0)}` : ''}
                                 </span>
-                                Rs.{parseFloat(product?.discounted_price || 0).toFixed(2)}
+                                {window.posSettings?.currencySymbol ?? 'Rs.'}{parseFloat(product?.discounted_price || 0).toFixed(2)}
                             </span>
                             {parseFloat(product.discount) > 0 && (
                                 <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>
-                                    {product.discount_type === 'percentage' ? `${parseFloat(product.discount)}%` : `Rs.${parseFloat(product.discount)}`} OFF
+                                    {product.discount_type === 'percentage' ? `${parseFloat(product.discount)}%` : `${window.posSettings?.currencySymbol ?? 'Rs.'}${parseFloat(product.discount)}`} OFF
                                 </span>
                             )}
                         </div>
@@ -312,7 +312,6 @@ export default function Pos() {
     useEffect(() => {
         const idleTimer = setTimeout(() => {
             if (!loading && currentPage < totalPages) {
-                console.log("[POS]: Idle... Pre-fetching next page");
                 getProducts(debouncedSearch, currentPage + 1, true);
             }
         }, 5000); // Start pre-fetching after 5s of idleness
@@ -331,50 +330,8 @@ export default function Pos() {
          }
          
          setInitialLoadDone(true);
-         // Bridge Check
-         if(window.electron && window.electron.isElectron) {
-             console.log("SPOS: Desktop Bridge Ready");
-         }
+         // Bridge: Desktop-only features are handled by Electron IPC in preload.cjs
     }, []);
-
-    // --- KEYBOARD SHORTCUTS (Professional Workflow) ---
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            // F1: New Sale (Reload)
-            if (e.key === 'F1') {
-                e.preventDefault();
-                if(confirm('Start New Sale? Current cart will be cleared.')) {
-                   window.location.reload();
-                }
-            }
-            
-            // F2: Focus Search
-            if (e.key === 'F2') {
-                e.preventDefault();
-                document.getElementById('product-search-input')?.focus();
-            }
-
-            // F10: Checkout / Pay
-            if (e.key === 'F10') {
-                e.preventDefault();
-                // Check if cart has items
-                if(cart.length > 0) {
-                   handleCheckoutModal();
-                } else {
-                   toast.error('Cart is empty!');
-                }
-            }
-
-             // F4: Customer Search (Optional add-on)
-             if (e.key === 'F4') {
-                e.preventDefault();
-                document.querySelector('.select2-selection')?.click(); // Trigger Select2
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [cart]); // Re-bind if cart changes (for Checkout check)
     const checkJournal = async () => {
         try {
             const res = await axios.get('/admin/cart/check-journal');
@@ -399,73 +356,53 @@ export default function Pos() {
                     if (result.isConfirmed) {
                         const toastId = toast.loading('Restoring session...');
                         try {
-                            console.log('[RESTORE] Starting restore process...');
-                            console.log('[RESTORE] Journal data:', journal);
-                            
                             // 1. Clear existing cart physically to prevent incrementing existing DB items
-                            console.log('[RESTORE] Step 1: Clearing existing cart...');
                             await axios.put("/admin/cart/empty");
 
                             // 2. Restore items with correct Quantity and Custom Prices
-                            console.log('[RESTORE] Step 2: Restoring', journal.items.length, 'items...');
                             for (const item of journal.items) {
-                                console.log('[RESTORE] Restoring item:', item);
-                                
                                 // Add item first (Creates row with Qty 1)
                                 const addRes = await axios.post('/admin/cart', { id: item.product_id });
-                                console.log('[RESTORE] Add response:', addRes.data);
                                 
                                 if (addRes.data?.cart?.id) {
                                     const cartId = addRes.data.cart.id;
 
                                     // If row_total_override exists (user modified Amount column), restore it
                                     if (item.row_total_override !== undefined && item.row_total_override !== null) {
-                                        console.log('[RESTORE] Updating by price:', cartId, item.row_total_override);
-                                        const priceRes = await axios.put("/admin/cart/update-by-price", { 
+                                        await axios.put("/admin/cart/update-by-price", { 
                                             id: cartId, 
                                             price: item.row_total_override 
                                         });
-                                        console.log('[RESTORE] Price update response:', priceRes.data);
                                     } else {
                                         // Otherwise restore quantity and rate separately
-                                        // If quantity differs from 1 (or is fractional), update it
                                         if (parseFloat(item.quantity) !== 1) {
-                                            console.log('[RESTORE] Updating quantity:', cartId, item.quantity);
-                                            const qtyRes = await axios.put("/admin/cart/update-quantity", { 
+                                            await axios.put("/admin/cart/update-quantity", { 
                                                 id: cartId, 
                                                 quantity: item.quantity 
                                             });
-                                            console.log('[RESTORE] Quantity update response:', qtyRes.data);
                                         }
                                         
-                                        // If price was customized (e.g. Price overrides), restore it
+                                        // If price was customized, restore it
                                         if (item.price_override !== undefined && item.price_override !== null) {
-                                            console.log('[RESTORE] Updating rate:', cartId, item.price_override);
-                                            const rateRes = await axios.put("/admin/cart/update-rate", { 
+                                            await axios.put("/admin/cart/update-rate", { 
                                                 id: cartId, 
                                                 price: item.price_override 
                                             });
-                                            console.log('[RESTORE] Rate update response:', rateRes.data);
                                         }
                                     }
                                 }
                             }
                             
                             // 3. CRITICAL: Delete journal after successful restore to prevent re-triggering
-                            console.log('[RESTORE] Step 3: Deleting journal...');
                             await axios.delete("/admin/cart/delete-journal");
-                            console.log('[RESTORE] Restore complete!');
                             
                             setCartUpdated(!cartUpdated);
                             toast.success('Session restored successfully!', { id: toastId });
                         } catch (e) {
-                            console.error('[RESTORE] Error during restore:', e);
-                            console.error('[RESTORE] Error response:', e.response?.data);
                             toast.error('Restoration failed. Please try fresh.', { id: toastId });
                         }
                     } else if (result.dismiss === Swal.DismissReason.cancel) {
                         // DISCARD: Cart is already cleared by empty() which also deletes journal
-                        console.log('[RESTORE] User chose to discard');
                         axios.put("/admin/cart/empty").then(() => {
                             setCartUpdated(!cartUpdated);
                             toast.success("Previous session discarded");
@@ -575,7 +512,6 @@ export default function Pos() {
         
         // VALIDATION: Must have either product, id, or barcode
         if (!productId && !cleanBarcode) {
-            console.warn("addProductToCart: No valid identifier", { params, productId, cleanBarcode });
             playSound(WarningSound);
             toast.error("Unable to add product - no identifier");
             return;
@@ -855,21 +791,14 @@ export default function Pos() {
     
     // 5. Update Quantity (Unified Server-First)
     const handleUpdateQuantity = (cartId, qty) => {
-        console.log('[UPDATE_QTY] Called with:', { cartId, qty });
-        if (isProcessing.current) {
-            console.log('[UPDATE_QTY] Blocked - already processing');
-            return;
-        }
+        if (isProcessing.current) return;
         isProcessing.current = true;
 
-        console.log('[UPDATE_QTY] Sending request...');
         axios.put("/admin/cart/update-quantity", { id: cartId, quantity: qty })
-            .then((res) => {
-                console.log('[UPDATE_QTY] Success:', res.data);
+            .then(() => {
                 getCarts();
             })
             .catch(err => {
-                console.error('[UPDATE_QTY] Error:', err.response?.data || err);
                 toast.error(err.response?.data?.message || "Update failed");
             })
             .finally(() => {
@@ -1087,7 +1016,7 @@ export default function Pos() {
             // otherwise navigate to tag print page
              window.location.href = `/admin/barcode/print?label=${product.name}&barcode=${product.sku}&size=large`;
         } else if (action === 'purchase') {
-            window.location.href = `/admin/purchase/create?search=${encodeURIComponent(product.name)}&barcode=${product.sku}`;
+            window.location.href = `/admin/purchase/create?product_id=${product.id}`;
         }
         setContextMenu(null);
     };
@@ -1318,7 +1247,7 @@ export default function Pos() {
                                 <label className="custom-control-label"></label>
                             </div>
                             <small className={`font-weight-bold ${autoRound ? 'text-maroon' : 'text-muted'}`} style={{ fontSize: '0.7rem' }}>
-                                FRACTIONAL DISCOUNT {autoRound && calculateOrderValues().roundingDiscount > 0 && <span>(-{calculateOrderValues().roundingDiscount})</span>}
+                                FRACTIONAL DISCOUNT {autoRound && calculateOrderValues().finalDiscount > 0 && <span>(-{calculateOrderValues().finalDiscount})</span>}
                             </small>
                         </div>
                      </div>
@@ -1327,7 +1256,7 @@ export default function Pos() {
                     <div className="d-flex justify-content-between align-items-center mb-3 p-3 bg-gradient-maroon rounded shadow-md" style={{ borderRadius: 'var(--radius-md) !important' }}>
                         <div className="line-height-1">
                             <small className="text-white-50 text-uppercase font-weight-bold" style={{ fontSize: '0.7em', letterSpacing: '1px' }}>Total Payable</small>
-                            <h4 className="m-0 text-white font-weight-light">{window.posSettings?.currencySymbol || 'PKR'}</h4>
+                            <h4 className="m-0 text-white font-weight-light">{window.posSettings?.currencySymbol || 'Rs.'}</h4>
                         </div>
                         <h1 className="m-0 text-white font-weight-bold" style={{ fontSize: '3.8rem', letterSpacing: '-1px' }}>{Math.max(0, updateTotal)}</h1>
                     </div>
@@ -1377,8 +1306,7 @@ export default function Pos() {
             <ReceiptModal
                 show={showReceiptModal}
                 url={receiptUrl}
-                onClose={() => {
-                }}
+                onClose={() => setShowReceiptModal(false)}
             />
         </div>
         </ErrorBoundary>

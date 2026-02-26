@@ -16,10 +16,10 @@ export default function Purchase() {
     const [purchaseId, setPurchaseId] = useState(null);
     const [date, setDate] = useState(new Date()); // Default to today
     const [supplierId, setSupplierId] = useState(null);
-    const [tax, setTax] = useState(0);
-    const [discount, setDiscount] = useState(0);
-    const [shipping, setShipping] = useState(0);
-    const [paidAmount, setPaidAmount] = useState(0);
+    const [tax, setTax] = useState("");
+    const [discount, setDiscount] = useState("");
+    const [shipping, setShipping] = useState("");
+    const [paidAmount, setPaidAmount] = useState("");
     const [products, setProducts] = useState([]);
     const [searchResults, setSearchResults] = useState([]);
     useEffect(() => {
@@ -27,9 +27,33 @@ export default function Purchase() {
         const barcodeParam = searchParams.get("barcode");
         const searchParam = searchParams.get("search");
         const purchase_id = searchParams.get("purchase_id");
+        const productIdParam = searchParams.get("product_id"); // From POS "Add Stock" context menu
+
+        if (productIdParam) {
+            // Direct fetch by product ID — used by the POS "Add Stock" context menu
+            axios.get(`/admin/products/${productIdParam}`)
+                .then(r => {
+                    const p = r.data?.product;
+                    if (p && p.id) {
+                        setProducts([{
+                            id: p.id,
+                            name: p.name,
+                            price: p.price,
+                            purchase_price: p.purchase_price,
+                            stock: p.quantity,
+                            qty: 1,
+                            subTotal: p.purchase_price,
+                        }]);
+                    }
+                })
+                .catch(err => console.error("Error fetching product by ID:", err));
+        }
+
         if (barcodeParam || searchParam) {
             setSearchTerm(barcodeParam || searchParam);
             if (barcodeParam) setBarcode(barcodeParam);
+            // FIX: trigger auto-fetch for both barcode and search params (e.g. restock from POS)
+            if (searchParam && !barcodeParam) setBarcode(searchParam);
         }
         if (purchase_id) {
             setPurchaseId(purchase_id);
@@ -412,7 +436,8 @@ export default function Purchase() {
                                                 }
                                                 style={{ cursor: "pointer" }}
                                             >
-                                                {product.name} - $
+                                                {product.name} -{" "}
+                                                {window.posSettings?.currencySymbol || ''}
                                                 {product.price}
                                             </li>
                                         ))}
@@ -563,7 +588,7 @@ export default function Purchase() {
                                     value={tax}
                                     min="0"
                                     onChange={(e) =>
-                                        setTax(parseFloat(e.target.value) || 0)
+                                        setTax(e.target.value === "" ? "" : parseFloat(e.target.value) || 0)
                                     }
                                     placeholder="Enter tax"
                                     name="tax"
@@ -584,7 +609,7 @@ export default function Purchase() {
                                     value={discount}
                                     onChange={(e) =>
                                         setDiscount(
-                                            parseFloat(e.target.value) || 0
+                                            e.target.value === "" ? "" : parseFloat(e.target.value) || 0
                                         )
                                     }
                                     placeholder="Enter discount"
@@ -606,7 +631,7 @@ export default function Purchase() {
                                     value={shipping}
                                     onChange={(e) =>
                                         setShipping(
-                                            parseFloat(e.target.value) || 0
+                                            e.target.value === "" ? "" : parseFloat(e.target.value) || 0
                                         )
                                     }
                                     placeholder="Enter shipping"
@@ -628,7 +653,7 @@ export default function Purchase() {
                                     value={paidAmount}
                                     onChange={(e) =>
                                         setPaidAmount(
-                                            parseFloat(e.target.value) || 0
+                                            e.target.value === "" ? "" : parseFloat(e.target.value) || 0
                                         )
                                     }
                                     placeholder="Amount paid to supplier"
