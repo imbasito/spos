@@ -141,6 +141,25 @@
 
 </div>
 
+{{-- Danger Zone: Factory Reset --}}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-12">
+        <div class="win-update-card" style="border: 1px solid rgba(209, 52, 56, 0.3) !important;">
+            <div class="card-body p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="flex-grow-1">
+                    <h6 class="font-weight-bold mb-1" style="color: #D13438;"><i class="fas fa-exclamation-triangle mr-1"></i> Factory Reset / Wipe Data</h6>
+                    <p class="text-muted small mb-0" style="max-width: 600px;">Permanently delete all transactional data to start fresh. An automatic silent backup is taken before execution.</p>
+                </div>
+                <div class="ml-auto">
+                    <button type="button" class="win-btn win-btn-danger" onclick="triggerFactoryReset()">
+                        <i class="fas fa-trash-alt"></i> Wipe System Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Contact Info Card --}}
 <div class="row justify-content-center mt-4">
     <div class="col-md-12">
@@ -377,5 +396,96 @@
             updateSubtext.innerText = 'Click Install & Restart to safely apply the binary swap.';
         });
     });
+
+    // Factory Reset Feature
+    async function triggerFactoryReset() {
+        const { value: formValues } = await Swal.fire({
+            title: '<h3 class="mb-0" style="color: #D13438;"><i class="fas fa-exclamation-triangle"></i> Factory Reset</h3>',
+            html: `
+                <div class="text-left mb-4 mt-2" style="font-size: 14px; color: #444;">
+                    <p class="mb-2"><strong>Warning:</strong> This action permanently wipes products, sales, customers, returns, and transaction logs.</p>
+                    <p class="mb-0">An automatic system backup will be generated silently before data is erased. <strong>Administrators and System Settings will be preserved.</strong></p>
+                </div>
+                <div class="form-group text-left mb-3">
+                    <label style="font-weight:600; font-size:13px; color:#111;">Administrator Password</label>
+                    <input id="swal-password" type="password" class="form-control" placeholder="Enter your current password">
+                </div>
+                <div class="form-group text-left mb-0">
+                    <label style="font-weight:600; font-size:13px; color:#111;">Type <strong class="text-danger">CONFIRM</strong></label>
+                    <input id="swal-confirm" type="text" class="form-control text-danger font-weight-bold" style="text-transform: uppercase" placeholder="CONFIRM">
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonColor: '#D13438',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash-alt"></i> Wipe & Reset',
+            cancelButtonText: 'Cancel',
+            allowOutsideClick: false,
+            preConfirm: () => {
+                const pwd = document.getElementById('swal-password').value;
+                const cfm = document.getElementById('swal-confirm').value;
+                if (!pwd) {
+                    Swal.showValidationMessage('Administrator password is required');
+                    return false;
+                }
+                if (cfm !== 'CONFIRM') {
+                    Swal.showValidationMessage('You must type CONFIRM exactly to proceed');
+                    return false;
+                }
+                return { password: pwd, confirm: cfm };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire({
+                title: 'Wiping Data...',
+                html: `
+                    <div class="mt-3 mb-3 text-center">
+                        <span class="win-spinner" style="border-top-color:#0078D4; border-right-color:#e1dfdd; border-bottom-color:#e1dfdd; border-left-color:#e1dfdd; width:34px; height:34px; border-width: 3px;"></span>
+                    </div>
+                    <p class="mb-1 text-muted" style="font-size: 14px;">Creating automatic backup and dropping operational data bounds.</p>
+                    <p class="text-muted" style="font-size: 12px;">This may take a moment. Please do not close the window.</p>
+                `,
+                allowOutsideClick: false,
+                showConfirmButton: false
+            });
+
+            try {
+                const formData = new FormData();
+                formData.append('admin_password', formValues.password);
+                formData.append('confirm_text', formValues.confirm);
+                formData.append('_token', '{{ csrf_token() }}');
+
+                const response = await fetch('{{ route("backend.admin.system.reset") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'System Reset Successful',
+                        text: result.message,
+                        confirmButtonColor: '#107C41'
+                    }).then(() => {
+                        window.location.href = "{{ route('backend.admin.dashboard') }}";
+                    });
+                } else {
+                    throw new Error(result.message || 'An unknown server error occurred');
+                }
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Data Wipe Failed',
+                    text: error.message,
+                    confirmButtonColor: '#D13438'
+                });
+            }
+        }
+    }
 </script>
 @endpush

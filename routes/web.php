@@ -179,6 +179,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
                 Route::get('download/{filename}', 'downloadBackup')->name('settings.backup.download');
             });
 
+            // Factory Reset Route
+            Route::post('/system/factory-reset', [\App\Http\Controllers\Backend\SystemResetController::class, 'resetSystem'])->name('system.reset');
+
             Route::controller(RoleController::class)->prefix('roles')->group(function () {
                 Route::get('/', 'index')->name('roles');
                 Route::post('create', 'store')->name('roles.create');
