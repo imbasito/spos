@@ -350,7 +350,7 @@
                 updateText.innerText = 'New Version Available!';
                 updateSubtext.innerHTML = `Version <strong style="color:#107C41;">v${info.version}</strong> is ready to cache.`;
                 
-                btnCheck.parentElement.classList.add('d-none'); // Hide check btn wrapper
+                btnCheck.classList.add('d-none'); // Hide just the check button
                 postCheckActions.classList.remove('d-none');
                 
             } else if (status === 'latest') {

@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Check for Updates
-    btnCheck.addEventListener('click', async function() {
+    btnCheck.addEventListener('click', function() {
         btnCheck.disabled = true;
         btnCheck.innerHTML = '<span class="win-spinner"></span> Checking...';
         
@@ -396,64 +396,8 @@ document.addEventListener('DOMContentLoaded', function() {
         statusArea.style.background = "#fafafa";
         statusArea.style.padding = "30px";
 
-        try {
-            const result = await window.updater.check();
-            
-            // Clean padding for alert render
-            statusArea.style.border = "none";
-            statusArea.style.background = "transparent";
-            statusArea.style.padding = "0";
-
-            if (result.error) {
-                statusArea.innerHTML = `
-                    <div class="win-alert win-alert-danger">
-                        <i class="fas fa-times-circle"></i>
-                        <div>
-                            <h5>Update Resolution Failed</h5>
-                            <p>${result.error}</p>
-                        </div>
-                    </div>
-                `;
-            } else if (result.available) {
-                statusArea.innerHTML = `
-                    <div class="win-alert win-alert-success">
-                        <i class="fas fa-arrow-alt-circle-down"></i>
-                        <div>
-                            <h5>New Version Available: v${result.version}</h5>
-                            <p>A newer stable release has been found. Click download below to cache it.</p>
-                            ${result.releaseNotes ? `<p style="margin-top:8px; font-size:11px; opacity:0.8; font-family:monospace;">Notes: ${result.releaseNotes.substring(0, 80)}...</p>` : ''}
-                        </div>
-                    </div>
-                `;
-                btnDownload.style.display = 'inline-flex';
-            } else {
-                statusArea.innerHTML = `
-                    <div class="win-alert win-alert-info">
-                        <i class="fas fa-check-circle"></i>
-                        <div>
-                            <h5>System is Up to Date</h5>
-                            <p>You are already running the latest optimized version.</p>
-                        </div>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            statusArea.style.border = "none";
-            statusArea.style.background = "transparent";
-            statusArea.style.padding = "0";
-            statusArea.innerHTML = `
-                <div class="win-alert win-alert-danger">
-                    <i class="fas fa-times-circle"></i>
-                    <div>
-                        <h5>Connection Error</h5>
-                        <p>${error.message}</p>
-                    </div>
-                </div>
-            `;
-        } finally {
-            btnCheck.disabled = false;
-            btnCheck.innerHTML = '<i class="fas fa-search"></i> Check Again';
-        }
+        // Send check command to main.cjs via preload
+        window.updater.check();
     });
 
     // Download Update
@@ -485,8 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // IPC Progress Events
-    window.updater.onProgress((percent) => {
-        const rounded = Math.round(percent);
+    window.updater.onProgress((progress) => {
+        const rounded = Math.round(progress.percent);
         progressBar.style.width = rounded + '%';
         progressText.textContent = rounded + '%';
     });
@@ -507,7 +451,16 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     });
 
-    window.updater.onStatus((status, ...args) => {
+    window.updater.onStatus((status, info) => {
+        // Reset check button
+        btnCheck.disabled = false;
+        btnCheck.innerHTML = '<i class="fas fa-search"></i> Check Again';
+        
+        // Clean padding for alert render
+        statusArea.style.border = "none";
+        statusArea.style.background = "transparent";
+        statusArea.style.padding = "0";
+
         if (status === 'error') {
             progressArea.style.display = 'none';
             btnDownload.disabled = false;
@@ -518,7 +471,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-times-circle"></i>
                     <div>
                         <h5>Download Interrupted</h5>
-                        <p>${args[0] || 'Unknown network error occurred.'}</p>
+                        <p>${info || 'Unknown network error occurred.'}</p>
+                    </div>
+                </div>
+            `;
+        } else if (status === 'available') {
+            statusArea.innerHTML = `
+                <div class="win-alert win-alert-success">
+                    <i class="fas fa-arrow-alt-circle-down"></i>
+                    <div>
+                        <h5>New Version Available: v${info.version}</h5>
+                        <p>A newer stable release has been found. Click download below to cache it.</p>
+                    </div>
+                </div>
+            `;
+            btnDownload.style.display = 'inline-flex';
+        } else if (status === 'latest') {
+            statusArea.innerHTML = `
+                <div class="win-alert win-alert-info">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <h5>System is Up to Date</h5>
+                        <p>You are already running the latest optimized version.</p>
                     </div>
                 </div>
             `;
