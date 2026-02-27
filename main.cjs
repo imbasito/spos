@@ -1049,7 +1049,8 @@ function setupAutoUpdater() {
     // Hardened Updater Events
     autoUpdater.on('update-available', (info) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('updater:status', 'available', info.version);
+            // Frontend expects status='available' and info object with version
+            mainWindow.webContents.send('updater:status', 'available', { version: info.version });
         }
     });
     autoUpdater.on('update-not-available', () => {
@@ -1065,12 +1066,13 @@ function setupAutoUpdater() {
     });
     autoUpdater.on('download-progress', (progress) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('updater:progress', progress.percent);
+            // Frontend expects a progress object with a percent property
+            mainWindow.webContents.send('updater:progress', { percent: progress.percent });
         }
     });
-    autoUpdater.on('update-downloaded', () => {
+    autoUpdater.on('update-downloaded', (info) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('updater:ready');
+            mainWindow.webContents.send('updater:ready', info);
         }
     });
 
