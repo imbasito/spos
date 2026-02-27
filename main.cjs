@@ -668,7 +668,7 @@ function runMigrations() {
             healthOutput += data.toString();
         });
 
-        healthCheckProcess.on('close', (healthCode) => {
+        healthCheckProcess.on('close', async (healthCode) => {
             try {
                 // Parse health check results
                 const healthResults = JSON.parse(healthOutput.trim());
@@ -699,7 +699,36 @@ function runMigrations() {
                 splashWindow.webContents.executeJavaScript(`window.updateStatus('APPLYING DATABASE UPDATES')`);
             }
 
-            // Run migrations
+            // Smart Migration Bypass (Extreme Optimization)
+            logger.log('Checking if migrations are already applied...');
+            const checkMigrations = spawn(phpPath, [
+                'artisan', 'tinker',
+                '--execute=echo json_encode(\\Illuminate\\Support\\Facades\\Schema::hasTable("migrations") && \\Illuminate\\Support\\Facades\\DB::table("migrations")->count() > 0);'
+            ], { cwd: basePath, windowsHide: true, env: { ...process.env, DB_PORT: String(MYSQL_PORT) } });
+
+            let hasMigrations = false;
+            let checkOutput = '';
+            checkMigrations.stdout.on('data', (d) => checkOutput += d.toString());
+
+            await new Promise(r => {
+                checkMigrations.on('close', () => {
+                    try {
+                        if (checkOutput.includes('true')) hasMigrations = true;
+                    } catch (e) {}
+                    r();
+                });
+            });
+
+            if (hasMigrations) {
+                logger.log('Migrations already applied, skipping full migrate/seed');
+                if (splashWindow && !splashWindow.isDestroyed()) {
+                    splashWindow.webContents.executeJavaScript(`window.setProgress(100)`);
+                }
+                resolve();
+                return;
+            }
+
+            // Run heavy migrations
             logger.log('Checking for database migrations...');
             const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
                 cwd: basePath, 

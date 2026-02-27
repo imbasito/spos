@@ -65,3 +65,4 @@ database/*.sqlite
 database/*.sqlite-bak
 database/*.sqlite-journal
 database/database.sqlite.bak
+plans/database-migration-assessment.md
