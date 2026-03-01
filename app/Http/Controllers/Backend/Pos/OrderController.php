@@ -48,12 +48,9 @@ class OrderController extends Controller
                         if (!empty($keyword)) {
                             $query->where(function ($q) use ($keyword) {
                                 // Optimized search: using 'keyword%' for ID allows index usage if it's a prefix
-                                $q->where('id', 'like', "{$keyword}%")
-                                  ->orWhere('total', 'like', "{$keyword}%")
-                                  ->orWhere('status', 'like', "{$keyword}%")
-                                  ->orWhereHas('customer', function($sub) use ($keyword) {
-                                      $sub->where('name', 'like', "%{$keyword}%");
-                                  })
+                                                                $q->where('orders.id', 'like', "{$keyword}%")
+                                                                    ->orWhere('orders.total', 'like', "{$keyword}%")
+                                                                    ->orWhere('orders.status', 'like', "{$keyword}%")
                                   ->orWhere('customers.name', 'like', "%{$keyword}%");
                             });
                         }

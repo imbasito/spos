@@ -13,9 +13,48 @@
       </div>
       <div class="card-body p-4">
         <p class="text-muted mb-4 small">Upload a CSV or Excel file to batch-add products to your inventory. Use the demo file if you're unsure about the format.</p>
+
+        @if(session('import_preview'))
+          @php($preview = session('import_preview'))
+          <div class="alert alert-info border-0 shadow-sm">
+            <h6 class="font-weight-bold mb-2"><i class="fas fa-clipboard-check mr-2"></i>Import Preview</h6>
+            <div class="small mb-2">
+              <strong>Total Rows:</strong> {{ $preview['total_rows'] ?? 0 }} |
+              <strong>Valid:</strong> {{ $preview['valid_rows'] ?? 0 }} |
+              <strong>Invalid:</strong> {{ $preview['invalid_rows'] ?? 0 }}
+            </div>
+            @if(!empty($preview['errors']))
+              <ul class="small mb-3 pl-3">
+                @foreach($preview['errors'] as $error)
+                  <li>{{ $error }}</li>
+                @endforeach
+              </ul>
+            @endif
+            <form action="{{ route('backend.admin.products.import') }}" method="post" class="mb-0">
+              @csrf
+              <input type="hidden" name="action" value="import">
+              <input type="hidden" name="preview_token" value="{{ $preview['token'] }}">
+              <button type="submit" class="btn btn-success btn-sm font-weight-bold">
+                <i class="fas fa-check mr-1"></i> Import Valid Rows
+              </button>
+            </form>
+          </div>
+        @endif
+
+        @if(session('import_errors'))
+          <div class="alert alert-warning border-0 shadow-sm">
+            <h6 class="font-weight-bold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Skipped Rows</h6>
+            <ul class="small mb-0 pl-3">
+              @foreach(session('import_errors') as $error)
+                <li>{{ $error }}</li>
+              @endforeach
+            </ul>
+          </div>
+        @endif
         
         <form action="{{ route('backend.admin.products.import') }}" method="post" class="accountForm" enctype="multipart/form-data">
           @csrf
+          <input type="hidden" name="action" value="preview">
           <div class="row">
             <div class="col-12">
               <div class="form-group mb-4">
@@ -37,7 +76,7 @@
           <div class="row mt-2">
             <div class="col-12">
               <button type="submit" class="btn btn-block bg-gradient-primary py-3 font-weight-bold shadow-sm hover-lift" style="font-size: 1rem; border-radius: 12px;">
-                <i class="fas fa-magic mr-2"></i> START IMPORT PROCESS
+                <i class="fas fa-search mr-2"></i> PREVIEW FILE
               </button>
             </div>
           </div>

@@ -98,7 +98,10 @@ class DashboardController extends Controller
         $mfg = $request->query('mfg');
         $exp = $request->query('exp');
         $size = $request->query('size', 'large');
-        return view('backend.barcode.print', compact('label', 'barcode', 'mfg', 'exp', 'size'));
+        $quantity = (int) $request->query('quantity', 1);
+        $quantity = max(1, min(50, $quantity));
+
+        return view('backend.barcode.print', compact('label', 'barcode', 'mfg', 'exp', 'size', 'quantity'));
     }
 
     public function storeBarcode(Request $request)
@@ -125,6 +128,47 @@ class DashboardController extends Controller
         ]);
 
         return response()->json(['message' => 'Barcode saved', 'data' => $history], 201);
+    }
+
+    public function storeBarcodes(Request $request)
+    {
+        $request->validate([
+            'barcodes' => 'required|array|min:1|max:50',
+            'barcodes.*' => 'required|string|max:20',
+            'label' => 'nullable|string|max:255',
+            'price' => 'nullable|numeric',
+            'label_size' => 'nullable|string',
+            'mfg_date' => 'nullable|date',
+            'exp_date' => 'nullable|date',
+            'show_price' => 'nullable|boolean',
+        ]);
+
+        $userId = auth()->id();
+        $timestamp = now();
+
+        $rows = collect($request->barcodes)
+            ->map(function ($barcode) use ($request, $userId, $timestamp) {
+                return [
+                    'barcode' => $barcode,
+                    'label' => $request->label,
+                    'price' => $request->price,
+                    'label_size' => $request->label_size ?? 'large',
+                    'mfg_date' => $request->mfg_date,
+                    'exp_date' => $request->exp_date,
+                    'show_price' => $request->show_price ?? false,
+                    'user_id' => $userId,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            })
+            ->all();
+
+        \App\Models\BarcodeHistory::insert($rows);
+
+        return response()->json([
+            'message' => 'Barcodes saved',
+            'count' => count($rows),
+        ], 201);
     }
 
     public function getBarcodeHistory(Request $request)

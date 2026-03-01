@@ -134,7 +134,7 @@ $route = request()->route()->getName();
             </li>
             @endcan
             
-            @can('reports_summary')
+            @can('report_daily_closing')
             <li class="nav-item">
                 <a href="{{route('backend.admin.report.daily.history')}}"
                     class="nav-link {{ request()->routeIs(['backend.admin.report.daily.*']) ? 'active' : '' }}">

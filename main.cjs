@@ -60,6 +60,15 @@ function getDbConfig() {
     };
 }
 
+function buildPhpCliArgs(args = []) {
+    return [
+        '-d', 'opcache.enable_cli=0',
+        '-d', 'opcache.jit=off',
+        '-d', 'opcache.jit_buffer_size=0',
+        ...args
+    ];
+}
+
 function buildMysqlCliArgs(extraArgs = []) {
     const cfg = getDbConfig();
     const args = [
@@ -498,7 +507,7 @@ function startLaravel(port) {
         const phpPath = path.join(basePath, 'php', 'php.exe');
         const dbConfig = getDbConfig();
         
-        laravelServer = spawn(phpPath, ['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`], { 
+        laravelServer = spawn(phpPath, buildPhpCliArgs(['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`]), { 
             cwd: basePath, 
             windowsHide: true,
             env: {
@@ -657,7 +666,7 @@ function runMigrations() {
         
         // Step 1: Run health checks via PHP artisan command
         logger.log('Running pre-migration health checks...');
-        const healthCheckProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=echo json_encode((new \\App\\Services\\HealthCheckService())->runAllChecks());'], { 
+        const healthCheckProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'tinker', '--execute=echo json_encode((new \\App\\Services\\HealthCheckService())->runAllChecks());']), { 
             cwd: basePath, 
             windowsHide: true,
             env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -701,10 +710,10 @@ function runMigrations() {
 
             // Smart Migration Bypass (Extreme Optimization)
             logger.log('Checking if migrations are already applied...');
-            const checkMigrations = spawn(phpPath, [
+            const checkMigrations = spawn(phpPath, buildPhpCliArgs([
                 'artisan', 'tinker',
                 '--execute=echo json_encode(\\Illuminate\\Support\\Facades\\Schema::hasTable("migrations") && \\Illuminate\\Support\\Facades\\DB::table("migrations")->count() > 0);'
-            ], { cwd: basePath, windowsHide: true, env: { ...process.env, DB_PORT: String(MYSQL_PORT) } });
+            ]), { cwd: basePath, windowsHide: true, env: { ...process.env, DB_PORT: String(MYSQL_PORT) } });
 
             let hasMigrations = false;
             let checkOutput = '';
@@ -730,7 +739,7 @@ function runMigrations() {
 
             // Run heavy migrations
             logger.log('Checking for database migrations...');
-            const migrateProcess = spawn(phpPath, ['artisan', 'migrate', '--force'], { 
+            const migrateProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'migrate', '--force']), { 
                 cwd: basePath, 
                 windowsHide: true,
                 env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -766,7 +775,7 @@ function runMigrations() {
                     logger.error('Critical migration error detected.');
                     
                     // Mark migration as failed in version service
-                    const markFailedProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationFailed("Migration exited with code ' + code + '");'], {
+                    const markFailedProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationFailed("Migration exited with code ' + code + '");']), {
                         cwd: basePath,
                         windowsHide: true,
                         env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -784,7 +793,7 @@ function runMigrations() {
                 }
                 
                 // Mark migration as successful
-                const markSuccessProcess = spawn(phpPath, ['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationSuccess();'], {
+                const markSuccessProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationSuccess();']), {
                     cwd: basePath,
                     windowsHide: true,
                     env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -841,7 +850,7 @@ function runMigrations() {
                     
                     // Run Database Seeder
                     logger.log('Seeding core data...');
-                    const seedProcess = spawn(phpPath, ['artisan', 'db:seed', '--class=StartUpSeeder', '--force'], {
+                    const seedProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'db:seed', '--class=StartUpSeeder', '--force']), {
                         cwd: basePath, 
                         windowsHide: true,
                         env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -867,7 +876,7 @@ function runMigrations() {
                         
                         // Clear Permission Cache
                         logger.log('Clearing permission cache...');
-                        const permClearProcess = spawn(phpPath, ['artisan', 'permission:cache-reset'], {
+                        const permClearProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'permission:cache-reset']), {
                             cwd: basePath, 
                             windowsHide: true,
                             env: { ...process.env, DB_PORT: String(MYSQL_PORT) } 
@@ -878,7 +887,7 @@ function runMigrations() {
                             
                             // Clear View Cache
                             logger.log('Clearing view cache...');
-                            const clearProcess = spawn(phpPath, ['artisan', 'view:clear'], {
+                            const clearProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'view:clear']), {
                                 cwd: basePath, 
                                 windowsHide: true,
                                 env: { ...process.env } 
@@ -924,11 +933,7 @@ function createMainWindow() {
     });
 
     // Force clear all aggressive Service Worker and Cache Storage data to prevent ghost UI bugs
-    mainWindow.webContents.session.clearStorageData({
-        storages: ['serviceworkers', 'cachestorage', 'appcache', 'indexdb']
-    }).then(() => {
-        mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
-    });
+    mainWindow.loadURL(`http://127.0.0.1:${laravelPort}`);
     
     // Check license after page loads and redirect if not activated
     mainWindow.webContents.on('did-finish-load', () => {
@@ -954,8 +959,8 @@ function createMainWindow() {
             // Trigger fade-out animation in splash screen
             splashWindow.webContents.executeJavaScript('if(window.fadeOut) window.fadeOut();').catch(() => {});
             
-            // Wait for animation to finish (Apple-style smoothness)
-            await new Promise(r => setTimeout(r, 600));
+            // Keep transition smooth but shorter for faster handoff
+            await new Promise(r => setTimeout(r, 250));
             splashWindow.hide();
             splashWindow.close();
         }
@@ -1093,11 +1098,11 @@ function setupAutoUpdater() {
         logger.log('User requested backup restoration');
         try {
             const phpPath = path.join(basePath, 'php', 'php.exe');
-            const restoreProcess = spawn(phpPath, [
+            const restoreProcess = spawn(phpPath, buildPhpCliArgs([
                 'artisan',
                 'tinker',
                 '--execute=echo json_encode((new \\App\\Services\\RecoveryService(new \\App\\Services\\UpdateService(), new \\App\\Services\\VersionService(), new \\App\\Services\\HealthCheckService()))->rollbackToLastGoodState());'
-            ], {
+            ]), {
                 cwd: basePath,
                 windowsHide: true,
                 env: { ...process.env, DB_PORT: MYSQL_PORT }
@@ -1395,17 +1400,10 @@ async function startApp() {
         await checkDiskSpace(1024);
         logger.cleanup(); // Self-healing: Cleanup old logs and temp data
 
-        // --- NEW: Clear Session Cache (Ensures Asset Freshness) ---
-        // Only clear HTTP cache, NOT storage (cookies/localstorage) to preserve Login Session
-        await session.defaultSession.clearCache();
-        // await session.defaultSession.clearStorageData(); // DISABLE THIS to fix "Login Every Time"
-
         updateSplashStatus('Starting...');
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.webContents.executeJavaScript(`window.setStage('preparing')`);
         }
-
-        await new Promise(r => setTimeout(r, 700));
 
         // Resolve MySQL port conflicts before starting
         MYSQL_PORT = await resolveMySQLPort(MYSQL_PORT);
@@ -1418,8 +1416,6 @@ async function startApp() {
         await startMySQL();
 
         updateSplashStatus('Loading database...');
-
-        await new Promise(r => setTimeout(r, 700));
 
         // Check if Laravel port is free
         if (await isPortOpen(laravelPort)) {
@@ -1449,11 +1445,11 @@ async function startApp() {
         const phpPath = path.join(basePath, 'php', 'php.exe');
         
         // Check if update was in progress
-        const checkUpdateProcess = spawn(phpPath, [
+        const checkUpdateProcess = spawn(phpPath, buildPhpCliArgs([
             'artisan',
             'tinker',
             '--execute=echo json_encode((new \\App\\Services\\VersionService())->isUpdateInProgress());'
-        ], {
+        ]), {
             cwd: basePath,
             windowsHide: true,
             env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -1486,11 +1482,11 @@ async function startApp() {
             }
 
             // Attempt auto-recovery
-            const recoveryProcess = spawn(phpPath, [
+            const recoveryProcess = spawn(phpPath, buildPhpCliArgs([
                 'artisan',
                 'tinker',
                 '--execute=echo json_encode((new \\App\\Services\\RecoveryService(new \\App\\Services\\UpdateService(), new \\App\\Services\\VersionService(), new \\App\\Services\\HealthCheckService()))->attemptAutoRecovery());'
-            ], {
+            ]), {
                 cwd: basePath,
                 windowsHide: true,
                 env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -1534,11 +1530,11 @@ async function startApp() {
             logger.log('Creating pre-migration backup...');
             
             let backupOutput = '';
-            const backupProcess = spawn(phpPath, [
+            const backupProcess = spawn(phpPath, buildPhpCliArgs([
                 'artisan',
                 'tinker',
                 '--execute=echo json_encode((new \\App\\Services\\UpdateService())->createBackup());'
-            ], {
+            ]), {
                 cwd: basePath,
                 windowsHide: true,
                 env: { ...process.env, DB_PORT: String(MYSQL_PORT) }
@@ -1576,20 +1572,17 @@ async function startApp() {
         await waitForLaravel(laravelPort, 60000);
         
         updateSplashStatus('Establishing connection...');
-
-        await new Promise(r => setTimeout(r, 700));
-
-        // --- NEW: Load Remote Configuration ---
-        updateSplashStatus('Syncing hardware profiles...');
-        await fetchRemoteConfig();
         
         updateSplashStatus('Finalizing...');
-
-        await new Promise(r => setTimeout(r, 700));
         
         // Register IPC BEFORE window creation
         setupAutoUpdater();
         createMainWindow();
+
+        // Load non-critical remote config in background after UI is available
+        setTimeout(() => {
+            fetchRemoteConfig().catch((err) => logger.warn('Remote config sync skipped: ' + err.message));
+        }, 1000);
     } catch (error) {
         logger.error('CRITICAL STARTUP ERROR: ' + error.message);
         logger.error('Stack trace: ' + error.stack);

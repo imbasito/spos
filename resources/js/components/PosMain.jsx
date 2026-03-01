@@ -210,6 +210,7 @@ export default function Pos() {
     const lastKeyTime = useRef(0);
     const searchInputRef = useRef(null);
     const audioRef = useRef(null);
+    const orderSubmittingRef = useRef(false);
 
     // Derived values
     const fullDomainWithPort = useMemo(() =>
@@ -644,7 +645,9 @@ export default function Pos() {
 
             // 2. SCANNER DETECTION (Speed-based, focus-independent)
             const target = e.target;
-            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+            const tagName = target.tagName || '';
+            const isInput = tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
+            const isEditableTarget = isInput || target.isContentEditable;
             const isSearchInput = target.id === 'product-search-input' || target.classList.contains('allow-scanner');
             
             // Check if user is editing cart fields (quantity, rate, amount inputs in cart table)
@@ -678,6 +681,10 @@ export default function Pos() {
 
             // 3. ENTER KEY: Process scan or manual search
             if (e.key === 'Enter') {
+                if (isEditableTarget && !isSearchInput) {
+                    return;
+                }
+
                 // IMPORTANT: If user is in a cart input field (qty/rate/amount), 
                 // let the input's native handler work (blur to save)
                 if (isCartInput && !isScannerInput) {
@@ -875,6 +882,10 @@ export default function Pos() {
 
     // Checkout Flow
     const handleCheckoutClick = () => {
+        if (orderSubmittingRef.current) {
+            return;
+        }
+
         if (total <= 0) {
             toast.error("Cart is empty");
             return;
@@ -887,6 +898,12 @@ export default function Pos() {
     };
 
     const handlePaymentConfirm = (paymentData) => {
+        if (orderSubmittingRef.current) {
+            return;
+        }
+
+        orderSubmittingRef.current = true;
+
         const { paid, method, trxId } = paymentData;
         
         // Calculate Final Discount for Backend using unified helper
@@ -956,9 +973,12 @@ export default function Pos() {
             playSound(SuccessSound);
             toast.success(`Order #${orderId} Created Successfully!`);
 
+            orderSubmittingRef.current = false;
+
         }).catch(err => {
             console.error("Order Creation Failed", err);
             toast.error(err.response?.data?.message || "Order Creation Failed: Check Console");
+            orderSubmittingRef.current = false;
         });
     };
 

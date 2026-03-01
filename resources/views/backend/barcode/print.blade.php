@@ -14,6 +14,14 @@
             background-color: #f4f6f9; /* Light background for preview */
         }
 
+        .labels-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px;
+        }
+
         /* Container Size */
         .barcode-wrapper {
             width: {{ $size == 'large' ? '50mm' : '38mm' }};
@@ -124,25 +132,35 @@
 </head>
 <body>
 
-    <div class="barcode-wrapper">
-        <!-- Product Name -->
-        <div class="product-name">{{ $label }}</div>
+    @php
+        $labels = [];
+        $baseBarcode = preg_replace('/\D/', '', (string) $barcode);
+        $baseNumber = is_numeric($baseBarcode) ? (int) $baseBarcode : 0;
+        $barcodeLength = max(strlen((string) $baseBarcode), 12);
+        for ($i = 0; $i < ($quantity ?? 1); $i++) {
+            $labels[] = str_pad((string) ($baseNumber + $i), $barcodeLength, '0', STR_PAD_LEFT);
+        }
+    @endphp
 
-        <!-- Price (if available) -->
-        @if(!empty($price) && $price > 0)
-        <div class="price-tag">Rs. {{ number_format($price, 0) }}</div>
-        @endif
-        
-        <!-- Barcode -->
-        <svg id="barcode" class="barcode-svg" style="width: 100%; height: auto;"></svg>
+    <div class="labels-container">
+        @foreach($labels as $index => $barcodeValue)
+        <div class="barcode-wrapper">
+            <div class="product-name">{{ $label }}</div>
 
-        <!-- Dates (Large Size Only) -->
-        @if($size == 'large' && ($mfg || $exp))
-        <div class="meta-dates">
-            @if($mfg) <span>MFG:{{ \Carbon\Carbon::parse($mfg)->format('d/m/y') }}</span> @endif
-            @if($exp) <span>EXP:{{ \Carbon\Carbon::parse($exp)->format('d/m/y') }}</span> @endif
+            @if(!empty($price) && $price > 0)
+            <div class="price-tag">Rs. {{ number_format($price, 0) }}</div>
+            @endif
+
+            <svg id="barcode-{{ $index }}" class="barcode-svg" style="width: 100%; height: auto;"></svg>
+
+            @if($size == 'large' && ($mfg || $exp))
+            <div class="meta-dates">
+                @if($mfg) <span>MFG:{{ \Carbon\Carbon::parse($mfg)->format('d/m/y') }}</span> @endif
+                @if($exp) <span>EXP:{{ \Carbon\Carbon::parse($exp)->format('d/m/y') }}</span> @endif
+            </div>
+            @endif
         </div>
-        @endif
+        @endforeach
     </div>
 
     <div class="no-print controls">
@@ -169,17 +187,20 @@
             fontSize = 9;
         }
 
-        JsBarcode("#barcode", "{{ $barcode }}", {
-            format: "EAN13",
-            lineColor: "#000",
-            width: barcodeWidth,
-            height: barcodeHeight,
-            displayValue: true,
-            fontSize: fontSize,
-            font: "Roboto, Arial, sans-serif",
-            textMargin: 0,
-            margin: 0,
-            flat: true
+        const barcodeValues = @json($labels);
+        barcodeValues.forEach((value, index) => {
+            JsBarcode(`#barcode-${index}`, value, {
+                format: "EAN13",
+                lineColor: "#000",
+                width: barcodeWidth,
+                height: barcodeHeight,
+                displayValue: true,
+                fontSize: fontSize,
+                font: "Roboto, Arial, sans-serif",
+                textMargin: 0,
+                margin: 0,
+                flat: true
+            });
         });
         
         // Auto-print option layout check

@@ -14,6 +14,8 @@ use App\Models\Product;
 use App\Models\Unit;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Yajra\DataTables\DataTables;
 
@@ -223,13 +225,84 @@ class ProductController extends Controller
         if ($request->query('download-demo')) {
             return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
         }
-        if ($request->isMethod('post') && $request->hasFile('file')) {
-            Excel::import(new ProductsImport, $request->file('file'));
-            for ($i = 1; $i <= 10; $i++) {
-                \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+
+        if ($request->isMethod('post')) {
+            $action = $request->input('action', 'preview');
+
+            if ($action === 'import') {
+                $request->validate([
+                    'preview_token' => 'required|string',
+                ]);
+
+                $sessionKey = 'products_import_preview.' . $request->preview_token;
+                $previewPayload = session($sessionKey);
+
+                if (!$previewPayload || empty($previewPayload['path']) || !Storage::exists($previewPayload['path'])) {
+                    return redirect()->back()->with('error', 'Import preview expired. Please preview the file again.');
+                }
+
+                $importer = new ProductsImport(false, auth()->id());
+                Excel::import($importer, storage_path('app/' . $previewPayload['path']));
+
+                Storage::delete($previewPayload['path']);
+                session()->forget($sessionKey);
+
+                for ($i = 1; $i <= 10; $i++) {
+                    \Illuminate\Support\Facades\Cache::forget("pos_products_page_{$i}");
+                }
+
+                $failureMessages = $importer->failures()->map(function ($failure) {
+                    return 'Row ' . $failure->row() . ': ' . implode(', ', $failure->errors());
+                })->take(20)->all();
+
+                if (!empty($failureMessages)) {
+                    return redirect()->back()
+                        ->with('warning', 'Import completed with some skipped rows.')
+                        ->with('import_errors', $failureMessages)
+                        ->with('success', $importer->getImportedRows() . ' products imported successfully.');
+                }
+
+                return redirect()->back()->with('success', $importer->getImportedRows() . ' products imported successfully.');
             }
-            return redirect()->back()->with('success', 'Products imported successfully.');
+
+            $request->validate([
+                'file' => 'required|file|mimes:csv,xls,xlsx|max:10240',
+            ]);
+
+            $path = $request->file('file')->store('imports/products');
+            $previewImporter = new ProductsImport(true, auth()->id());
+            Excel::import($previewImporter, storage_path('app/' . $path));
+
+            $failures = $previewImporter->failures();
+            $failureMessages = $failures->map(function ($failure) {
+                return 'Row ' . $failure->row() . ': ' . implode(', ', $failure->errors());
+            })->take(20)->all();
+
+            $token = (string) Str::uuid();
+            session(['products_import_preview.' . $token => [
+                'path' => $path,
+                'created_at' => now()->timestamp,
+            ]]);
+
+            return redirect()->back()->with('import_preview', [
+                'token' => $token,
+                'total_rows' => $previewImporter->getProcessedRows(),
+                'valid_rows' => $previewImporter->getValidRows(),
+                'invalid_rows' => count($failures),
+                'errors' => $failureMessages,
+            ]);
         }
+
+        // Cleanup stale preview files older than 24h (best effort)
+        foreach ((array) session('products_import_preview', []) as $token => $payload) {
+            if (!empty($payload['created_at']) && now()->timestamp - $payload['created_at'] > 86400) {
+                if (!empty($payload['path']) && Storage::exists($payload['path'])) {
+                    Storage::delete($payload['path']);
+                }
+                session()->forget('products_import_preview.' . $token);
+            }
+        }
+
         return view('backend.products.import');
     }
 }

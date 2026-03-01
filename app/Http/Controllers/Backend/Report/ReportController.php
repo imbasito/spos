@@ -32,7 +32,7 @@ class ReportController extends Controller
             $orders = Order::whereBetween('orders.created_at', [$start_date, $end_date])
                            ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
                            ->withSum('products as total_quantity', 'quantity')
-                           ->select('orders.*', 'customers.name as customer_name'); 
+                           ->select('orders.id', 'orders.created_at', 'orders.sub_total', 'orders.discount', 'orders.total', 'orders.paid', 'orders.due', 'orders.status', 'customers.name as customer_name'); 
 
             return DataTables::of($orders)
                 ->addIndexColumn()

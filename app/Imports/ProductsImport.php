@@ -8,20 +8,47 @@ use App\Models\Category;
 use App\Models\Unit;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
+use App\Models\Supplier;
 use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\SkipsOnError;
+use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Concerns\WithValidation;
+use Maatwebsite\Excel\Concerns\Importable;
+use Maatwebsite\Excel\Concerns\SkipsErrors;
+use Maatwebsite\Excel\Concerns\SkipsFailures;
 
-class ProductsImport implements ToModel, WithHeadingRow
+class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure, SkipsOnError
 {
+    use Importable, SkipsFailures, SkipsErrors;
+
+    private bool $previewOnly;
+    private ?int $userId;
+    private int $processedRows = 0;
+    private int $validRows = 0;
+    private int $importedRows = 0;
+
+    public function __construct(bool $previewOnly = false, ?int $userId = null)
+    {
+        $this->previewOnly = $previewOnly;
+        $this->userId = $userId;
+    }
+
     public function model(array $row)
     {
+        $this->processedRows++;
+
+        if ($this->previewOnly) {
+            $this->validRows++;
+            return null;
+        }
+
         // Find or create brand, category, and unit
-        $brand = Brand::firstOrCreate(['name' => $row['brand']]);
-        $category = Category::firstOrCreate(['name' => $row['category']]);
+        $brand = Brand::firstOrCreate(['name' => trim((string) $row['brand'])]);
+        $category = Category::firstOrCreate(['name' => trim((string) $row['category'])]);
         $unit = Unit::firstOrCreate(
-            ['title' => $row['unit']],
-            ['short_name' => $row['unit']]
+            ['title' => trim((string) $row['unit'])],
+            ['short_name' => trim((string) $row['unit'])]
         );
 
 
@@ -42,42 +69,126 @@ class ProductsImport implements ToModel, WithHeadingRow
         
         // Create the product
         $product = Product::create([
-            'name' => $row['name'],
+            'name' => trim((string) $row['name']),
             'sku' => $sku,  // null triggers auto-generation
-            'description' => $row['description'],
+            'description' => $row['description'] ?? null,
             'category_id' => $category->id,
             'brand_id' => $brand->id,
             'unit_id' => $unit->id,
-            'price' => $row['price'],
-            'discount' => $row['discount'],
-            'discount_type' => $row['discount_type'],
-            'purchase_price' => $row['purchase_price'],
-            'quantity' => $row['quantity'],
-            'expire_date' => $row['expire_date'],
-            'status' => $row['status']
+            'price' => (float) $row['price'],
+            'discount' => (float) ($row['discount'] ?? 0),
+            'discount_type' => $this->normalizeDiscountType($row['discount_type'] ?? 'fixed'),
+            'purchase_price' => (float) $row['purchase_price'],
+            'quantity' => (float) $row['quantity'],
+            'expire_date' => !empty($row['expire_date']) ? $row['expire_date'] : null,
+            'status' => $this->normalizeStatus($row['status'] ?? 1),
         ]);
+
+        $supplier = Supplier::query()->first();
+        if (!$supplier) {
+            $supplier = Supplier::create([
+                'name' => 'General Supplier',
+                'phone' => '-',
+                'address' => '-',
+            ]);
+        }
+
+        $quantity = max(1, (int) round((float) $row['quantity']));
+        $purchasePrice = (float) $row['purchase_price'];
+        $salePrice = (float) $row['price'];
+        $lineTotal = $purchasePrice * $quantity;
 
         // Create purchase record
         $purchase = Purchase::create([
-            'supplier_id' => 1,
-            'user_id' => Auth::id(),
-            'sub_total' => $row['purchase_price'] * $row['quantity'],
+            'supplier_id' => $supplier->id,
+            'user_id' => $this->userId ?? auth()->id(),
+            'sub_total' => $lineTotal,
             'tax' => 0,
-            'discount' =>0,
-            'discount_type' => 0,
+            'discount_value' => 0,
+            'discount_type' => 'fixed',
             'shipping' => 0,
-            'grand_total' => $row['purchase_price'] * $row['quantity'],
+            'grand_total' => $lineTotal,
+            'paid_amount' => 0,
+            'payment_status' => 'due',
             'status' => 1,
-            'date' => now()
+            'date' => now(),
         ]);
 
         // Create purchase item record
         PurchaseItem::create([
             'purchase_id' => $purchase->id,
             'product_id' => $product->id,
-            'purchase_price' => $row['purchase_price'],
-            'price' => $row['price'],
-            'quantity' => $row['quantity'],
+            'purchase_price' => $purchasePrice,
+            'price' => $salePrice,
+            'quantity' => $quantity,
         ]);
+
+        $this->validRows++;
+        $this->importedRows++;
+
+        return $product;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'sku' => 'nullable|string|max:100',
+            'description' => 'nullable|string',
+            'category' => 'required|string|max:120',
+            'brand' => 'required|string|max:120',
+            'unit' => 'required|string|max:60',
+            'price' => 'required|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|in:fixed,percentage,percent,0,1',
+            'purchase_price' => 'required|numeric|min:0',
+            'quantity' => 'required|numeric|min:0.001',
+            'expire_date' => 'nullable|date',
+            'status' => 'nullable|in:0,1,true,false,active,inactive',
+        ];
+    }
+
+    public function customValidationMessages(): array
+    {
+        return [
+            'name.required' => 'Product name is required.',
+            'price.required' => 'Sale price is required.',
+            'purchase_price.required' => 'Purchase price is required.',
+            'quantity.required' => 'Quantity is required.',
+            'discount_type.in' => 'Discount type must be fixed or percentage.',
+            'status.in' => 'Status must be active/inactive or 1/0.',
+        ];
+    }
+
+    public function getProcessedRows(): int
+    {
+        return $this->processedRows;
+    }
+
+    public function getValidRows(): int
+    {
+        return $this->validRows;
+    }
+
+    public function getImportedRows(): int
+    {
+        return $this->importedRows;
+    }
+
+    private function normalizeDiscountType($value): string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        if (in_array($normalized, ['percentage', 'percent', '1'], true)) {
+            return 'percentage';
+        }
+
+        return 'fixed';
+    }
+
+    private function normalizeStatus($value): bool
+    {
+        $normalized = strtolower(trim((string) $value));
+        return in_array($normalized, ['1', 'true', 'active'], true);
     }
 }

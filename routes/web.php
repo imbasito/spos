@@ -81,6 +81,7 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
     Route::get('/barcode', [DashboardController::class, 'barcode'])->name('barcode');
     Route::get('/barcode/print', [DashboardController::class, 'printBarcode'])->name('barcode.print');
     Route::post('/barcode/store', [DashboardController::class, 'storeBarcode'])->name('barcode.store');
+    Route::post('/barcode/store-batch', [DashboardController::class, 'storeBarcodes'])->name('barcode.store.batch');
     Route::get('/barcode/history', [DashboardController::class, 'getBarcodeHistory'])->name('barcode.history');
     Route::delete('/barcode/{id}', [DashboardController::class, 'deleteBarcode'])->name('barcode.delete');
     Route::resource('products', ProductController::class);
@@ -202,9 +203,9 @@ Route::prefix('admin')->as('backend.admin.')->middleware(['admin', 'license'])->
 
             // Reports & Closing
             Route::controller(\App\Http\Controllers\Backend\Report\DailyReportController::class)->prefix('reports')->group(function () {
-                Route::get('daily-closing', 'create')->name('report.daily.closing');
-                Route::post('daily-closing', 'store')->name('report.daily.closing.store');
-                Route::get('closing-history', 'index')->name('report.daily.history');
+                Route::get('daily-closing', 'create')->middleware('can:report_daily_closing')->name('report.daily.closing');
+                Route::post('daily-closing', 'store')->middleware('can:report_daily_closing')->name('report.daily.closing.store');
+                Route::get('closing-history', 'index')->middleware('can:report_daily_closing')->name('report.daily.history');
             });
 
             // Audit Logs

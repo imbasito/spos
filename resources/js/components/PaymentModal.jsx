@@ -8,6 +8,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
     const [paymentMethod, setPaymentMethod] = useState(defaultMethod);
     const [transactionId, setTransactionId] = useState('');
     const inputRef = useRef(null);
+    const modalRef = useRef(null);
 
     const [isReady, setIsReady] = useState(false);
 
@@ -32,6 +33,12 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
             if (!show) return; // DOUBLE SAFETY: Ensure modal is truly open
             if (e.key === 'Escape') onCancel();
             if (e.key === 'Enter') {
+                const activeElement = document.activeElement;
+                const isInsideModal = modalRef.current?.contains(activeElement);
+                if (!isInsideModal) {
+                    return;
+                }
+
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -88,7 +95,7 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
     const showDue = (parseFloat(paidAmount || 0) < total) || !paidAmount;
 
     return (
-        <div className="modal-backdrop d-flex justify-content-center align-items-center" style={{ zIndex: 1050, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+        <div ref={modalRef} className="modal-backdrop d-flex justify-content-center align-items-center" style={{ zIndex: 1050, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.4)' }}>
             <div className="professional-modal-content p-0 shadow-deep" style={{ width: '600px', maxWidth: '95%', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: 'var(--apple-border)' }}>
                 
                 {/* Header - Brand Maroon */}
@@ -161,7 +168,13 @@ const PaymentModal = ({ show, total, onConfirm, onCancel, defaultMethod = 'cash'
                                     value={transactionId}
                                     onChange={(e) => setTransactionId(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleConfirm();
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (isReady) {
+                                                handleConfirm();
+                                            }
+                                        }
                                     }}
                                 />
                             </div>

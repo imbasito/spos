@@ -16,6 +16,8 @@ class RoleController extends Controller
     {
         abort_if(!auth()->user()->can('role_view'), 403);
 
+        Permission::firstOrCreate(['name' => 'report_daily_closing']);
+
         $roles       = Role::withCount('permissions')->get();
         $permissions = Permission::all();
 
@@ -54,6 +56,8 @@ class RoleController extends Controller
     public function show($id)
     {
         abort_if(!auth()->user()->can('role_view'), 403);
+
+        Permission::firstOrCreate(['name' => 'report_daily_closing']);
 
         $role        = Role::findOrFail($id);
         $permissions = Permission::all();

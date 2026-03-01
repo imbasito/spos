@@ -77,6 +77,7 @@ class RolePermissionSeeder extends Seeder
             'reports_summary',
             'reports_sales',
             'reports_inventory',
+            'report_daily_closing',
             //currency
             'currency_create',
             'currency_view',
@@ -160,6 +161,7 @@ class RolePermissionSeeder extends Seeder
             'refund_create',
             'refund_view',
             'refund_delete',
+            'report_daily_closing',
         ];
 
         $salesPermissions = [

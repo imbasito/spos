@@ -15,6 +15,7 @@ export default function BarcodeGenerator() {
     const [mfgDate, setMfgDate] = useState(new Date().toISOString().split('T')[0]);
     const [expDate, setExpDate] = useState("");
     const [labelSize, setLabelSize] = useState("large");
+    const [quantity, setQuantity] = useState(1);
     const [showPrice, setShowPrice] = useState(false);
     const [price, setPrice] = useState("");
     const [history, setHistory] = useState([]);
@@ -77,11 +78,35 @@ export default function BarcodeGenerator() {
             }
         }
 
+        const parsedQuantity = Math.max(1, Math.min(50, parseInt(quantity, 10) || 1));
+        if (parsedQuantity > 50) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Maximum Limit',
+                text: 'You can generate up to 50 tags at a time.'
+            });
+            return;
+        }
+
+        const barcodeLength = (barcodeValue || '').length || 12;
+        const startBarcode = parseInt(barcodeValue, 10);
+        if (Number.isNaN(startBarcode)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Barcode',
+                text: 'Please regenerate a valid numeric barcode first.'
+            });
+            return;
+        }
+
+        const barcodeList = Array.from({ length: parsedQuantity }, (_, index) =>
+            String(startBarcode + index).padStart(barcodeLength, '0')
+        );
+
         const tagPrinter = window.posSettings?.tagPrinter;
         const barcodeData = {
             type: 'barcode',
             label: label,
-            barcodeValue: barcodeValue,
             mfgDate: mfgDate,
             expDate: expDate,
             labelSize: labelSize,
@@ -102,14 +127,20 @@ export default function BarcodeGenerator() {
             try {
                 // Pass raw data to main.cjs for professional generation
                 // Ensure displayValue (digits) are shown
-                const rawPayload = { ...barcodeData, displayValue: true };
-                
-                const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
-                
-                if (res.success) {
+                let printedCount = 0;
+                for (const barcode of barcodeList) {
+                    const rawPayload = { ...barcodeData, barcodeValue: barcode, displayValue: true };
+                    const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
+                    if (!res.success) {
+                        throw new Error(res.error || "Capture Error");
+                    }
+                    printedCount++;
+                }
+
+                if (printedCount > 0) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Label Sent to Printer',
+                        title: `${printedCount} Label(s) Sent`,
                         text: tagPrinter ? `Printer: ${tagPrinter}` : 'Default Printer',
                         toast: true,
                         position: 'top-end',
@@ -131,19 +162,19 @@ export default function BarcodeGenerator() {
                 });
                 
                 // Legacy Fallback
-                const url = `/admin/barcode/print?label=${encodeURIComponent(label)}&barcode=${barcodeValue}&mfg=${mfgDate}&exp=${expDate}&size=${labelSize}&price=${showPrice ? price : 0}`;
+                const url = `/admin/barcode/print?label=${encodeURIComponent(label)}&barcode=${barcodeList[0]}&mfg=${mfgDate}&exp=${expDate}&size=${labelSize}&price=${showPrice ? price : 0}&quantity=${parsedQuantity}`;
                 fallbackPrint(url);
             }
         } else {
             // 2. Standard Browser Fallback
-            const url = `/admin/barcode/print?label=${encodeURIComponent(label)}&barcode=${barcodeValue}&mfg=${mfgDate}&exp=${expDate}&size=${labelSize}&price=${showPrice ? price : 0}`;
+            const url = `/admin/barcode/print?label=${encodeURIComponent(label)}&barcode=${barcodeList[0]}&mfg=${mfgDate}&exp=${expDate}&size=${labelSize}&price=${showPrice ? price : 0}&quantity=${parsedQuantity}`;
             fallbackPrint(url);
         }
 
         // Save to history (silently in background)
         try {
-            await axios.post("/admin/barcode/store", {
-                barcode: barcodeValue,
+            await axios.post("/admin/barcode/store-batch", {
+                barcodes: barcodeList,
                 label: label || null,
                 price: price || 0,
                 label_size: labelSize,
@@ -158,6 +189,7 @@ export default function BarcodeGenerator() {
 
         // Clear and generate new for next item
         setLabel("");
+        setQuantity(1);
         generateNewBarcode();
     };
 
@@ -396,6 +428,21 @@ export default function BarcodeGenerator() {
                                 <option value="large">Large (Included Dates)</option>
                                 <option value="small">Small (Barcode Only)</option>
                             </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="font-weight-bold"><i className="fas fa-layer-group mr-1 text-muted"></i> Number of Tags (Max 50)</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                className="form-control border-radius-10"
+                                value={quantity}
+                                onChange={(e) => {
+                                    const value = parseInt(e.target.value || '1', 10);
+                                    setQuantity(Number.isNaN(value) ? 1 : Math.max(1, Math.min(50, value)));
+                                }}
+                            />
                         </div>
 
                         <div className="form-group">

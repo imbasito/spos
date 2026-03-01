@@ -160,16 +160,16 @@
       },
       columns: [
         { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'pl-4' },
-        { data: 'saleId', name: 'id' }, // use 'id' for DB column name search
+        { data: 'saleId', name: 'orders.id' },
         { data: 'customer', name: 'customers.name' },
-        { data: 'date', name: 'created_at' },
-        { data: 'item', name: 'item', orderable: false },
-        { data: 'sub_total', name: 'sub_total' },
-        { data: 'discount', name: 'discount' },
-        { data: 'total', name: 'total', className: 'font-weight-bold text-maroon' },
-        { data: 'paid', name: 'paid' },
-        { data: 'due', name: 'due' },
-        { data: 'status', name: 'status' }
+        { data: 'date', name: 'orders.created_at' },
+        { data: 'item', name: 'item', orderable: false, searchable: false },
+        { data: 'sub_total', name: 'orders.sub_total' },
+        { data: 'discount', name: 'orders.discount' },
+        { data: 'total', name: 'orders.total', className: 'font-weight-bold text-maroon' },
+        { data: 'paid', name: 'orders.paid' },
+        { data: 'due', name: 'orders.due' },
+        { data: 'status', name: 'orders.status' }
       ],
       order: [[3, 'desc']], 
       dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',

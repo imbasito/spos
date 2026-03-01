@@ -13,6 +13,8 @@ class DailyReportController extends Controller
 {
     public function index()
     {
+        abort_if(!auth()->user()->can('report_daily_closing'), 403);
+
         // History Data
         $closings = DailyClosing::latest()->paginate(20);
 
@@ -30,6 +32,8 @@ class DailyReportController extends Controller
 
     public function create()
     {
+        abort_if(!auth()->user()->can('report_daily_closing'), 403);
+
         // PROFESSIONAL LOGIC: Calculate stats SINCE THE LAST CLOSING
         $lastClosing = DailyClosing::latest('closed_at')->first();
         $startTime = $lastClosing ? $lastClosing->closed_at : now()->startOfDay();
@@ -45,6 +49,8 @@ class DailyReportController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(!auth()->user()->can('report_daily_closing'), 403);
+
         $request->validate([
             'cash_in_hand' => 'required|numeric|min:0',
         ]);
