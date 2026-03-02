@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Barcode from "react-barcode";
 import Swal from "sweetalert2";
 import axios from "axios";
@@ -15,7 +15,9 @@ export default function BarcodeGenerator() {
     const [mfgDate, setMfgDate] = useState(new Date().toISOString().split('T')[0]);
     const [expDate, setExpDate] = useState("");
     const [labelSize, setLabelSize] = useState("large");
-    const [quantity, setQuantity] = useState(1);
+    const [quantity, setQuantity] = useState("1");
+    const [quantityError, setQuantityError] = useState("");
+    const quantityInputRef = useRef(null);
     const [showPrice, setShowPrice] = useState(false);
     const [price, setPrice] = useState("");
     const [history, setHistory] = useState([]);
@@ -78,15 +80,21 @@ export default function BarcodeGenerator() {
             }
         }
 
-        const parsedQuantity = Math.max(1, Math.min(50, parseInt(quantity, 10) || 1));
-        if (parsedQuantity > 50) {
+        const parsedQuantity = parseInt((quantity || '').trim(), 10);
+        if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1 || parsedQuantity > 50) {
+            setQuantityError('Enter a number between 1 and 50.');
+            if (quantityInputRef.current) {
+                quantityInputRef.current.focus();
+                quantityInputRef.current.select();
+            }
             Swal.fire({
                 icon: 'warning',
-                title: 'Maximum Limit',
-                text: 'You can generate up to 50 tags at a time.'
+                title: 'Invalid Quantity',
+                text: 'Please enter a number of tags between 1 and 50.'
             });
             return;
         }
+        setQuantityError('');
 
         const barcodeLength = (barcodeValue || '').length || 12;
         const startBarcode = parseInt(barcodeValue, 10);
@@ -148,7 +156,7 @@ export default function BarcodeGenerator() {
                         showConfirmButton: false
                     });
                 } else {
-                    throw new Error(res.error || "Capture Error");
+                    throw new Error("No labels were sent to printer.");
                 }
             } catch (err) {
                 console.error("Professional Print Failed", err);
@@ -189,7 +197,8 @@ export default function BarcodeGenerator() {
 
         // Clear and generate new for next item
         setLabel("");
-        setQuantity(1);
+        setQuantity("1");
+        setQuantityError("");
         generateNewBarcode();
     };
 
@@ -207,8 +216,23 @@ export default function BarcodeGenerator() {
     const handleReprint = async (item) => {
         const result = await Swal.fire({
             title: 'Reprint Tag?',
-            text: `Do you want to reprint the tag for "${item.label}"?`,
+            text: `Select number of prints for "${item.label}"`,
             icon: 'question',
+            input: 'number',
+            inputValue: 1,
+            inputAttributes: {
+                min: 1,
+                max: 50,
+                step: 1
+            },
+            preConfirm: (value) => {
+                const qty = parseInt(value, 10);
+                if (!Number.isInteger(qty) || qty < 1 || qty > 50) {
+                    Swal.showValidationMessage('Please enter a print quantity between 1 and 50.');
+                    return false;
+                }
+                return qty;
+            },
             showCancelButton: true,
             confirmButtonColor: '#800000',
             confirmButtonText: 'Yes, Print',
@@ -216,12 +240,20 @@ export default function BarcodeGenerator() {
         });
 
         if (!result.isConfirmed) return;
+        const printQuantity = parseInt(result.value, 10) || 1;
+
+        const numericBarcode = parseInt(item.barcode, 10);
+        const barcodeLength = (item.barcode || '').length || 12;
+        const barcodeList = Number.isNaN(numericBarcode)
+            ? Array.from({ length: printQuantity }, () => item.barcode)
+            : Array.from({ length: printQuantity }, (_, index) =>
+                String(numericBarcode + index).padStart(barcodeLength, '0')
+            );
 
         const tagPrinter = window.posSettings?.tagPrinter;
         const barcodeData = {
             type: 'barcode',
             label: item.label,
-            barcodeValue: item.barcode,
             labelSize: item.label_size || 'large',
             showPrice: !!item.show_price,
             price: item.price,
@@ -239,14 +271,20 @@ export default function BarcodeGenerator() {
             });
 
             try {
-                // Pass raw data for consistent printing
-                const rawPayload = { ...barcodeData, displayValue: true };
-                
-                const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
-                if (res.success) {
+                let printedCount = 0;
+                for (const barcode of barcodeList) {
+                    const rawPayload = { ...barcodeData, barcodeValue: barcode, displayValue: true };
+                    const res = await window.electron.printSilent(null, tagPrinter, null, rawPayload);
+                    if (!res.success) {
+                        throw new Error(res.error || 'Reprint failed');
+                    }
+                    printedCount++;
+                }
+
+                if (printedCount > 0) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Reprint Sent',
+                        title: `${printedCount} Reprint(s) Sent`,
                         toast: true,
                         position: 'top-end',
                         timer: 1500,
@@ -254,11 +292,11 @@ export default function BarcodeGenerator() {
                     });
                 }
             } catch (e) {
-                const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}`;
+                const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${barcodeList[0]}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}&quantity=${printQuantity}`;
                 fallbackPrint(url);
             }
         } else {
-            const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${item.barcode}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}`;
+            const url = `/admin/barcode/print?label=${encodeURIComponent(item.label || '')}&barcode=${barcodeList[0]}&size=${item.label_size}&price=${item.show_price ? item.price : 0}&mfg=${item.mfg_date}&exp=${item.exp_date}&quantity=${printQuantity}`;
             fallbackPrint(url);
         }
     };
@@ -433,16 +471,31 @@ export default function BarcodeGenerator() {
                         <div className="form-group">
                             <label className="font-weight-bold"><i className="fas fa-layer-group mr-1 text-muted"></i> Number of Tags (Max 50)</label>
                             <input
-                                type="number"
-                                min="1"
-                                max="50"
-                                className="form-control border-radius-10"
+                                ref={quantityInputRef}
+                                type="text"
+                                inputMode="numeric"
+                                className={`form-control border-radius-10 ${quantityError ? 'is-invalid' : ''}`}
                                 value={quantity}
+                                placeholder="1"
                                 onChange={(e) => {
-                                    const value = parseInt(e.target.value || '1', 10);
-                                    setQuantity(Number.isNaN(value) ? 1 : Math.max(1, Math.min(50, value)));
+                                    const raw = e.target.value;
+                                    if (/^\d*$/.test(raw)) {
+                                        setQuantity(raw);
+                                        if (quantityError) {
+                                            setQuantityError('');
+                                        }
+                                    }
+                                }}
+                                onBlur={() => {
+                                    const parsed = parseInt((quantity || '').trim(), 10);
+                                    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) {
+                                        setQuantityError('Enter a number between 1 and 50.');
+                                    } else {
+                                        setQuantityError('');
+                                    }
                                 }}
                             />
+                            {quantityError && <div className="invalid-feedback">{quantityError}</div>}
                         </div>
 
                         <div className="form-group">

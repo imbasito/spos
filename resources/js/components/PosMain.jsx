@@ -190,7 +190,7 @@ export default function Pos() {
     
     // Modals
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [showReceiptModal, setShowReceipt] = useState(false);
+    const [showReceiptModal, setShowReceiptModal] = useState(false);
     const [receiptUrl, setReceiptUrl] = useState('');
     
     // Context Menu State
@@ -607,8 +607,8 @@ export default function Pos() {
             const timeDiff = currentTime - lastKeyTime.current;
             lastKeyTime.current = currentTime;
 
-            // Skip if payment modal is open (user is typing payment details)
-            if (showPaymentModal) return;
+            // Skip if modal is open (user is typing payment details/preview actions)
+            if (showPaymentModal || showReceiptModal) return;
 
             // 1. HOTKEYS (Always work, highest priority)
             if (e.key === 'F2') {
@@ -616,12 +616,6 @@ export default function Pos() {
                 e.stopImmediatePropagation();
                 searchInputRef.current?.focus();
                 searchInputRef.current?.select();
-                return;
-            }
-            if (e.key === 'F10') {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                handleCheckoutClick();
                 return;
             }
             if (e.key === 'Escape') {
@@ -682,6 +676,9 @@ export default function Pos() {
             // 3. ENTER KEY: Process scan or manual search
             if (e.key === 'Enter') {
                 if (isEditableTarget && !isSearchInput) {
+                    scanBuffer.current = "";
+                    setScannerActive(false);
+                    consecutiveFastKeys.current = 0;
                     return;
                 }
 
@@ -701,7 +698,9 @@ export default function Pos() {
                 
                 // Priority 1: Buffer code (scanner captured it globally)
                 // Priority 2: Search input value (manual entry or fallback)
-                const code = bufferCode.length >= 3 ? bufferCode : inputCode;
+                const code = (isScannerInput && bufferCode.length >= 3)
+                    ? bufferCode
+                    : inputCode;
                 
                 if (code.length >= 3) {
                     // Process the barcode/search
@@ -718,6 +717,8 @@ export default function Pos() {
                     
                     // Refocus search for next scan
                     setTimeout(() => searchInputRef.current?.focus(), 50);
+                } else if (!isEditableTarget) {
+                    handleCheckoutClick();
                 }
                 
                 scanBuffer.current = "";
@@ -726,6 +727,12 @@ export default function Pos() {
 
             // 4. CHARACTER INPUT: Build buffer
             if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                // Never capture typed cart/edit-field content into scanner buffer
+                if (isEditableTarget && !isSearchInput) {
+                    scanBuffer.current = "";
+                    return;
+                }
+
                 // Buffer timeout: 400ms (accommodates slower USB scanners)
                 if (timeDiff > 400) {
                     scanBuffer.current = e.key;
@@ -1300,7 +1307,7 @@ export default function Pos() {
                                 className="btn btn-pay-premium btn-block py-3 font-weight-bold shadow-lg"
                                 style={{ fontSize: '1.4rem', borderRadius: '12px', height: '100%' }}
                                 disabled={total <= 0}
-                                title="Shortcut: F10"
+                                title="Shortcut: Enter"
                             >
                                 <div className="d-flex justify-content-center align-items-center">
                                     <div className="text-left line-height-1 mr-3">

@@ -131,6 +131,11 @@
                 <label>Price</label>
                 <input type="number" class="form-control" id="visiblePrice">
             </div>
+
+            <div class="form-group">
+              <label>Number of Prints (Max 50)</label>
+              <input type="number" class="form-control" id="printQuantity" min="1" max="50" step="1" value="1">
+            </div>
         </form>
     </div>
       <div class="modal-footer">
@@ -196,6 +201,7 @@
         // Populate modal
         $('#visiblePrice').val(price);
         $('#showPrice').prop('checked', false);
+        $('#printQuantity').val(1);
         
         // Default MFG Date to Today
         const today = new Date().toISOString().split('T')[0];
@@ -220,11 +226,26 @@
         let barcode = $('#modalBarcode').val();
         let label = $('#modalLabel').val();
         let priceVal = parseFloat($('#visiblePrice').val()) || 0;
+      let printQuantity = parseInt($('#printQuantity').val(), 10);
+
+      if (!Number.isInteger(printQuantity) || printQuantity < 1 || printQuantity > 50) {
+        toastr.error('Please enter number of prints between 1 and 50');
+        $('#printQuantity').focus();
+        return;
+      }
         
         let mfg = $('#mfgDate').val();
         let exp = $('#expDate').val();
         let size = $('#labelSize').val();
         let showPrice = $('#showPrice').is(':checked');
+
+      const numericBarcode = parseInt(barcode, 10);
+      const barcodeLength = (barcode || '').length || 12;
+      const barcodeList = Number.isNaN(numericBarcode)
+        ? Array.from({ length: printQuantity }, () => barcode)
+        : Array.from({ length: printQuantity }, (_, index) =>
+          String(numericBarcode + index).padStart(barcodeLength, '0')
+        );
         
         // Professional Silent Print via Electron
         const btn = $(this);
@@ -238,7 +259,6 @@
             const barcodeData = {
                 type: 'barcode',
                 label: label,
-                barcodeValue: barcode,
                 mfgDate: mfg,
                 expDate: exp,
                 labelSize: size,
@@ -251,16 +271,27 @@
             btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Printing...');
             
             // Pass raw data just like Generator
-            window.electron.printSilent(null, tagPrinter, null, barcodeData)
-                .then(res => {
-                    if(res.success) {
+            (async () => {
+              let printedCount = 0;
+              for (const barcodeValue of barcodeList) {
+                const payload = { ...barcodeData, barcodeValue };
+                const res = await window.electron.printSilent(null, tagPrinter, null, payload);
+                if (!res.success) {
+                  throw new Error(res.error || 'Print failed');
+                }
+                printedCount++;
+              }
+              return printedCount;
+            })()
+              .then(printedCount => {
+                if(printedCount > 0) {
                         toastr.success('Label sent to printer');
                         
                         // New: SweetAlert Toast for better visibility
                         Swal.fire({
                             icon: 'success',
                             title: 'Printing...',
-                            text: 'Label sent to ' + (tagPrinter || 'Default Printer'),
+                            text: `${printedCount} label(s) sent to ` + (tagPrinter || 'Default Printer'),
                             toast: true,
                             position: 'top-end',
                             timer: 2000,
@@ -281,9 +312,10 @@
         } else {
             // Fallback for browser
             let url = "{{ route('backend.admin.barcode.print') }}" + 
-                      "?barcode=" + encodeURIComponent(barcode) + 
+                      "?barcode=" + encodeURIComponent(barcodeList[0]) + 
                       "&label=" + encodeURIComponent(label) + 
-                      "&size=" + size;
+                      "&size=" + size +
+                      "&quantity=" + printQuantity;
                       
             if(mfg) url += "&mfg=" + encodeURIComponent(mfg);
             if(exp) url += "&exp=" + encodeURIComponent(exp);
