@@ -52,7 +52,14 @@ class PurchaseController extends Controller
                     return '#' . $data->id;
                 })
                 ->addColumn('total', fn($data) => $data->grand_total)
-                ->addColumn('created_at', fn($data) => \Carbon\Carbon::parse($data->date)->format('d M, Y')) // Using Carbon for formatting
+                ->addColumn('created_at', fn($data) => \Carbon\Carbon::parse($data->date)->format('d M, Y'))
+                ->addColumn('payment_status', function ($data) {
+                    return match($data->payment_status ?? 'due') {
+                        'paid'    => '<span class="badge badge-success px-2 py-1">Paid</span>',
+                        'partial' => '<span class="badge badge-warning px-2 py-1">Partial</span>',
+                        default   => '<span class="badge badge-danger px-2 py-1">Due</span>',
+                    };
+                })
                 ->addColumn('action', function ($data) {
                     return '<div class="btn-group">
                     <button type="button" class="btn bg-gradient-primary btn-flat">Action</button>
@@ -69,7 +76,7 @@ class PurchaseController extends Controller
                     </div>
                   </div>';
                 })
-                ->rawColumns(['supplier', 'id', 'total', 'created_at', 'action'])
+                ->rawColumns(['supplier', 'id', 'total', 'created_at', 'payment_status', 'action'])
                 ->toJson();
         }
 
@@ -241,11 +248,8 @@ class PurchaseController extends Controller
      */
     public function show(Request $request, $id)
     {
-
-        if ($request->wantsJson()) {
-            $purchase = Purchase::with('items', 'supplier')->findOrFail($id);
-            return $purchase;
-        }
+        $purchase = Purchase::with('items.product', 'supplier')->findOrFail($id);
+        return response()->json($purchase);
     }
 
     /**

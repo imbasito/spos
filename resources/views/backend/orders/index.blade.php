@@ -53,6 +53,7 @@
                     <th style="color: #ffffff !important; background-color: #4E342E !important;">Paid {{currency()->symbol??''}}</th>
                     <th style="color: #ffffff !important; background-color: #4E342E !important;">Due {{currency()->symbol??''}}</th>
                     <th style="color: #ffffff !important; background-color: #4E342E !important;">Status</th>
+                    <th style="color: #ffffff !important; background-color: #4E342E !important;">Refund Status</th>
                     <th data-orderable="false" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
                   </tr>
                 </thead>
@@ -119,6 +120,7 @@
         { data: 'paid', name: 'orders.paid' },
         { data: 'due', name: 'orders.due' },
         { data: 'status', name: 'orders.status' },
+        { data: 'refund_status', name: 'refund_status', orderable: false, searchable: false },
         { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' },
       ],
       language: {

@@ -25,6 +25,30 @@
             <a href="{{ route('backend.admin.report.daily.history') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-cash-register mr-1"></i>Closing</a>
         </li>
         @endcan
+        @can('refund_view')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.refunds.index') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-undo mr-1"></i>Refunds</a>
+        </li>
+        @endcan
+        @can('reports_sales')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.sale.report') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-chart-line mr-1"></i>Sales Summary</a>
+        </li>
+        @endcan
+        @can('reports_inventory')
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.inventory.report') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-warehouse mr-1"></i>Inventory</a>
+        </li>
+        @endcan
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.barcode') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-barcode mr-1"></i>Barcodes</a>
+        </li>
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.settings.backup') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-database mr-1"></i>Backup</a>
+        </li>
+        <li class="nav-item d-none d-sm-inline-block">
+            <a href="{{ route('backend.admin.settings.website.general') }}" class="nav-link" style="font-weight: 600; color: #800000;"><i class="fas fa-cog mr-1"></i>Settings</a>
+        </li>
     </ul>
 
     <!-- Right navbar links -->

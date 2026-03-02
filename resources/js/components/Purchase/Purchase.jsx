@@ -83,16 +83,18 @@ export default function Purchase() {
                 qty: item.quantity,
                 subTotal: item.purchase_price * item.quantity,
             }));
-            setProducts(purchaseProducts);
+            setProducts(purchaseProducts ?? []);
             setDate(purchaseData?.date ? new Date(purchaseData.date.split(" ")[0]) : new Date());
             setSelectedSupplier({
                 value: purchaseData?.supplier_id,
                 label: purchaseData?.supplier?.name,
             });
-            setTax(purchaseData?.tax);
-            setDiscount(purchaseData?.discount_value);
-            setShipping(purchaseData?.shipping);
-            setPaidAmount(purchaseData?.paid_amount || 0);
+            // Parse all numeric fields from API — they arrive as strings from JSON
+            // and calculateTotals() calls .toFixed() which only exists on Number.
+            setTax(parseFloat(purchaseData?.tax) || 0);
+            setDiscount(parseFloat(purchaseData?.discount_value) || 0);
+            setShipping(parseFloat(purchaseData?.shipping) || 0);
+            setPaidAmount(parseFloat(purchaseData?.paid_amount) || 0);
         } catch (error) {
             console.error("Error fetching products:", error);
         } finally {
@@ -353,6 +355,12 @@ export default function Purchase() {
     return (
         <>
             <div className="container-fluid">
+                {purchaseId && (
+                    <div className="alert alert-info d-flex align-items-center mb-3 py-2">
+                        <i className="fas fa-edit mr-2"></i>
+                        <span>Editing Purchase <strong>#{purchaseId}</strong> — changes will update the existing record and adjust stock accordingly.</span>
+                    </div>
+                )}
                 <div className="card">
                     <div className="card-body">
                         <div className="row">
@@ -671,7 +679,7 @@ export default function Purchase() {
                     className="btn btn-md bg-gradient-maroon"
                     onClick={handleSubmit}
                 >
-                    Create
+                    {purchaseId ? 'Update Purchase' : 'Create Purchase'}
                 </button>
             </div>
 

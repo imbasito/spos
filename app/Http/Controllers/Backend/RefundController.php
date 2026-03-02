@@ -196,13 +196,13 @@ class RefundController extends Controller
             // Update return total
             $return->update(['total_refund' => $totalRefund]);
 
-            // Mark order as returned if cumulative returns cover the full order total
+            // Mark the order as returned if cumulative returns cover the full original quantity
             $cumulativeItemsReturned = ReturnItem::whereHas('productReturn', function($q) use ($order) {
                 $q->where('order_id', $order->id);
             })->sum('quantity');
-            
+
             $originalTotalItems = $order->products()->sum('quantity');
-            
+
             if ($cumulativeItemsReturned >= $originalTotalItems) {
                 $order->update(['is_returned' => true]);
             }

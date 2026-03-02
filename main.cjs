@@ -83,6 +83,10 @@ function buildMysqlCliArgs(extraArgs = []) {
     return args.concat(extraArgs);
 }
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function resolveMySQLPort(preferredPort) {
     if (!(await isPortOpen(preferredPort))) {
         return preferredPort;
@@ -265,19 +269,28 @@ function waitForMySQL(port, timeout = 30000) {
 function waitForLaravel(port, timeout = 30000) {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
-        console.log(`Waiting for Laravel on port ${port}...`);
+        logger.log(`Waiting for Laravel HTTP readiness on port ${port}...`);
+        const candidatePaths = ['/up', '/login', '/'];
         const check = () => {
-            const req = http.get(`http://127.0.0.1:${port}`, (res) => {
-                res.resume(); // Drain response to free resources
-                console.log('Laravel connection successful!');
-                resolve(true);
+            const probePath = candidatePaths[(Math.floor((Date.now() - startTime) / 1000)) % candidatePaths.length];
+            const req = http.get(`http://127.0.0.1:${port}${probePath}`, (res) => {
+                res.resume();
+                if (res.statusCode && res.statusCode < 500) {
+                    logger.log(`Laravel HTTP ready (${res.statusCode}) via ${probePath}`);
+                    resolve(true);
+                    return;
+                }
+
+                if (Date.now() - startTime > timeout) {
+                    reject(new Error(`Laravel readiness timeout (last status ${res.statusCode || 'unknown'})`));
+                } else {
+                    setTimeout(check, 1000);
+                }
             });
-            // Per-request timeout to prevent hanging forever
-            req.setTimeout(5000, () => {
-                req.destroy();
-            });
+
+            req.setTimeout(5000, () => req.destroy());
             req.on('error', () => {
-                if (Date.now() - startTime > timeout) reject(new Error(`Laravel connection timeout`));
+                if (Date.now() - startTime > timeout) reject(new Error('Laravel readiness timeout (no HTTP response)'));
                 else setTimeout(check, 1000);
             });
         };
@@ -540,17 +553,6 @@ function startLaravel(port) {
             if (!app.isQuitting) {
                 logger.error(`Laravel server exited unexpectedly: code=${code}, signal=${signal}`);
                 earlyExit = true;
-                // Auto-restart Laravel on crash
-                if (code !== 0) {
-                    logger.warn('Attempting to restart Laravel server in 3 seconds...');
-                    setTimeout(() => {
-                        if (!app.isQuitting) {
-                            startLaravel(port).catch(err => {
-                                logger.error('Laravel restart failed: ' + err.message);
-                            });
-                        }
-                    }, 3000);
-                }
             }
         });
         
@@ -563,6 +565,46 @@ function startLaravel(port) {
             }
         }, 2000);
     });
+}
+
+async function stopLaravelIfRunning() {
+    if (laravelServer && !laravelServer.killed) {
+        try {
+            treeKill(laravelServer.pid, 'SIGKILL');
+        } catch (e) {
+            logger.warn('Failed to stop previous Laravel process: ' + e.message);
+        }
+        await sleep(300);
+    }
+}
+
+async function startLaravelWithRetry(port, maxAttempts = 3) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        updateSplashStatus(`Starting backend services (${attempt}/${maxAttempts})...`);
+
+        try {
+            await stopLaravelIfRunning();
+            await startLaravel(port);
+            await waitForLaravel(port, 30000);
+            logger.log(`Laravel startup succeeded on attempt ${attempt}`);
+            return true;
+        } catch (error) {
+            lastError = error;
+            logger.error(`Laravel startup attempt ${attempt} failed: ${error.message}`);
+
+            await stopLaravelIfRunning();
+
+            if (attempt < maxAttempts) {
+                const delay = attempt * 1500;
+                updateSplashStatus(`Retrying backend startup in ${Math.round(delay / 1000)}s...`);
+                await sleep(delay);
+            }
+        }
+    }
+
+    throw lastError || new Error('Laravel startup failed after retries');
 }
 
 /**
@@ -1140,7 +1182,17 @@ function setupAutoUpdater() {
     // Config IPC
     ipcMain.handle('config:get-remote', () => global.posConfig || null);
 
-    // Directory Picker (used by Backup Manager path selector)
+    // Window Fullscreen Controls (used instead of browser native fullscreen so ESC never exits it)
+    ipcMain.handle('window:toggle-fullscreen', () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        const next = !mainWindow.isFullScreen();
+        mainWindow.setFullScreen(next);
+        return next;
+    });
+    ipcMain.handle('window:is-fullscreen', () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return false;
+        return mainWindow.isFullScreen();
+    });
     ipcMain.handle('dialog:openDirectory', async (event) => {
         const win = BrowserWindow.fromWebContents(event.sender);
         const result = await dialog.showOpenDialog(win, {
@@ -1429,7 +1481,7 @@ async function startApp() {
             }
         }
 
-        await startLaravel(laravelPort);
+        await startLaravelWithRetry(laravelPort, 3);
 
         updateSplashStatus('Initializing application...');
 

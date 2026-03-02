@@ -38,6 +38,7 @@ class OrderController extends Controller
                 ->leftJoin('customers', 'orders.customer_id', '=', 'customers.id')
                 ->select('orders.*', 'customers.name as customer_name')
                 ->withSum('products as total_quantity', 'quantity')
+                ->withExists('returns as has_refund')
                 ->orderBy('orders.id', 'desc');
 
             return DataTables::of($orders)
@@ -65,9 +66,23 @@ class OrderController extends Controller
                 ->addColumn('total', fn($data) => number_format($data->total, 2, '.', ','))
                 ->addColumn('paid', fn($data) => number_format($data->paid, 2, '.', ','))
                 ->addColumn('due', fn($data) => number_format($data->due, 2, '.', ','))
-                ->addColumn('status', fn($data) => $data->status
-                    ? '<span class="badge bg-primary">Paid</span>'
-                    : '<span class="badge bg-danger">Due</span>')
+                ->addColumn('status', function ($data) {
+                    $badges = $data->status
+                        ? '<span class="badge bg-primary">Paid</span>'
+                        : '<span class="badge bg-danger">Due</span>';
+                    return $badges;
+                })
+                ->addColumn('refund_status', function ($data) {
+                    if ($data->is_returned) {
+                        return '<span class="badge badge-secondary"><i class="fas fa-check mr-1"></i>Fully Refunded</span>';
+                    }
+
+                    if ($data->has_refund) {
+                        return '<span class="badge badge-warning"><i class="fas fa-undo mr-1"></i>Partially Refunded</span>';
+                    }
+
+                    return '<span class="badge badge-light">Not Refunded</span>';
+                })
                 ->addColumn('action', function ($data) {
                     $buttons = '';
 
@@ -79,16 +94,17 @@ class OrderController extends Controller
                     }
                     $buttons .= '<a class="btn btn-primary btn-sm" href="' . route('backend.admin.orders.transactions', $data->id) . '"><i class="fas fa-exchange-alt"></i> Transactions</a>';
                     
-                    // Refund button - only show if not already fully refunded
+                    // Refund button
                     if (!$data->is_returned) {
-                        $buttons .= '<a class="btn btn-danger btn-sm" href="#" onclick="openRefundModal(' . $data->id . ')"><i class="fas fa-undo"></i> Refund</a>';
+                        $label = $data->has_refund ? '<i class="fas fa-undo"></i> Refund Again' : '<i class="fas fa-undo"></i> Refund';
+                        $buttons .= '<a class="btn btn-danger btn-sm" href="#" onclick="openRefundModal(' . $data->id . ')">' . $label . '</a>';
                     } else {
                         $buttons .= '<span class="btn btn-outline-danger btn-sm disabled"><i class="fas fa-check"></i> Refunded</span>';
                     }
                     
                     return $buttons;
                 })
-                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'status', 'action'])
+                ->rawColumns(['saleId', 'customer', 'item', 'sub_total', 'discount', 'total', 'paid', 'due', 'status', 'refund_status', 'action'])
                 ->toJson();
         }
         return view('backend.orders.index');

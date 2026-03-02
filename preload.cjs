@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electron', {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     openDrawer: (printerName = null) => ipcRenderer.invoke('printer:open-drawer', { printerName }),
     getRemoteConfig: () => ipcRenderer.invoke('config:get-remote'),
+    // Fullscreen via Electron window API (ESC cannot exit this, unlike browser native fullscreen)
+    toggleFullscreen: () => ipcRenderer.invoke('window:toggle-fullscreen'),
+    isFullscreen:     () => ipcRenderer.invoke('window:is-fullscreen'),
     // Initialization recovery handlers
     retryInit: () => ipcRenderer.invoke('init:retry'),
     restoreBackup: () => ipcRenderer.invoke('init:restore-backup'),

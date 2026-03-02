@@ -423,51 +423,69 @@
     <!-- Fullscreen Persistence - Remember state across page navigation -->
     <script>
         (function() {
-            const FULLSCREEN_KEY = 'pos_fullscreen_enabled';
-            
-            // Check if we should be in fullscreen (saved from previous page)
-            function shouldBeFullscreen() {
-                return localStorage.getItem(FULLSCREEN_KEY) === 'true';
-            }
-            
-            // Enter fullscreen
-            function enterFullscreen() {
-                const elem = document.documentElement;
-                if (elem.requestFullscreen) {
-                    elem.requestFullscreen().catch(err => console.log('Fullscreen error:', err));
-                } else if (elem.webkitRequestFullscreen) {
-                    elem.webkitRequestFullscreen();
-                } else if (elem.msRequestFullscreen) {
-                    elem.msRequestFullscreen();
-                }
-            }
-            
-            // Save fullscreen state when changed
-            document.addEventListener('fullscreenchange', function() {
-                const isFullscreen = !!document.fullscreenElement;
-                localStorage.setItem(FULLSCREEN_KEY, isFullscreen);
-                
-                // Update icon
-                const icon = document.querySelector('[data-widget="fullscreen"] i');
+            let fullscreenBtn = null;
+
+            function setFullscreenIcon(isFullscreen) {
+                const icon = fullscreenBtn ? fullscreenBtn.querySelector('i') : null;
                 if (icon) {
                     icon.className = isFullscreen ? 'fas fa-compress-arrows-alt' : 'fas fa-expand-arrows-alt';
                 }
-            });
-            
-            // Restore fullscreen on page load
-            document.addEventListener('DOMContentLoaded', function() {
-                if (shouldBeFullscreen()) {
-                    // Small delay to ensure page is ready
-                    setTimeout(enterFullscreen, 100);
+            }
+
+            function useElectron() {
+                return typeof window !== 'undefined' && window.electron && typeof window.electron.toggleFullscreen === 'function';
+            }
+
+            async function toggleFullscreen() {
+                if (useElectron()) {
+                    // Electron: use window-level fullscreen — ESC key cannot exit this
+                    const isNow = await window.electron.toggleFullscreen();
+                    setFullscreenIcon(isNow);
+                } else {
+                    // Browser fallback (dev/web)
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen().catch(() => {});
+                        setFullscreenIcon(true);
+                    } else {
+                        document.exitFullscreen();
+                        setFullscreenIcon(false);
+                    }
+                }
+            }
+
+            // Browser-fallback: track native fullscreen changes
+            document.addEventListener('fullscreenchange', function() {
+                if (!useElectron()) {
+                    const isFullscreen = !!document.fullscreenElement;
+                    setFullscreenIcon(isFullscreen);
                 }
             });
-            
+
+            document.addEventListener('DOMContentLoaded', async function() {
+                // Override AdminLTE's built-in fullscreen handler so it uses our logic
+                fullscreenBtn = document.querySelector('[data-widget="fullscreen"]');
+                if (fullscreenBtn) {
+                    fullscreenBtn.removeAttribute('data-widget');
+                    fullscreenBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        toggleFullscreen();
+                    });
+                }
+
+                // Default behavior: normal window mode on page load
+                if (useElectron()) {
+                    const isFullscreen = await window.electron.isFullscreen();
+                    setFullscreenIcon(isFullscreen);
+                } else {
+                    setFullscreenIcon(!!document.fullscreenElement);
+                }
+            });
+
             // F11 shortcut to toggle fullscreen
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'F11') {
                     e.preventDefault();
-                    const fullscreenBtn = document.querySelector('[data-widget="fullscreen"]');
-                    if (fullscreenBtn) fullscreenBtn.click();
+                    toggleFullscreen();
                 }
             });
         })();

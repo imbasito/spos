@@ -11,9 +11,11 @@ use App\Imports\ProductsImport;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Supplier;
 use App\Models\Unit;
 use App\Trait\FileHandler;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
@@ -226,12 +228,17 @@ class ProductController extends Controller
             return Excel::download(new DemoProductsExport, 'demo_products.xlsx');
         }
 
+        // Always pre-load suppliers so every branch (GET + POST redirect) can use them
+        $suppliers = Supplier::query()->select('id', 'name')->orderBy('name')->get();
+
         if ($request->isMethod('post')) {
             $action = $request->input('action', 'preview');
 
             if ($action === 'import') {
                 $request->validate([
                     'preview_token' => 'required|string',
+                    'supplier_id' => 'required|exists:suppliers,id',
+                    'payment_option' => 'required|in:due,paid',
                 ]);
 
                 $sessionKey = 'products_import_preview.' . $request->preview_token;
@@ -241,8 +248,23 @@ class ProductController extends Controller
                     return redirect()->back()->with('error', 'Import preview expired. Please preview the file again.');
                 }
 
-                $importer = new ProductsImport(false, auth()->id());
-                Excel::import($importer, storage_path('app/' . $previewPayload['path']));
+                $importer = new ProductsImport(
+                    false,
+                    auth()->id(),
+                    (int) $request->supplier_id,
+                    (string) $request->payment_option
+                );
+
+                try {
+                    DB::transaction(function () use ($importer, $previewPayload) {
+                        Excel::import($importer, storage_path('app/' . $previewPayload['path']));
+                    });
+                } catch (\Throwable $e) {
+                    Storage::delete($previewPayload['path']);
+                    session()->forget($sessionKey);
+                    return redirect()->route('backend.admin.products.import')
+                        ->with('error', 'Import failed: ' . $e->getMessage());
+                }
 
                 Storage::delete($previewPayload['path']);
                 session()->forget($sessionKey);
@@ -256,13 +278,14 @@ class ProductController extends Controller
                 })->take(20)->all();
 
                 if (!empty($failureMessages)) {
-                    return redirect()->back()
+                    return redirect()->route('backend.admin.products.import')
                         ->with('warning', 'Import completed with some skipped rows.')
                         ->with('import_errors', $failureMessages)
                         ->with('success', $importer->getImportedRows() . ' products imported successfully.');
                 }
 
-                return redirect()->back()->with('success', $importer->getImportedRows() . ' products imported successfully.');
+                return redirect()->route('backend.admin.products.import')
+                    ->with('success', $importer->getImportedRows() . ' products imported successfully.');
             }
 
             $request->validate([
@@ -284,7 +307,7 @@ class ProductController extends Controller
                 'created_at' => now()->timestamp,
             ]]);
 
-            return redirect()->back()->with('import_preview', [
+            return redirect()->route('backend.admin.products.import')->with('import_preview', [
                 'token' => $token,
                 'total_rows' => $previewImporter->getProcessedRows(),
                 'valid_rows' => $previewImporter->getValidRows(),
@@ -303,6 +326,6 @@ class ProductController extends Controller
             }
         }
 
-        return view('backend.products.import');
+        return view('backend.products.import', compact('suppliers'));
     }
 }

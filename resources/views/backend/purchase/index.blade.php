@@ -41,6 +41,7 @@
                 <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Purchase ID</th>
                 <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Total ({{currency()->symbol??''}})</th>
                 <th class="text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Date</th>
+                <th class="text-center text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Status</th>
                 <th width="120" class="text-right pr-4 text-white" style="color: #ffffff !important; background-color: #4E342E !important;">Action</th>
               </tr>
             </thead>
@@ -101,6 +102,7 @@
         { data: 'id', name: 'id' },
         { data: 'total', name: 'total' },
         { data: 'created_at', name: 'created_at' },
+        { data: 'payment_status', name: 'payment_status', orderable: false, searchable: false, className: 'text-center' },
         { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-right pr-4' },
       ],
       dom: 't<"p-3 d-flex justify-content-between align-items-center"ip>',

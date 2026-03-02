@@ -623,9 +623,14 @@ export default function Pos() {
                 e.stopImmediatePropagation();
                 setShowPaymentModal(false);
                 setShowReceiptModal(false);
-                // Also clear any partial scan
+                // Clear any partial scan
                 scanBuffer.current = "";
                 setScannerActive(false);
+                // Release focus from any input so Enter/hotkeys work freely.
+                // F2 can always re-focus the search field.
+                if (document.activeElement && document.activeElement !== document.body) {
+                    document.activeElement.blur();
+                }
                 return;
             }
             // Ctrl+Backspace or Ctrl+Delete: Clear cart
