@@ -308,6 +308,13 @@
         btnCheck.addEventListener('click', () => {
             btnCheck.disabled = true;
             btnCheck.innerHTML = '<span class="win-spinner mr-2"></span> Checking...';
+            postCheckActions.classList.add('d-none');
+            readyActions.classList.add('d-none');
+            progressContainer.classList.add('d-none');
+            btnDownload.disabled = false;
+            btnDownload.innerHTML = '<i class="fas fa-download"></i> Download Update';
+            btnInstall.disabled = false;
+            btnInstall.innerHTML = '<i class="fas fa-power-off"></i> Install & Restart';
             updateIcon.className = 'fas fa-sync win-status-icon mb-3 fa-spin';
             updateIcon.style.color = '#0078D4';
             updateText.innerText = 'Checking Servers';
@@ -350,8 +357,8 @@
                 updateText.innerText = 'New Version Available!';
                 updateSubtext.innerHTML = `Version <strong style="color:#107C41;">v${info.version}</strong> is ready to cache.`;
                 
-                btnCheck.classList.add('d-none'); // Hide just the check button
                 postCheckActions.classList.remove('d-none');
+                readyActions.classList.add('d-none');
                 
             } else if (status === 'latest') {
                 statusArea.style.background = "rgba(0, 120, 212, 0.05)";
@@ -361,6 +368,8 @@
                 
                 updateText.innerText = 'System is Up to Date';
                 updateSubtext.innerText = 'You are already running the latest optimized version.';
+                postCheckActions.classList.add('d-none');
+                readyActions.classList.add('d-none');
                 
             } else if (status === 'error') {
                 statusArea.style.background = "rgba(209, 52, 56, 0.05)";
@@ -372,8 +381,9 @@
                 updateSubtext.innerText = 'Could not reach the update server securely.';
                 
                 progressContainer.classList.add('d-none');
-                postCheckActions.classList.remove('d-none'); // Allow retry download
-                btnDownload.innerHTML = '<i class="fas fa-redo"></i> Retry Download';
+                postCheckActions.classList.add('d-none');
+                readyActions.classList.add('d-none');
+                btnDownload.innerHTML = '<i class="fas fa-download"></i> Download Update';
             }
         });
 

@@ -47,6 +47,8 @@ if (app.isPackaged) {
     }
 }
 
+const canonicalLogPath = path.join(app.getPath('userData'), 'app.log');
+
 // Temporary debug - will be logged after Logger is initialized
 
 // Database config helpers (ensure embedded MySQL uses correct settings)
@@ -134,10 +136,13 @@ async function waitForMySQLReady(port, timeout = 45000) {
 // ============================================
 class Logger {
     constructor() {
-        this.logDir = path.join(basePath, 'storage', 'logs');
-        this.logFile = path.join(this.logDir, 'desktop.log');
+        this.logDir = path.dirname(canonicalLogPath);
+        this.logFile = canonicalLogPath;
         if (!fs.existsSync(this.logDir)) {
             fs.mkdirSync(this.logDir, { recursive: true });
+        }
+        if (!fs.existsSync(this.logFile)) {
+            fs.writeFileSync(this.logFile, '');
         }
     }
 
@@ -152,12 +157,19 @@ class Logger {
         try {
             fs.appendFileSync(this.logFile, logEntry);
         } catch (err) {
-            // Silently fail if log file write fails
+            try {
+                const fallbackPath = path.join(os.tmpdir(), 'spos-app.log');
+                fs.appendFileSync(fallbackPath, logEntry);
+                this.logFile = fallbackPath;
+            } catch (fallbackErr) {
+                // Silently fail if log file write fails
+            }
         }
     }
 
     error(message) { this.log(message, 'ERROR'); }
     warn(message) { this.log(message, 'WARN'); }
+    getLogPath() { return this.logFile; }
 
     /**
      * Automatic Log Rotation (7-day retention)
@@ -519,6 +531,27 @@ function startLaravel(port) {
         logger.log(`Starting Laravel Server on port ${port}...`);
         const phpPath = path.join(basePath, 'php', 'php.exe');
         const dbConfig = getDbConfig();
+
+        if (!fs.existsSync(phpPath)) {
+            reject(new Error(`PHP runtime not found at ${phpPath}`));
+            return;
+        }
+
+        let settled = false;
+        let stderrBuffer = '';
+        let startupProbeTimeout = null;
+        const settle = (error) => {
+            if (settled) return;
+            settled = true;
+            if (startupProbeTimeout) {
+                clearTimeout(startupProbeTimeout);
+            }
+            if (error) {
+                reject(error);
+            } else {
+                resolve();
+            }
+        };
         
         laravelServer = spawn(phpPath, buildPhpCliArgs(['artisan', 'serve', `--host=127.0.0.1`, `--port=${port}`]), { 
             cwd: basePath, 
@@ -536,6 +569,7 @@ function startLaravel(port) {
         // Add error handling
         laravelServer.on('error', (err) => {
             logger.error(`Failed to start Laravel: ${err.message}`);
+            settle(new Error(`Failed to spawn Laravel process: ${err.message}`));
         });
         
         // Log Laravel output
@@ -544,26 +578,27 @@ function startLaravel(port) {
         });
         
         laravelServer.stderr.on('data', (data) => {
-            logger.error(`[LARAVEL ERR]: ${data.toString().trim()}`);
+            const message = data.toString().trim();
+            stderrBuffer += `${message}\n`;
+            logger.error(`[LARAVEL ERR]: ${message}`);
         });
         
         // Monitor for early crash and auto-restart
-        let earlyExit = false;
         laravelServer.on('exit', (code, signal) => {
+            const exitMessage = `Laravel server exited unexpectedly: code=${code}, signal=${signal}`;
             if (!app.isQuitting) {
-                logger.error(`Laravel server exited unexpectedly: code=${code}, signal=${signal}`);
-                earlyExit = true;
+                logger.error(exitMessage);
+            }
+            if (!settled) {
+                const hint = stderrBuffer.trim() ? ` Last error: ${stderrBuffer.trim().split('\n').slice(-1)[0]}` : '';
+                settle(new Error(`${exitMessage}.${hint}`));
             }
         });
         
-        // Give PHP 2 seconds to fail or start
-        setTimeout(() => {
-            if (earlyExit) {
-                reject(new Error(`Laravel server failed to start (exited immediately). Check logs for details.`));
-            } else {
-                resolve();
-            }
-        }, 2000);
+        // Give PHP a short startup probe window
+        startupProbeTimeout = setTimeout(() => {
+            settle();
+        }, 2500);
     });
 }
 
@@ -582,7 +617,7 @@ async function startLaravelWithRetry(port, maxAttempts = 3) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        updateSplashStatus(`Starting backend services (${attempt}/${maxAttempts})...`);
+        updateSplashStatus(`Starting services (${attempt}/${maxAttempts})...`);
 
         try {
             await stopLaravelIfRunning();
@@ -605,6 +640,41 @@ async function startLaravelWithRetry(port, maxAttempts = 3) {
     }
 
     throw lastError || new Error('Laravel startup failed after retries');
+}
+
+function validateStartupPreflight() {
+    const requiredFiles = [
+        path.join(basePath, 'php', 'php.exe'),
+        path.join(basePath, 'mysql', 'bin', 'mysqld.exe'),
+        path.join(basePath, 'mysql', 'bin', 'mysql.exe'),
+        path.join(basePath, 'artisan')
+    ];
+
+    const missingFiles = requiredFiles.filter(filePath => !fs.existsSync(filePath));
+    if (missingFiles.length > 0) {
+        throw new Error(`Missing runtime files: ${missingFiles.join(', ')}`);
+    }
+
+    const writableDirs = [
+        path.join(basePath, 'storage'),
+        path.join(basePath, 'storage', 'logs'),
+        path.join(basePath, 'storage', 'framework', 'cache', 'data'),
+        path.join(basePath, 'storage', 'framework', 'sessions'),
+        path.join(basePath, 'storage', 'framework', 'views'),
+        path.join(basePath, 'bootstrap', 'cache'),
+        path.join(basePath, 'mysql', 'data'),
+        path.join(basePath, 'mysql', 'tmp')
+    ];
+
+    writableDirs.forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.accessSync(dir, fs.constants.W_OK);
+    });
+
+    const logPath = logger.getLogPath();
+    fs.appendFileSync(logPath, '');
 }
 
 /**
@@ -1173,8 +1243,11 @@ function setupAutoUpdater() {
 
     ipcMain.handle('init:show-logs', async () => {
         logger.log('User requested to view logs');
-        const logPath = path.join(app.getPath('userData'), 'app.log');
+        const logPath = logger.getLogPath();
         const { shell } = require('electron');
+        if (!fs.existsSync(logPath)) {
+            fs.writeFileSync(logPath, '');
+        }
         shell.openPath(logPath);
         return { success: true };
     });
@@ -1438,6 +1511,7 @@ async function startApp() {
             path.join(basePath, 'storage', 'framework', 'cache', 'data'),
             path.join(basePath, 'storage', 'framework', 'sessions'),
             path.join(basePath, 'storage', 'framework', 'views'),
+            path.join(basePath, 'bootstrap', 'cache'),
             path.join(basePath, 'mysql', 'data'),
             path.join(basePath, 'mysql', 'tmp')
         ];
@@ -1451,6 +1525,7 @@ async function startApp() {
         
         await checkDiskSpace(1024);
         logger.cleanup(); // Self-healing: Cleanup old logs and temp data
+        validateStartupPreflight();
 
         updateSplashStatus('Starting...');
         if (splashWindow && !splashWindow.isDestroyed()) {
@@ -1621,8 +1696,6 @@ async function startApp() {
         updateSplashStatus('Checking database integrity...');
         await runMigrations();
 
-        await waitForLaravel(laravelPort, 60000);
-        
         updateSplashStatus('Establishing connection...');
         
         updateSplashStatus('Finalizing...');
@@ -1644,7 +1717,7 @@ async function startApp() {
         if (splashWindow) {
             dialog.showErrorBox(
                 'Startup Failed',
-                `The application encountered a critical error during startup:\n\n${error.message}\n\nPlease check the logs at: ${path.join(app.getPath('userData'), 'app.log')}`
+                `The application encountered a critical error during startup:\n\n${error.message}\n\nPlease check the logs at: ${logger.getLogPath()}`
             );
         }
         

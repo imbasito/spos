@@ -8,6 +8,30 @@ Var StateFileBackup
 Var ConfigBackup
 Var DatabaseBackup
 Var StorageBackup
+Var DesktopShortcutOpt
+
+!macro AddSposShortcuts
+  ; Ensure per-user shortcuts even when installer runs elevated
+  SetShellVarContext current
+
+  ; Start Menu shortcut (idempotent)
+  CreateDirectory "$SMPROGRAMS\SPOS"
+  Delete "$SMPROGRAMS\SPOS\SPOS.lnk"
+  CreateShortCut "$SMPROGRAMS\SPOS\SPOS.lnk" "$INSTDIR\SPOS.exe" "" "$INSTDIR\SPOS.exe" 0
+
+  ; Desktop shortcut (optional, idempotent)
+  ${If} $DesktopShortcutOpt == "1"
+    Delete "$DESKTOP\SPOS.lnk"
+    CreateShortCut "$DESKTOP\SPOS.lnk" "$INSTDIR\SPOS.exe" "" "$INSTDIR\SPOS.exe" 0
+  ${EndIf}
+!macroend
+
+!macro RemoveSposShortcuts
+  SetShellVarContext current
+  Delete "$SMPROGRAMS\SPOS\SPOS.lnk"
+  RMDir "$SMPROGRAMS\SPOS"
+  Delete "$DESKTOP\SPOS.lnk"
+!macroend
 
 !macro customInit
   ; Initialize all variables (prevent NSIS warning 6001)
@@ -16,6 +40,7 @@ Var StorageBackup
   StrCpy $ConfigBackup "0"
   StrCpy $DatabaseBackup "0"
   StrCpy $StorageBackup "0"
+  StrCpy $DesktopShortcutOpt "0"
   
   ; Generate timestamp-based backup directory
   StrCpy $R0 "$TEMP\SPOS_Backup"
@@ -23,6 +48,12 @@ Var StorageBackup
   ; Force NSIS to recognize variable usage (suppress false warning)
   Push $IsUpdate
   Pop $IsUpdate
+
+  ; Preserve existing desktop shortcut preference on updates
+  SetShellVarContext current
+  ${If} ${FileExists} "$DESKTOP\SPOS.lnk"
+    StrCpy $DesktopShortcutOpt "1"
+  ${EndIf}
   
   ; Check if installation already exists
   ${If} ${FileExists} "$INSTDIR\SPOS.exe"
@@ -97,6 +128,17 @@ Var StorageBackup
   ${If} $IsUpdate == "0"
   ${OrIf} $IsUpdate == "1"
     ; Variable now recognized by NSIS compiler
+  ${EndIf}
+
+  ; Ask desktop shortcut preference only on fresh install
+  ${If} $IsUpdate == "0"
+    MessageBox MB_YESNO "Create a Desktop shortcut for SPOS?" IDYES create_desktop IDNO skip_desktop
+    create_desktop:
+      StrCpy $DesktopShortcutOpt "1"
+      Goto desktop_pref_done
+    skip_desktop:
+      StrCpy $DesktopShortcutOpt "0"
+    desktop_pref_done:
   ${EndIf}
   
   ; Add firewall rules
@@ -179,6 +221,9 @@ Var StorageBackup
   
   ; Note: Storage permissions are handled by Windows automatically for per-machine installs
   DetailPrint "✓ Installation configuration completed"
+
+  ; Idempotent shortcuts (fixes missing/orphaned shortcuts on updates)
+  !insertmacro AddSposShortcuts
   
   DetailPrint "Installation completed successfully!"
 !macroend
@@ -212,6 +257,9 @@ Var StorageBackup
     MessageBox MB_OK "Backup saved to: $DOCUMENTS\SPOS_Backup"
   
   skip_backup:
+    ; Remove application shortcuts
+    !insertmacro RemoveSposShortcuts
+
     ; Remove firewall rules
     DetailPrint "Removing firewall rules..."
     nsExec::ExecToLog 'netsh advfirewall firewall delete rule name="SPOS MySQL Server"'

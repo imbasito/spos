@@ -387,6 +387,13 @@ document.addEventListener('DOMContentLoaded', function() {
     btnCheck.addEventListener('click', function() {
         btnCheck.disabled = true;
         btnCheck.innerHTML = '<span class="win-spinner"></span> Checking...';
+        btnDownload.style.display = 'none';
+        btnInstall.style.display = 'none';
+        progressArea.style.display = 'none';
+        btnDownload.disabled = false;
+        btnDownload.innerHTML = '<i class="fas fa-download"></i> Download Update';
+        btnInstall.disabled = false;
+        btnInstall.innerHTML = '<i class="fas fa-power-off"></i> Install & Restart';
         
         statusArea.innerHTML = `
             <span class="win-spinner" style="width:24px; height:24px; margin-bottom:12px; border-width:3px;"></span>
@@ -463,8 +470,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (status === 'error') {
             progressArea.style.display = 'none';
+            btnDownload.style.display = 'none';
+            btnInstall.style.display = 'none';
             btnDownload.disabled = false;
-            btnDownload.innerHTML = '<i class="fas fa-download"></i> Retry Download';
+            btnDownload.innerHTML = '<i class="fas fa-download"></i> Download Update';
 
             statusArea.innerHTML = `
                 <div class="win-alert win-alert-danger">
@@ -476,6 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         } else if (status === 'available') {
+            btnInstall.style.display = 'none';
             statusArea.innerHTML = `
                 <div class="win-alert win-alert-success">
                     <i class="fas fa-arrow-alt-circle-down"></i>
@@ -487,6 +497,8 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             btnDownload.style.display = 'inline-flex';
         } else if (status === 'latest') {
+            btnDownload.style.display = 'none';
+            btnInstall.style.display = 'none';
             statusArea.innerHTML = `
                 <div class="win-alert win-alert-info">
                     <i class="fas fa-check-circle"></i>
