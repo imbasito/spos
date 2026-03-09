@@ -26,11 +26,29 @@ class AppServiceProvider extends ServiceProvider
 
         // Load version from package.json
         try {
-            $json = json_decode(file_get_contents(base_path('package.json')), true);
-            $version = $json['version'] ?? '1.0.0';
+            $version = null;
+            $candidatePaths = [
+                base_path('package.json'),
+                base_path('app/package.json'),
+                dirname(base_path()) . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'package.json',
+            ];
+
+            foreach ($candidatePaths as $packageJsonPath) {
+                if (!file_exists($packageJsonPath)) {
+                    continue;
+                }
+
+                $json = json_decode(file_get_contents($packageJsonPath), true);
+                if (is_array($json) && !empty($json['version'])) {
+                    $version = $json['version'];
+                    break;
+                }
+            }
+
+            $version = $version ?: env('APP_VERSION', config('app.version', '1.0.0'));
             config(['app.version' => $version]);
         } catch (\Exception $e) {
-            config(['app.version' => '1.0.0']);
+            config(['app.version' => env('APP_VERSION', config('app.version', '1.0.0'))]);
         }
 
         // PROFESSIONAL CLIENT-SIDE PROTECTION

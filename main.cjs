@@ -206,6 +206,23 @@ class Logger {
 }
 const logger = new Logger();
 
+process.on('unhandledRejection', (reason) => {
+    const message = reason && reason.stack ? reason.stack : String(reason);
+    logger.error(`Unhandled promise rejection: ${message}`);
+});
+
+process.on('uncaughtException', (error) => {
+    const message = error && error.stack ? error.stack : String(error);
+    logger.error(`Uncaught exception: ${message}`);
+});
+
+function runSplashScript(script, context = 'splash') {
+    if (!splashWindow || splashWindow.isDestroyed()) return;
+    splashWindow.webContents
+        .executeJavaScript(`try { ${script} } catch (e) { console.error(e); }`)
+        .catch((err) => logger.warn(`[SPLASH SCRIPT:${context}] ${err.message}`));
+}
+
 // Log basePath information for debugging
 logger.log('=== BASEPATH DEBUG ===');
 logger.log('app.isPackaged: ' + app.isPackaged);
@@ -221,8 +238,9 @@ logger.log('======================');
 function checkDiskSpace(minMB = 500) {
     return new Promise((resolve, reject) => {
         const root = path.parse(basePath).root;
-        const cmd = process.platform === 'win32' 
-            ? `wmic logicaldisk where "Caption='${root.replace('\\', '')}'" get FreeSpace /value`
+        const windowsDrive = root.replace('\\', '');
+        const cmd = process.platform === 'win32'
+            ? `powershell -NoProfile -Command "$d='${windowsDrive}'; $free=(Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='$d'\" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FreeSpace -ErrorAction SilentlyContinue); if(-not $free){ $free=(Get-PSDrive -Name '${windowsDrive.replace(':', '')}' -ErrorAction SilentlyContinue).Free }; if($null -eq $free){ Write-Output '-1' } else { Write-Output $free }"`
             : `df -k "${root}"`;
 
         const { exec } = require('child_process');
@@ -233,14 +251,24 @@ function checkDiskSpace(minMB = 500) {
             }
 
             
-            let freeBytes = 0;
+            let freeBytes = -1;
             if (process.platform === 'win32') {
-                const match = stdout.match(/FreeSpace=(\d+)/);
-                if (match) freeBytes = parseInt(match[1], 10);
+                const normalized = (stdout || '').trim();
+                const lines = normalized.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+                const lastLine = lines.length > 0 ? lines[lines.length - 1] : '';
+                const parsed = parseInt(lastLine, 10);
+                if (!Number.isNaN(parsed) && parsed > 0) {
+                    freeBytes = parsed;
+                }
             } else {
                 const lines = stdout.trim().split('\n');
                 const parts = lines[lines.length - 1].split(/\s+/);
                 freeBytes = parseInt(parts[3], 10) * 1024;
+            }
+
+            if (!Number.isFinite(freeBytes) || freeBytes <= 0) {
+                logger.warn(`Disk space probe returned invalid value (stdout: ${JSON.stringify((stdout || '').trim())}). Skipping disk gate.`);
+                return resolve(true);
             }
 
             const freeMB = freeBytes / 1024 / 1024;
@@ -339,14 +367,14 @@ function createSplashWindow() {
     // Sync Version with package.json (Apple-style accuracy)
     splashWindow.webContents.on('did-finish-load', () => {
         const version = app.getVersion();
-        splashWindow.webContents.executeJavaScript(`if(window.setVersion) window.setVersion('${version}');`).catch(() => {});
+        runSplashScript(`if(window.setVersion) window.setVersion('${version}');`, 'version-sync');
     });
 }
 
 
 function updateSplashStatus(message) {
     if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.executeJavaScript(`if(document.getElementById('status-text')) document.getElementById('status-text').innerHTML = \`${message}\`;`).catch(() => {});
+        runSplashScript(`if(document.getElementById('status-text')) document.getElementById('status-text').innerHTML = \`${message}\`;`, 'status-update');
     }
 }
 
@@ -406,6 +434,47 @@ async function fetchRemoteConfig() {
 
 // MySQL startup protection flag
 let mysqlStarting = false;
+let mysqlRestartAttempts = 0;
+const MYSQL_MAX_RESTARTS = 5;
+
+function clearDirectoryContents(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        return;
+    }
+
+    fs.readdirSync(dirPath).forEach((entry) => {
+        const fullPath = path.join(dirPath, entry);
+        try {
+            if (fs.lstatSync(fullPath).isDirectory()) {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+            } else {
+                fs.unlinkSync(fullPath);
+            }
+        } catch (error) {
+            logger.warn(`Failed to clear ${fullPath}: ${error.message}`);
+        }
+    });
+}
+
+function ensureDirWritable(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+    const probeFile = path.join(dirPath, '.write-test');
+    fs.writeFileSync(probeFile, 'ok');
+    fs.unlinkSync(probeFile);
+}
+
+function healMysqlRuntimeDirs(basePathForMysql) {
+    const dataDir = path.join(basePathForMysql, 'mysql', 'data');
+    const tmpDir = path.join(basePathForMysql, 'mysql', 'tmp');
+
+    ensureDirWritable(dataDir);
+    ensureDirWritable(tmpDir);
+
+    return { dataDir, tmpDir };
+}
 
 async function startMySQL() {
     // 0. Prevent concurrent MySQL startup attempts (race condition protection)
@@ -417,14 +486,10 @@ async function startMySQL() {
     
     try {
         // 0.1. Check if MySQL data directory needs initialization
-        const dataDir = path.join(basePath, 'mysql', 'data');
+        const { dataDir, tmpDir } = healMysqlRuntimeDirs(basePath);
+        const mysqlBaseDir = path.join(basePath, 'mysql');
         const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysqld.exe');
         const myIniPath = path.join(basePath, 'mysql', 'my.ini');
-        
-        // Ensure data directory exists
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
-        }
         
         // Check if data directory is initialized (has mysql system tables)
         const needsInit = !fs.existsSync(path.join(dataDir, 'mysql')) || 
@@ -433,47 +498,77 @@ async function startMySQL() {
         if (needsInit) {
             logger.log('MySQL data directory not initialized. Running fresh initialization...');
             updateSplashStatus('Initializing database system...');
-            
-            await new Promise((resolve, reject) => {
-                const initProcess = spawn(mysqlPath, [
-                    `--defaults-file=${myIniPath}`,
-                    '--initialize-insecure',
-                    '--console'
-                ], { 
-                    cwd: basePath, 
-                    windowsHide: true 
-                });
-                
-                let initOutput = '';
-                
-                initProcess.stdout.on('data', (data) => {
-                    initOutput += data.toString();
-                    logger.log(`[MYSQL INIT]: ${data}`);
-                });
-                
-                initProcess.stderr.on('data', (data) => {
-                    logger.log(`[MYSQL INIT]: ${data}`);
-                });
-                
-                initProcess.on('close', (code) => {
-                    // Check if initialization succeeded
-                    if (code === 0 || fs.existsSync(path.join(dataDir, 'mysql'))) {
-                        logger.log('MySQL data directory initialized successfully');
-                        resolve();
-                    } else {
-                        logger.error('MySQL initialization failed with code: ' + code);
-                        reject(new Error('MySQL initialization failed'));
+
+            let initSucceeded = false;
+            let initLastError = null;
+
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        const initProcess = spawn(mysqlPath, [
+                            `--defaults-file=${myIniPath}`,
+                            '--initialize-insecure',
+                            '--console'
+                        ], {
+                            cwd: basePath,
+                            windowsHide: true
+                        });
+
+                        let settled = false;
+                        let initOutput = '';
+                        const settle = (err) => {
+                            if (settled) return;
+                            settled = true;
+                            if (initTimeout) clearTimeout(initTimeout);
+                            if (err) reject(err);
+                            else resolve();
+                        };
+
+                        initProcess.stdout.on('data', (data) => {
+                            const output = data.toString();
+                            initOutput += output;
+                            logger.log(`[MYSQL INIT]: ${output}`);
+                        });
+
+                        initProcess.stderr.on('data', (data) => {
+                            const output = data.toString();
+                            initOutput += output;
+                            logger.log(`[MYSQL INIT]: ${output}`);
+                        });
+
+                        initProcess.on('close', (code) => {
+                            if (code === 0 || fs.existsSync(path.join(dataDir, 'mysql'))) {
+                                logger.log('MySQL data directory initialized successfully');
+                                settle();
+                                return;
+                            }
+                            settle(new Error(`MySQL initialization failed with code ${code}: ${initOutput.trim()}`));
+                        });
+
+                        const initTimeout = setTimeout(() => {
+                            if (!initProcess.killed) {
+                                initProcess.kill();
+                            }
+                            settle(new Error('MySQL initialization timeout'));
+                        }, 180000);
+                    });
+
+                    initSucceeded = true;
+                    break;
+                } catch (error) {
+                    initLastError = error;
+                    logger.error(`MySQL initialization attempt ${attempt} failed: ${error.message}`);
+
+                    if (attempt < 2) {
+                        logger.warn('Resetting MySQL data directory and retrying initialization once...');
+                        clearDirectoryContents(dataDir);
                     }
-                });
-                
-                // Safety timeout (60 seconds for initialization)
-                setTimeout(() => {
-                    if (!initProcess.killed) {
-                        initProcess.kill();
-                        reject(new Error('MySQL initialization timeout'));
-                    }
-                }, 60000);
-            });
+                }
+            }
+
+            if (!initSucceeded) {
+                throw initLastError || new Error('MySQL initialization failed');
+            }
         }
         
         // 1. Check if MySQL is already running
@@ -494,10 +589,36 @@ async function startMySQL() {
             logger.log('Starting MySQL Server...');
             
             // Spawn without 'shell: true' to keep PID tracking accurate
-            mysqlServer = spawn(mysqlPath, [`--defaults-file=${myIniPath}`, '--console'], { cwd: basePath, windowsHide: true });
+            mysqlServer = spawn(mysqlPath, [
+                `--defaults-file=${myIniPath}`,
+                `--tmpdir=${tmpDir}`,
+                '--console'
+            ], {
+                cwd: basePath,
+                windowsHide: true,
+                env: {
+                    ...process.env,
+                    TMP: tmpDir,
+                    TEMP: tmpDir
+                }
+            });
             
             mysqlServer.on('error', (err) => {
                 logger.error(`Failed to start MySQL: ${err.message}`);
+            });
+
+            mysqlServer.stdout.on('data', (data) => {
+                const output = data.toString().trim();
+                if (output.length > 0) {
+                    logger.log(`[MYSQL]: ${output}`);
+                }
+            });
+
+            mysqlServer.stderr.on('data', (data) => {
+                const output = data.toString().trim();
+                if (output.length > 0) {
+                    logger.error(`[MYSQL ERR]: ${output}`);
+                }
             });
 
             // Loop Prevention: Only restart if we actually own the process and it wasn't a clean exit
@@ -507,7 +628,21 @@ async function startMySQL() {
                     // Check if port became free (meaning it actually died)
                     isPortOpen(MYSQL_PORT).then(stillOpen => {
                         if (!stillOpen) {
-                            logger.warn("MySQL died and port is free. Restarting in 1s...");
+                            mysqlRestartAttempts += 1;
+
+                            if (mysqlRestartAttempts > MYSQL_MAX_RESTARTS) {
+                                logger.error(`MySQL failed to start after ${MYSQL_MAX_RESTARTS} attempts. Aborting startup loop.`);
+                                logger.error('Tip: Check folder write access for resources/mysql/tmp and antivirus exclusions.');
+                                return;
+                            }
+
+                            try {
+                                healMysqlRuntimeDirs(basePath);
+                            } catch (healError) {
+                                logger.error(`MySQL runtime directory self-heal failed: ${healError.message}`);
+                            }
+
+                            logger.warn(`MySQL died and port is free. Restarting in 1s... (attempt ${mysqlRestartAttempts}/${MYSQL_MAX_RESTARTS})`);
                             mysqlStarting = false;
                             setTimeout(startMySQL, 1000); 
                         } else {
@@ -517,6 +652,7 @@ async function startMySQL() {
                 }
             });
             mysqlStarting = false;
+            mysqlRestartAttempts = 0;
             resolve();
         });
     } catch (error) {
@@ -760,6 +896,39 @@ function createDatabase() {
     });
 }
 
+function resetDatabaseSchemaForFreshInstall() {
+    return new Promise((resolve, reject) => {
+        logger.warn('Attempting automatic fresh-install database reset...');
+        const mysqlPath = path.join(basePath, 'mysql', 'bin', 'mysql.exe');
+        const dbConfig = getDbConfig();
+        const resetArgs = buildMysqlCliArgs([
+            '-e', `DROP DATABASE IF EXISTS ${dbConfig.database}; CREATE DATABASE ${dbConfig.database} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
+        ]);
+
+        const resetProcess = spawn(mysqlPath, resetArgs, {
+            cwd: basePath,
+            windowsHide: true
+        });
+
+        let resetErrors = '';
+        resetProcess.stderr.on('data', (data) => {
+            const msg = data.toString();
+            resetErrors += msg;
+            logger.error(`[DB RESET ERROR]: ${msg}`);
+        });
+
+        resetProcess.on('close', (code) => {
+            if (code !== 0 && resetErrors.trim().length > 0) {
+                reject(new Error(`Database reset failed: ${resetErrors.trim()}`));
+                return;
+            }
+
+            logger.log('Fresh-install database reset completed successfully.');
+            resolve();
+        });
+    });
+}
+
 /**
  * AUTO-MIGRATION ENGINE WITH PROFESSIONAL ERROR HANDLING
  * Ensures database schema is ALWAYS in sync with the current code.
@@ -769,11 +938,15 @@ function runMigrations() {
     return new Promise((resolve, reject) => {
         logger.log('Starting professional migration system...');
         const phpPath = path.join(basePath, 'php', 'php.exe');
+        const hasCriticalDatabaseFailure = (text) => {
+            if (!text || typeof text !== 'string') return false;
+            return /(SQLSTATE\[[^\]]+\]|General error:\s*1812|Tablespace is missing|\.ibd file is missing|InnoDB:|Base table or view not found|Unknown database|Access denied for user|Connection refused)/i.test(text);
+        };
         
         // Update splash with stage
         if (splashWindow && !splashWindow.isDestroyed()) {
-            splashWindow.webContents.executeJavaScript(`window.setStage('validating')`);
-            splashWindow.webContents.executeJavaScript(`window.updateStatus('RUNNING HEALTH CHECKS')`);
+            runSplashScript("if (window.setStage) window.setStage('validating');", 'validating-stage');
+            runSplashScript("if (window.updateStatus) window.updateStatus('RUNNING HEALTH CHECKS');", 'validating-status');
         }
         
         // Step 1: Run health checks via PHP artisan command
@@ -801,8 +974,8 @@ function runMigrations() {
                         logger.error('Critical health check failures: ' + errorMsg);
                         
                         if (splashWindow && !splashWindow.isDestroyed()) {
-                            splashWindow.webContents.executeJavaScript(`window.setStageError('validating')`);
-                            splashWindow.webContents.executeJavaScript(`window.showError('System Health Check Failed', '${errorMsg.replace(/'/g, "\\'")}')` );
+                            runSplashScript("if (window.setStageError) window.setStageError('validating');", 'validating-error-stage');
+                            runSplashScript(`if (window.showError) window.showError('System Health Check Failed', '${errorMsg.replace(/'/g, "\\'")}');`, 'validating-error');
                         }
                         
                         reject(new Error('Health check failed: ' + errorMsg));
@@ -816,41 +989,11 @@ function runMigrations() {
             // Step 2: Update version service before migration
             logger.log('Detecting installation type...');
             if (splashWindow && !splashWindow.isDestroyed()) {
-                splashWindow.webContents.executeJavaScript(`window.setStage('migrating')`);
-                splashWindow.webContents.executeJavaScript(`window.updateStatus('APPLYING DATABASE UPDATES')`);
+                runSplashScript("if (window.setStage) window.setStage('migrating');", 'migrating-stage');
+                runSplashScript("if (window.updateStatus) window.updateStatus('APPLYING DATABASE UPDATES');", 'migrating-status');
             }
 
-            // Smart Migration Bypass (Extreme Optimization)
-            logger.log('Checking if migrations are already applied...');
-            const checkMigrations = spawn(phpPath, buildPhpCliArgs([
-                'artisan', 'tinker',
-                '--execute=echo json_encode(\\Illuminate\\Support\\Facades\\Schema::hasTable("migrations") && \\Illuminate\\Support\\Facades\\DB::table("migrations")->count() > 0);'
-            ]), { cwd: basePath, windowsHide: true, env: { ...process.env, DB_PORT: String(MYSQL_PORT) } });
-
-            let hasMigrations = false;
-            let checkOutput = '';
-            checkMigrations.stdout.on('data', (d) => checkOutput += d.toString());
-
-            await new Promise(r => {
-                checkMigrations.on('close', () => {
-                    try {
-                        if (checkOutput.includes('true')) hasMigrations = true;
-                    } catch (e) {}
-                    r();
-                });
-            });
-
-            if (hasMigrations) {
-                logger.log('Migrations already applied, skipping full migrate/seed');
-                if (splashWindow && !splashWindow.isDestroyed()) {
-                    splashWindow.webContents.executeJavaScript(`window.setProgress(100)`);
-                }
-                resolve();
-                return;
-            }
-
-            // Run heavy migrations
-            logger.log('Checking for database migrations...');
+            logger.log('Running database migrations (idempotent check by Laravel)...');
             const migrateProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'migrate', '--force']), { 
                 cwd: basePath, 
                 windowsHide: true,
@@ -869,7 +1012,7 @@ function runMigrations() {
                 if (splashWindow && !splashWindow.isDestroyed()) {
                     const lines = msg.split('\n').filter(l => l.trim());
                     lines.forEach(line => {
-                        splashWindow.webContents.executeJavaScript(`window.addOutputLine('${line.replace(/'/g, "\\'")}' )`);
+                        runSplashScript(`if (window.addOutputLine) window.addOutputLine('${line.replace(/'/g, "\\'")}');`, 'migration-output');
                     });
                 }
             });
@@ -881,10 +1024,13 @@ function runMigrations() {
 
             migrateProcess.on('close', (code) => {
                 logger.log(`Migration process exited with code ${code}`);
-                
-                // Check for critical migration errors
-                if (code !== 0 && migrationErrors && !migrationErrors.includes('Nothing to migrate')) {
-                    logger.error('Critical migration error detected.');
+
+                const migrationCombinedOutput = `${migrationOutput}\n${migrationErrors}`;
+                const migrationHasCriticalDbError = hasCriticalDatabaseFailure(migrationCombinedOutput);
+
+                // Any non-zero exit is a migration failure. Some artisan errors are printed to stdout with exit code 0.
+                if (code !== 0 || migrationHasCriticalDbError) {
+                    logger.error(`Critical migration error detected.${migrationHasCriticalDbError ? ' (Detected from output)' : ''}`);
                     
                     // Mark migration as failed in version service
                     const markFailedProcess = spawn(phpPath, buildPhpCliArgs(['artisan', 'tinker', '--execute=(new \\App\\Services\\VersionService())->markMigrationFailed("Migration exited with code ' + code + '");']), {
@@ -895,11 +1041,11 @@ function runMigrations() {
                     
                     markFailedProcess.on('close', () => {
                         if (splashWindow && !splashWindow.isDestroyed()) {
-                            splashWindow.webContents.executeJavaScript(`window.setStageError('migrating')`);
-                            splashWindow.webContents.executeJavaScript(`window.showError('Database Migration Failed', 'Database update failed. Click "Restore Backup" to rollback or "Retry" to try again.')`);
+                            runSplashScript("if (window.setStageError) window.setStageError('migrating');", 'migrating-failed-stage');
+                            runSplashScript("if (window.showError) window.showError('Database Migration Failed', 'Database update failed. Click \"Restore Backup\" to rollback or \"Retry\" to try again.');", 'migrating-failed-error');
                         }
                         
-                        reject(new Error('Migration failed'));
+                        reject(new Error(`Migration failed: ${migrationCombinedOutput || 'Unknown migration error'}`));
                     });
                     return;
                 }
@@ -914,8 +1060,8 @@ function runMigrations() {
                 markSuccessProcess.on('close', () => {
                     // Step 3: Finalization - Clear caches and run seeders
                     if (splashWindow && !splashWindow.isDestroyed()) {
-                        splashWindow.webContents.executeJavaScript(`window.setStage('finalizing')`);
-                        splashWindow.webContents.executeJavaScript(`window.updateStatus('FINALIZING SETUP')`);
+                        runSplashScript("if (window.setStage) window.setStage('finalizing');", 'finalizing-stage');
+                        runSplashScript("if (window.updateStatus) window.updateStatus('FINALIZING SETUP');", 'finalizing-status');
                     }
 
                     logger.log('Clearing Laravel caches...');
@@ -969,8 +1115,13 @@ function runMigrations() {
                     });
                     
                     let seederErrors = '';
+                    let seederOutput = '';
                     
-                    seedProcess.stdout.on('data', (data) => logger.log(`[SEEDER]: ${data}`));
+                    seedProcess.stdout.on('data', (data) => {
+                        const msg = data.toString();
+                        seederOutput += msg;
+                        logger.log(`[SEEDER]: ${msg}`);
+                    });
                     seedProcess.stderr.on('data', (data) => {
                         const msg = data.toString();
                         if (!msg.includes('Deprecated') && !msg.includes('deprecated')) {
@@ -981,9 +1132,12 @@ function runMigrations() {
                     
                     seedProcess.on('close', (seedCode) => {
                         logger.log(`Seeder process exited with code ${seedCode}`);
+                        const seederCombinedOutput = `${seederOutput}\n${seederErrors}`;
+                        const seederHasCriticalDbError = hasCriticalDatabaseFailure(seederCombinedOutput);
                         
-                        if (seedCode !== 0 && seederErrors) {
-                            logger.warn('Seeder reported issues, but continuing startup...');
+                        if (seedCode !== 0 || seederHasCriticalDbError) {
+                            reject(new Error(`Seeder failed: ${seederCombinedOutput || `Exit code ${seedCode}`}`));
+                            return;
                         }
                         
                         // Clear Permission Cache
@@ -994,7 +1148,22 @@ function runMigrations() {
                             env: { ...process.env, DB_PORT: String(MYSQL_PORT) } 
                         });
                         
-                        permClearProcess.on('close', () => {
+                        let permClearOutput = '';
+                        let permClearErrors = '';
+                        permClearProcess.stdout.on('data', (data) => {
+                            permClearOutput += data.toString();
+                        });
+                        permClearProcess.stderr.on('data', (data) => {
+                            permClearErrors += data.toString();
+                        });
+                        
+                        permClearProcess.on('close', (permCode) => {
+                            const permCombinedOutput = `${permClearOutput}\n${permClearErrors}`;
+                            if (permCode !== 0 || hasCriticalDatabaseFailure(permCombinedOutput)) {
+                                reject(new Error(`Permission cache reset failed: ${permCombinedOutput || `Exit code ${permCode}`}`));
+                                return;
+                            }
+
                             logger.log('Permission cache cleared.');
                             
                             // Clear View Cache
@@ -1005,12 +1174,27 @@ function runMigrations() {
                                 env: { ...process.env } 
                             });
                             
-                            clearProcess.on('close', () => {
+                            let viewClearOutput = '';
+                            let viewClearErrors = '';
+                            clearProcess.stdout.on('data', (data) => {
+                                viewClearOutput += data.toString();
+                            });
+                            clearProcess.stderr.on('data', (data) => {
+                                viewClearErrors += data.toString();
+                            });
+                            
+                            clearProcess.on('close', (viewCode) => {
+                                const viewCombinedOutput = `${viewClearOutput}\n${viewClearErrors}`;
+                                if (viewCode !== 0 || hasCriticalDatabaseFailure(viewCombinedOutput)) {
+                                    reject(new Error(`View cache clear failed: ${viewCombinedOutput || `Exit code ${viewCode}`}`));
+                                    return;
+                                }
+
                                 logger.log('View cache cleared.');
                                 
                                 // Mark all stages as completed
                                 if (splashWindow && !splashWindow.isDestroyed()) {
-                                    splashWindow.webContents.executeJavaScript(`window.setProgress(100)`);
+                                    runSplashScript("if (window.setProgress) window.setProgress(100);", 'finalizing-progress');
                                 }
                                 
                                 resolve();
@@ -1529,7 +1713,7 @@ async function startApp() {
 
         updateSplashStatus('Starting...');
         if (splashWindow && !splashWindow.isDestroyed()) {
-            splashWindow.webContents.executeJavaScript(`window.setStage('preparing')`);
+            runSplashScript(`if (window.setStage) window.setStage('preparing');`, 'stage-preparing');
         }
 
         // Resolve MySQL port conflicts before starting
@@ -1543,6 +1727,9 @@ async function startApp() {
         await startMySQL();
 
         updateSplashStatus('Loading database...');
+
+        await waitForMySQLReady(MYSQL_PORT, 90000);
+        logger.log('MySQL connection confirmed - proceeding to backend startup');
 
         // Check if Laravel port is free
         if (await isPortOpen(laravelPort)) {
@@ -1559,9 +1746,6 @@ async function startApp() {
         await startLaravelWithRetry(laravelPort, 3);
 
         updateSplashStatus('Initializing application...');
-
-        await waitForMySQLReady(MYSQL_PORT, 45000);
-        logger.log('MySQL connection confirmed - proceeding with database setup');
         
         // --- Create database if it doesn't exist ---
         updateSplashStatus('Preparing database...');
@@ -1605,7 +1789,7 @@ async function startApp() {
             updateSplashStatus('Recovering from failed update...');
             
             if (splashWindow && !splashWindow.isDestroyed()) {
-                splashWindow.webContents.executeJavaScript(`window.updateStatus('RECOVERING FROM FAILED UPDATE')`);
+                runSplashScript(`if (window.updateStatus) window.updateStatus('RECOVERING FROM FAILED UPDATE');`, 'recovery-status');
             }
 
             // Attempt auto-recovery
@@ -1694,7 +1878,22 @@ async function startApp() {
         
         // --- Perform Auto-Migrations with Professional Error Handling ---
         updateSplashStatus('Checking database integrity...');
-        await runMigrations();
+        try {
+            await runMigrations();
+        } catch (migrationError) {
+            const message = migrationError && migrationError.message ? migrationError.message : String(migrationError);
+            const isTablespaceCorruption = /Tablespace is missing|General error:\s*1812|\.ibd file is missing/i.test(message);
+
+            if (isFreshInstall && isTablespaceCorruption) {
+                logger.warn('Detected fresh-install tablespace corruption. Auto-recovering by resetting database schema...');
+                updateSplashStatus('Recovering database...');
+                await resetDatabaseSchemaForFreshInstall();
+                updateSplashStatus('Re-applying setup...');
+                await runMigrations();
+            } else {
+                throw migrationError;
+            }
+        }
 
         updateSplashStatus('Establishing connection...');
         

@@ -217,6 +217,13 @@ Var DesktopShortcutOpt
     FileWrite $0 '{"install_type":"clean_install","version":"1.1.0"}'
     FileClose $0
     DetailPrint "✓ Installation metadata created"
+
+    ; Fresh install: ensure MySQL runtime folders start clean
+    RMDir /r "$INSTDIR\resources\mysql\data"
+    RMDir /r "$INSTDIR\resources\mysql\tmp"
+    CreateDirectory "$INSTDIR\resources\mysql\data"
+    CreateDirectory "$INSTDIR\resources\mysql\tmp"
+    DetailPrint "✓ MySQL runtime folders prepared"
   ${EndIf}
   
   ; Note: Storage permissions are handled by Windows automatically for per-machine installs
